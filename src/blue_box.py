@@ -13,7 +13,7 @@ class BlueBox:
 
     @staticmethod
     def _validate_input(maximum_value_limit: int) -> None:
-        if not (1 <= maximum_value_limit <= 12):
+        if not 1 <= maximum_value_limit <= 12:
             message = "maximum_value_limit must be between 1 and 12"
             logging.error(message)
             raise ValueError(message)
