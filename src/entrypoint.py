@@ -14,7 +14,7 @@ def main() -> None:
     for _ in range(10):
         play_round(pink_board_part)
 
-    print([str(box) for box in pink_board_part.boxes])
+    print(pink_board_part)
 
 
 def play_round(pink_board_part: PinkBoardPart) -> None:

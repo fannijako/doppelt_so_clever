@@ -46,3 +46,6 @@ class PinkBoardPart:  # pylint: disable=too-few-public-methods
             message = "Attempted to add an unrolled die to pink board part"
             logging.warning(message)
             raise ValueError(message)
+
+    def __str__(self) -> str:
+        return '\n'.join([str(box) for box in self.boxes])
