@@ -2,6 +2,7 @@ from enum import Enum
 
 
 class Action(Enum):
+    NONE = "none"
     REROLL = "reroll"
     REUSE = "reuse"
     PLUS_ONE = "plus_one"
@@ -11,3 +12,4 @@ class Action(Enum):
     BLUE_QUESTION_MARK = "blue_question_mark"
     GREY_QUESTION_MARK = "grey_question_mark"
     PINK_QUESTION_MARK = "pink_question_mark"
+    FOX = "fox"
