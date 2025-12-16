@@ -2,6 +2,7 @@ import logging
 import argparse
 
 from src.pink_board_part import PinkBoardPart
+from src.green_board_part import GreenBoardPart
 from src.die import Die, DieColor
 
 
@@ -10,18 +11,25 @@ def main() -> None:
     setup_logging(arguments)
     logging.info("args: %s", arguments)
     pink_board_part = PinkBoardPart()
+    green_board_part = GreenBoardPart()
 
     for _ in range(10):
-        play_round(pink_board_part)
+        play_round(pink_board_part, green_board_part)
 
     print(pink_board_part)
     print(f'Pink board part score: {pink_board_part.evaluate()}')
+    print(green_board_part)
+    print(f'Green board part score: {green_board_part.evaluate()}')
 
 
-def play_round(pink_board_part: PinkBoardPart) -> None:
+def play_round(pink_board_part: PinkBoardPart, green_board_part: GreenBoardPart) -> None:
     die = Die(DieColor.PINK)
     die.roll()
     pink_board_part.add_die(die)
+
+    die = Die(DieColor.GREEN)
+    die.roll()
+    green_board_part.add_die(die)
 
 
 def parse_arguments() -> argparse.Namespace:
