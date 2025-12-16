@@ -2,7 +2,7 @@ import logging
 
 from src.actions import Action
 from src.blue_box import BlueBox
-from src.die import Die, DieColor
+from src.dice import Dice, DiceColor
 
 
 class BlueBoardPart:
@@ -23,14 +23,14 @@ class BlueBoardPart:
             BlueBox(12, Action.GREEN_QUESTION_MARK),
         ]
 
-    def add_die(self, blue_die: Die, white_die: Die) -> Action:
-        self._validate_die(blue_die, white_die)
-        logging.info(f'Adding die {str(blue_die)} to blue board part with {str(white_die)}')
+    def add_dice(self, blue_dice: Dice, white_dice: Dice) -> Action:
+        self._validate_dice(blue_dice, white_dice)
+        logging.info(f'Adding dice {str(blue_dice)} to blue board part with {str(white_dice)}')
 
         for index, current_blue_box in enumerate(self.boxes):
             if current_blue_box.value_used is None:
-                current_blue_box.add_die_value(blue_die.value, white_die.value)
-                logging.info(f'Added die {str(blue_die)} to blue box {index}')
+                current_blue_box.add_dice_value(blue_dice.value, white_dice.value)
+                logging.info(f'Added dice {str(blue_dice)} to blue box {index}')
 
                 for following_box in self.boxes[index + 1:]:
                     following_box.maximum_value_limit = current_blue_box.value_used
@@ -38,17 +38,17 @@ class BlueBoardPart:
 
                 return current_blue_box.action
 
-        raise ValueError("No free blue box available to add die")
+        raise ValueError("No free blue box available to add dice")
 
     @staticmethod
-    def _validate_die(blue_die: Die, white_die: Die) -> None:
-        if blue_die.color != DieColor.BLUE or white_die.color != DieColor.WHITE:
-            message = "Attempted to add a die of a different color to blue board part"
+    def _validate_dice(blue_dice: Dice, white_dice: Dice) -> None:
+        if blue_dice.color != DiceColor.BLUE or white_dice.color != DiceColor.WHITE:
+            message = "Attempted to add a dice of a different color to blue board part"
             logging.warning(message)
             raise ValueError(message)
 
-        if blue_die.value is None or white_die.value is None:
-            message = "Attempted to add an unrolled die to blue board part"
+        if blue_dice.value is None or white_dice.value is None:
+            message = "Attempted to add an unrolled dice to blue board part"
             logging.warning(message)
             raise ValueError(message)
 
@@ -56,7 +56,7 @@ class BlueBoardPart:
         return '\n'.join([str(box) for box in self.boxes])
 
     def evaluate(self) -> int:
-        point_die_number_map = {
+        point_dice_number_map = {
             0: 0,
             1: 1,
             2: 3,
@@ -72,4 +72,4 @@ class BlueBoardPart:
             12: 78,
         }
         number_of_boxes_used = len([box for box in self.boxes if box.value_used is not None])
-        return point_die_number_map.get(number_of_boxes_used, 0)
+        return point_dice_number_map.get(number_of_boxes_used, 0)

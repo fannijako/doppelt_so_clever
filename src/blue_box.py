@@ -19,16 +19,16 @@ class BlueBox:
             raise ValueError(message)
         logging.debug("Valid input")
 
-    def add_die_value(self, blue_die_value: int, white_die_value: int) -> None:
-        new_value = blue_die_value + white_die_value
+    def add_dice_value(self, blue_dice_value: int, white_dice_value: int) -> None:
+        new_value = blue_dice_value + white_dice_value
         if new_value > self.maximum_value_limit:
-            message = "Die value is too high"
+            message = "Dice value is too high"
             logging.error(message)
             raise ValueError(message)
 
         self.value_used = new_value
         logging.info(
-            f"Die value {blue_die_value} + {white_die_value} = {self.value_used}"
+            f"Dice value {blue_dice_value} + {white_dice_value} = {self.value_used}"
             " added to blue box"
         )
 

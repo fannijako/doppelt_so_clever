@@ -16,9 +16,9 @@ def test_pink_box_valid_input():
     assert pink_box.value_used is None
 
 
-def test_pink_box_add_die_value():
+def test_pink_box_add_dice_value():
     pink_box = PinkBox(0, Action.NONE)
-    pink_box.add_die_value(1)
+    pink_box.add_dice_value(1)
     assert pink_box.value_used == 1
 
 

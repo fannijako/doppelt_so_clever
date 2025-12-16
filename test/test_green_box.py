@@ -16,9 +16,9 @@ def test_green_box_valid_input():
     assert green_box.value_used is None
 
 
-def test_green_box_add_die_value():
+def test_green_box_add_dice_value():
     green_box = GreenBox(2, Action.NONE)
-    green_box.add_die_value(1)
+    green_box.add_dice_value(1)
     assert green_box.value_used == 2
 
 

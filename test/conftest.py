@@ -1,12 +1,12 @@
 import pytest
 
-from src.die import Die, DieColor
+from src.dice import Dice, DiceColor
 
 
 @pytest.fixture
-def blue_and_white_dies():
-    blue_die = Die(DieColor.BLUE)
-    blue_die.value = 6
-    white_die = Die(DieColor.WHITE)
-    white_die.value = 6
-    return blue_die, white_die
+def blue_and_white_dices():
+    blue_dice = Dice(DiceColor.BLUE)
+    blue_dice.value = 6
+    white_dice = Dice(DiceColor.WHITE)
+    white_dice.value = 6
+    return blue_dice, white_dice

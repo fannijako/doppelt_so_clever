@@ -4,7 +4,7 @@ import argparse
 from src.pink_board_part import PinkBoardPart
 from src.green_board_part import GreenBoardPart
 from src.blue_board_part import BlueBoardPart
-from src.die import Die, DieColor
+from src.dice import Dice, DiceColor
 
 
 def main() -> None:
@@ -27,20 +27,20 @@ def main() -> None:
 
 
 def play_round(pink_board_part: PinkBoardPart, green_board_part: GreenBoardPart, blue_board_part: BlueBoardPart) -> None:
-    pink_die = Die(DieColor.PINK)
-    pink_die.roll()
-    pink_board_part.add_die(pink_die)
+    pink_dice = Dice(DiceColor.PINK)
+    pink_dice.roll()
+    pink_board_part.add_dice(pink_dice)
 
-    green_die = Die(DieColor.GREEN)
-    green_die.roll()
-    green_board_part.add_die(green_die)
+    green_dice = Dice(DiceColor.GREEN)
+    green_dice.roll()
+    green_board_part.add_dice(green_dice)
 
-    blue_die = Die(DieColor.BLUE)
-    blue_die.roll()
-    white_die = Die(DieColor.WHITE)
-    white_die.roll()
+    blue_dice = Dice(DiceColor.BLUE)
+    blue_dice.roll()
+    white_dice = Dice(DiceColor.WHITE)
+    white_dice.roll()
     try:
-        blue_board_part.add_die(blue_die, white_die)
+        blue_board_part.add_dice(blue_dice, white_dice)
     except ValueError as e:
         logging.warning(e)
 

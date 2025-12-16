@@ -2,7 +2,7 @@ import logging
 
 from src.actions import Action
 from src.green_box import GreenBox
-from src.die import Die, DieColor
+from src.dice import Dice, DiceColor
 
 
 class GreenBoardPart:
@@ -23,26 +23,26 @@ class GreenBoardPart:
             GreenBox(1, Action.YELLOW_QUESTION_MARK),
         ]
 
-    def add_die(self, die: Die) -> Action:
-        self._validate_die(die)
-        logging.info(f'Adding die {str(die)} to green board part')
+    def add_dice(self, dice: Dice) -> Action:
+        self._validate_dice(dice)
+        logging.info(f'Adding dice {str(dice)} to green board part')
         for index, green_box in enumerate(self.boxes):
             if green_box.value_used is None:
-                green_box.add_die_value(die.value)
-                logging.info(f'Added die {str(die)} to green box {index}: {green_box.value_used}')
+                green_box.add_dice_value(dice.value)
+                logging.info(f'Added dice {str(dice)} to green box {index}: {green_box.value_used}')
                 return green_box.action
 
-        raise ValueError("No free green box available to add die")
+        raise ValueError("No free green box available to add dice")
 
     @staticmethod
-    def _validate_die(die: Die) -> None:
-        if die.color not in [DieColor.GREEN, DieColor.WHITE]:
-            message = "Attempted to add a die of a different color to green board part"
+    def _validate_dice(dice: Dice) -> None:
+        if dice.color not in [DiceColor.GREEN, DiceColor.WHITE]:
+            message = "Attempted to add a dice of a different color to green board part"
             logging.warning(message)
             raise ValueError(message)
 
-        if die.value is None:
-            message = "Attempted to add an unrolled die to green board part"
+        if dice.value is None:
+            message = "Attempted to add an unrolled dice to green board part"
             logging.warning(message)
             raise ValueError(message)
 
