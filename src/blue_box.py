@@ -20,7 +20,13 @@ class BlueBox:
         logging.debug("Valid input")
 
     def add_die_value(self, blue_die_value: int, white_die_value: int) -> None:
-        self.value_used = blue_die_value + white_die_value
+        new_value = blue_die_value + white_die_value
+        if new_value > self.maximum_value_limit:
+            message = "Die value is too high"
+            logging.error(message)
+            raise ValueError(message)
+
+        self.value_used = new_value
         logging.info(
             f"Die value {blue_die_value} + {white_die_value} = {self.value_used}"
             " added to blue box"
@@ -28,5 +34,5 @@ class BlueBox:
 
     def __str__(self) -> str:
         return (
-            f"blue box: >= {self.maximum_value_limit} | {self.action.value}: {self.value_used}"
+            f"blue box: {self.maximum_value_limit} >= | {self.action.value}: {self.value_used}"
         )
