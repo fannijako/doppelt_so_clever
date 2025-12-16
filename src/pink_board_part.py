@@ -37,7 +37,7 @@ class PinkBoardPart:  # pylint: disable=too-few-public-methods
 
     @staticmethod
     def _validate_die(die: Die) -> None:
-        if die.color != DieColor.PINK:
+        if die.color not in [DieColor.PINK, DieColor.WHITE]:
             message = "Attempted to add a die of a different color to pink board part"
             logging.warning(message)
             raise ValueError(message)
