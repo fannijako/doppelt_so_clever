@@ -3,7 +3,7 @@ import random
 import logging
 
 
-class Color(Enum):
+class DieColor(Enum):
     GREEN = "green"
     BLUE = "blue"
     WHITE = "white"
@@ -13,7 +13,7 @@ class Color(Enum):
 
 
 class Die:
-    def __init__(self, color: Color) -> None:
+    def __init__(self, color: DieColor) -> None:
         logging.debug(f"Initializing a die with {color}")
         self.color = color
         self.value = None

@@ -24,4 +24,4 @@ class PinkBox:
         logging.info(f"Die value {die_value} added to pink box")
 
     def __str__(self) -> str:
-        return f"Pink box: >= {self.action_filter_limit} | {self.action}: {self.value_used}"
+        return f"Pink box: >= {self.action_filter_limit} | {self.action.value}: {self.value_used}"
