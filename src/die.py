@@ -1,5 +1,6 @@
 from enum import Enum
 import random
+import logging
 
 
 class Color(Enum):
@@ -13,11 +14,13 @@ class Color(Enum):
 
 class Die:
     def __init__(self, color: Color) -> None:
+        logging.debug(f"Initializing a die with {color}")
         self.color = color
         self.value = None
 
     def roll(self) -> None:
         self.value = random.randint(1, 6)
+        logging.info(f"{self.color} die rolled: {self.value}")
 
     def __str__(self) -> str:
         if self.value is None:
