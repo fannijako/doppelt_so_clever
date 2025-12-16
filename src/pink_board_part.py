@@ -49,3 +49,6 @@ class PinkBoardPart:  # pylint: disable=too-few-public-methods
 
     def __str__(self) -> str:
         return '\n'.join([str(box) for box in self.boxes])
+
+    def evaluate(self) -> int:
+        return sum(box.value_used for box in self.boxes if box.value_used is not None)

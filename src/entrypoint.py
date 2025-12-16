@@ -15,6 +15,7 @@ def main() -> None:
         play_round(pink_board_part)
 
     print(pink_board_part)
+    print(f'Pink board part score: {pink_board_part.evaluate()}')
 
 
 def play_round(pink_board_part: PinkBoardPart) -> None:

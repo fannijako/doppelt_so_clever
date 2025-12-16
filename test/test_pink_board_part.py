@@ -87,3 +87,16 @@ def test_fail_on_add_die_with_full_board():
 
     with pytest.raises(ValueError):
         pink_board_part.add_die(die)
+
+
+def test_evaluate():
+    pink_board_part = PinkBoardPart()
+    die = Die(DieColor.WHITE)
+    die.value = 2
+    pink_board_part.add_die(die)
+    assert pink_board_part.evaluate() == 2
+
+    die2 = Die(DieColor.PINK)
+    die2.value = 3
+    pink_board_part.add_die(die2)
+    assert pink_board_part.evaluate() == 5
