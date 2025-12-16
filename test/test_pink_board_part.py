@@ -64,6 +64,13 @@ def test_fail_on_add_die_with_different_color():
         pink_board_part.add_die(die)
 
 
+def test_not_fail_on_add_die_with_white():
+    pink_board_part = PinkBoardPart()
+    die = Die(DieColor.WHITE)
+    die.roll()
+    pink_board_part.add_die(die)
+
+
 def test_fail_on_add_die_with_unrolled_die():
     with pytest.raises(ValueError):
         pink_board_part = PinkBoardPart()
