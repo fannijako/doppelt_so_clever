@@ -1,10 +1,15 @@
 import logging
 
 from src.dice import Dice, DiceColor
+from src.board import Board
 
 
-class ActiveRound:  # pylint: disable=too-few-public-methods
-    def __init__(self):
+class ActiveRound:  # pylint: disable=too-few-public-methods,too-many-instance-attributes
+    def __init__(
+        self,
+        board: Board
+    ):
+        self.board = board
         self.blue_dice = Dice(DiceColor.BLUE)
         self.white_dice = Dice(DiceColor.WHITE)
         self.pink_dice = Dice(DiceColor.PINK)
@@ -28,3 +33,15 @@ class ActiveRound:  # pylint: disable=too-few-public-methods
 
     def __str__(self):
         return "\n".join([str(dice) for dice in self.die])
+
+    def execute(self) -> Board:
+
+        self.roll_die()
+        try:
+            self.board.blue_board_part.add_dice(self.blue_dice, self.white_dice)
+        except ValueError as e:
+            logging.error(e)
+        self.board.green_board_part.add_dice(self.green_dice)
+        self.board.pink_board_part.add_dice(self.pink_dice)
+
+        return self.board
