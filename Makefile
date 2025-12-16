@@ -13,7 +13,7 @@ build-test: build
 	pip install -e .[test]
 
 lint:
-	pylint $(PYFILES)
+	pylint $(PYFILES) --disable=R0801
 	flake8 $(PYFILES) --count --exit-zero --select=E9,F63,F7,F82 --show-source --statistics --exclude=.venv
 	flake8 $(PYFILES) --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --exclude=.venv
 
