@@ -1,4 +1,4 @@
-.PHONY = venv build build-test test clean run lint
+.PHONY: venv build build-test test clean run lint
 PYFILES = $(shell git ls-files '*.py')
 
 venv:
@@ -6,6 +6,7 @@ venv:
 
 build:
 	pip install --upgrade pip
+	pip install setuptools
 	pip install -e .[build]
 
 build-test: build

@@ -1,5 +1,8 @@
 [MESSAGES CONTROL]
-disable=missing-module-docstring,missing-function-docstring,missing-class-docstring
+disable=missing-module-docstring,missing-function-docstring,missing-class-docstring,logging-fstring-interpolation
 
 [FORMAT]
 max-line-length=127
+
+[MASTER]
+ignored-modules=setuptools

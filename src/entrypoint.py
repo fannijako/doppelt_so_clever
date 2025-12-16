@@ -1,11 +1,26 @@
 import logging
 import argparse
 
+from src.pink_board_part import PinkBoardPart
+from src.die import Die, DieColor
+
 
 def main() -> None:
     arguments = parse_arguments()
     setup_logging(arguments)
     logging.info("args: %s", arguments)
+    pink_board_part = PinkBoardPart()
+
+    for _ in range(10):
+        play_round(pink_board_part)
+
+    print(pink_board_part)
+
+
+def play_round(pink_board_part: PinkBoardPart) -> None:
+    die = Die(DieColor.PINK)
+    die.roll()
+    pink_board_part.add_die(die)
 
 
 def parse_arguments() -> argparse.Namespace:
