@@ -1,3 +1,5 @@
+import logging
+
 from src.dice import Dice, DiceColor
 
 
@@ -22,3 +24,7 @@ class ActiveRound:  # pylint: disable=too-few-public-methods
     def roll_die(self):
         for dice in self.die:
             dice.roll()
+        logging.info(f"ActiveRound: {str(self)}")
+
+    def __str__(self):
+        return "\n".join([str(dice) for dice in self.die])
