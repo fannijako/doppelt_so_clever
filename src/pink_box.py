@@ -19,9 +19,9 @@ class PinkBox:
             raise ValueError(message)
         logging.debug("Valid input")
 
-    def add_die_value(self, die_value: int) -> None:
-        self.value_used = die_value
-        logging.info(f"Die value {die_value} added to pink box")
+    def add_dice_value(self, dice_value: int) -> None:
+        self.value_used = dice_value
+        logging.info(f"Dice value {dice_value} added to pink box")
 
     def __str__(self) -> str:
         return f"Pink box: >= {self.action_filter_limit} | {self.action.value}: {self.value_used}"

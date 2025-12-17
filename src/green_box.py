@@ -11,9 +11,9 @@ class GreenBox:
         self.action = action
         self.value_used = None
 
-    def add_die_value(self, die_value: int) -> None:
-        self.value_used = die_value * self.value_multiplier
-        logging.info(f"Die value {die_value} added to green box")
+    def add_dice_value(self, dice_value: int) -> None:
+        self.value_used = dice_value * self.value_multiplier
+        logging.info(f"Dice value {dice_value} added to green box")
 
     def __str__(self) -> str:
         return f"Green box: {self.value_multiplier}x | {self.action.value}: {self.value_used}"

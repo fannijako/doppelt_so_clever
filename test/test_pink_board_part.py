@@ -1,102 +1,102 @@
 import pytest
 
 from src.pink_board_part import PinkBoardPart
-from src.die import Die, DieColor
+from src.dice import Dice, DiceColor
 from src.actions import Action
 
 
-def test_add_die_return_action_on_first_box():
+def test_add_dice_return_action_on_first_box():
     pink_board_part = PinkBoardPart()
-    die = Die(DieColor.PINK)
-    die.roll()
-    assert pink_board_part.add_die(die) == Action.NONE
+    dice = Dice(DiceColor.PINK)
+    dice.roll()
+    assert pink_board_part.add_dice(dice) == Action.NONE
 
 
-def test_add_die_return_action_on_second_box():
-    pink_board_part = PinkBoardPart()
-
-    die = Die(DieColor.PINK)
-    die.roll()
-    pink_board_part.add_die(die)
-
-    die2 = Die(DieColor.PINK)
-    die2.roll()
-    assert pink_board_part.add_die(die2) == Action.NONE
-
-
-def test_add_die_return_action_on_third_box():
+def test_add_dice_return_action_on_second_box():
     pink_board_part = PinkBoardPart()
 
-    die = Die(DieColor.PINK)
-    die.roll()
-    pink_board_part.add_die(die)
+    dice = Dice(DiceColor.PINK)
+    dice.roll()
+    pink_board_part.add_dice(dice)
 
-    die2 = Die(DieColor.PINK)
-    die2.roll()
-    pink_board_part.add_die(die2)
-
-    die3 = Die(DieColor.PINK)
-    die3.value = 2
-    assert pink_board_part.add_die(die3) == Action.REROLL
+    dice2 = Dice(DiceColor.PINK)
+    dice2.roll()
+    assert pink_board_part.add_dice(dice2) == Action.NONE
 
 
-def test_add_die_return_none_action_on_third_box():
+def test_add_dice_return_action_on_third_box():
     pink_board_part = PinkBoardPart()
 
-    die = Die(DieColor.PINK)
-    die.roll()
-    pink_board_part.add_die(die)
+    dice = Dice(DiceColor.PINK)
+    dice.roll()
+    pink_board_part.add_dice(dice)
 
-    die2 = Die(DieColor.PINK)
-    die2.roll()
-    pink_board_part.add_die(die2)
+    dice2 = Dice(DiceColor.PINK)
+    dice2.roll()
+    pink_board_part.add_dice(dice2)
 
-    die3 = Die(DieColor.PINK)
-    die3.value = 1
-    assert pink_board_part.add_die(die3) == Action.NONE
+    dice3 = Dice(DiceColor.PINK)
+    dice3.value = 2
+    assert pink_board_part.add_dice(dice3) == Action.REROLL
 
 
-def test_fail_on_add_die_with_different_color():
+def test_add_dice_return_none_action_on_third_box():
+    pink_board_part = PinkBoardPart()
+
+    dice = Dice(DiceColor.PINK)
+    dice.roll()
+    pink_board_part.add_dice(dice)
+
+    dice2 = Dice(DiceColor.PINK)
+    dice2.roll()
+    pink_board_part.add_dice(dice2)
+
+    dice3 = Dice(DiceColor.PINK)
+    dice3.value = 1
+    assert pink_board_part.add_dice(dice3) == Action.NONE
+
+
+def test_fail_on_add_dice_with_different_color():
     with pytest.raises(ValueError):
         pink_board_part = PinkBoardPart()
-        die = Die(DieColor.GREEN)
-        die.roll()
-        pink_board_part.add_die(die)
+        dice = Dice(DiceColor.GREEN)
+        dice.roll()
+        pink_board_part.add_dice(dice)
 
 
-def test_not_fail_on_add_die_with_white():
+def test_not_fail_on_add_dice_with_white():
     pink_board_part = PinkBoardPart()
-    die = Die(DieColor.WHITE)
-    die.roll()
-    pink_board_part.add_die(die)
+    dice = Dice(DiceColor.WHITE)
+    dice.roll()
+    pink_board_part.add_dice(dice)
 
 
-def test_fail_on_add_die_with_unrolled_die():
+def test_fail_on_add_dice_with_unrolled_dice():
     with pytest.raises(ValueError):
         pink_board_part = PinkBoardPart()
-        die = Die(DieColor.PINK)
-        pink_board_part.add_die(die)
+        dice = Dice(DiceColor.PINK)
+        pink_board_part.add_dice(dice)
 
 
-def test_fail_on_add_die_with_full_board():
+def test_fail_on_add_dice_with_full_board():
     pink_board_part = PinkBoardPart()
-    die = Die(DieColor.PINK)
-    die.roll()
+    dice = Dice(DiceColor.PINK)
+    dice.roll()
     for _ in range(12):
-        pink_board_part.add_die(die)
+        pink_board_part.add_dice(dice)
 
     with pytest.raises(ValueError):
-        pink_board_part.add_die(die)
+        pink_board_part.add_dice(dice)
 
 
 def test_evaluate():
     pink_board_part = PinkBoardPart()
-    die = Die(DieColor.WHITE)
-    die.value = 2
-    pink_board_part.add_die(die)
+    dice = Dice(DiceColor.WHITE)
+    dice.value = 2
+    pink_board_part.add_dice(dice)
     assert pink_board_part.evaluate() == 2
 
-    die2 = Die(DieColor.PINK)
-    die2.value = 3
-    pink_board_part.add_die(die2)
+    dice2 = Dice(DiceColor.PINK)
+    dice2.value = 3
+    pink_board_part.add_dice(dice2)
     assert pink_board_part.evaluate() == 5

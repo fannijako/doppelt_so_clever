@@ -2,7 +2,7 @@ import logging
 
 from src.actions import Action
 from src.pink_box import PinkBox
-from src.die import Die, DieColor
+from src.dice import Dice, DiceColor
 
 
 class PinkBoardPart:  # pylint: disable=too-few-public-methods
@@ -23,27 +23,27 @@ class PinkBoardPart:  # pylint: disable=too-few-public-methods
             PinkBox(6, Action.YELLOW_QUESTION_MARK),
         ]
 
-    def add_die(self, die: Die) -> Action:
-        self._validate_die(die)
-        logging.info(f'Adding die {str(die)} to pink board part')
+    def add_dice(self, dice: Dice) -> Action:
+        self._validate_dice(dice)
+        logging.info(f'Adding dice {str(dice)} to pink board part')
 
         for index, pink_box in enumerate(self.boxes):
             if pink_box.value_used is None:
-                pink_box.add_die_value(die.value)
-                logging.info(f'Added die {str(die)} to pink box {index}')
-                return pink_box.action if die.value >= pink_box.action_filter_limit else Action.NONE
+                pink_box.add_dice_value(dice.value)
+                logging.info(f'Added dice {str(dice)} to pink box {index}')
+                return pink_box.action if dice.value >= pink_box.action_filter_limit else Action.NONE
 
-        raise ValueError("No free pink box available to add die")
+        raise ValueError("No free pink box available to add dice")
 
     @staticmethod
-    def _validate_die(die: Die) -> None:
-        if die.color not in [DieColor.PINK, DieColor.WHITE]:
-            message = "Attempted to add a die of a different color to pink board part"
+    def _validate_dice(dice: Dice) -> None:
+        if dice.color not in [DiceColor.PINK, DiceColor.WHITE]:
+            message = "Attempted to add a dice of a different color to pink board part"
             logging.warning(message)
             raise ValueError(message)
 
-        if die.value is None:
-            message = "Attempted to add an unrolled die to pink board part"
+        if dice.value is None:
+            message = "Attempted to add an unrolled dice to pink board part"
             logging.warning(message)
             raise ValueError(message)
 

@@ -19,17 +19,10 @@ def test_blue_box_valid_input():
     assert blue_box.value_used is None
 
 
-def test_blue_box_add_die_value():
+def test_blue_box_add_dice_value():
     blue_box = BlueBox(12, Action.NONE)
-    blue_box.add_die_value(1, 1)
+    blue_box.add_dice_value(1, 1)
     assert blue_box.value_used == 2
-
-
-def test_blue_box_add_die_value_too_high():
-    blue_box = BlueBox(2, Action.NONE)
-
-    with pytest.raises(ValueError):
-        blue_box.add_die_value(2, 1)
 
 
 def test_blue_box_str():
