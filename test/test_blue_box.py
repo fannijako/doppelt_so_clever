@@ -25,13 +25,6 @@ def test_blue_box_add_dice_value():
     assert blue_box.value_used == 2
 
 
-def test_blue_box_add_dice_value_too_high():
-    blue_box = BlueBox(2, Action.NONE)
-
-    with pytest.raises(ValueError):
-        blue_box.add_dice_value(2, 1)
-
-
 def test_blue_box_str():
     blue_box = BlueBox(1, Action.REROLL)
     assert str(blue_box) == "blue box: 1 >= | reroll: None"

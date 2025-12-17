@@ -22,9 +22,8 @@ class BlueBox:
     def add_dice_value(self, blue_dice_value: int, white_dice_value: int) -> None:
         new_value = blue_dice_value + white_dice_value
         if new_value > self.maximum_value_limit:
-            message = "Dice value is too high"
-            logging.error(message)
-            raise ValueError(message)
+            logging.error("Dice value is too high")
+            return
 
         self.value_used = new_value
         logging.info(

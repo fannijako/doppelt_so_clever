@@ -20,9 +20,9 @@ class Dice:
 
     def roll(self) -> None:
         self.value = random.randint(1, 6)
-        logging.info(f"{self.color} dice rolled: {self.value}")
+        logging.info(f"{self.color.value} dice rolled: {self.value}")
 
     def __str__(self) -> str:
         if self.value is None:
-            return f"{self.color}: Unrolled"
-        return f"{self.color}: {self.value}"
+            return f"{self.color.value}: Unrolled"
+        return f"{self.color.value}: {self.value}"
