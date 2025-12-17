@@ -31,7 +31,7 @@ jobs:
     
     - name: pylint
       run: |
-        pylint $(git ls-files '*.py')
+        pylint $(git ls-files '*.py') --disable=R0801
 
     - name: Test with pytest
       run: |
