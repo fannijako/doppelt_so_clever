@@ -15,6 +15,14 @@ class GreyBoardPart:
             for color in colors
             for number in range(1, 7)
         ]
+        self._available_columns_for_action = {
+            1: Action.PLUS_ONE,
+            2: Action.YELLOW_QUESTION_MARK,
+            3: Action.FOX,
+            4: Action.BLUE_QUESTION_MARK,
+            5: Action.GREEN_QUESTION_MARK,
+            6: Action.PINK_QUESTION_MARK,
+        }
 
     def add_dice(
         self,
@@ -38,15 +46,23 @@ class GreyBoardPart:
             value = die.value
             color = self._get_color_to_use_as(die, color_to_use_white_as, color_to_use_grey_as)
             box_to_cross = [box for box in self.boxes if box.color == color and box.number == value and not box.is_crossed]
-            if box_to_cross:
-                box_to_cross[0].cross_box(die.color, die.value)
-            else:
-                message = f"No box to cross for die {die.color} | {die.value}"
-                logging.warning(message)
-                raise ValueError(message)
+            if not box_to_cross:
+                logging.info(f"No box to cross for die {die.color} | {die.value}")
+                continue
+            box_to_cross[0].cross_box(die.color, die.value)
 
-        # TODO: actions received
-        return []
+        return self._calculate_actions_received_in_round()
+
+    def _calculate_actions_received_in_round(self) -> list[Action]:
+        actions_received = []
+
+        for value in range(1, 7):
+            boxes_with_value = [box for box in self.boxes if box.number == value and box.is_crossed]
+            if len(boxes_with_value) == 4 and value in self._available_columns_for_action:
+                actions_received.append(self._available_columns_for_action[value])
+                self._available_columns_for_action.pop(value)
+
+        return actions_received
 
     def _get_color_to_use_as(
         self,
@@ -118,7 +134,7 @@ class GreyBoardPart:
                     box for box in row if box.is_crossed
                 ])
             )
-            for row in self.boxes[::6]
+            for row in [self.boxes[i:i+6] for i in range(0, len(self.boxes), 6)]
         )
 
     def _crossed_box_to_points(self, number_of_crossed_boxes: int) -> int:
