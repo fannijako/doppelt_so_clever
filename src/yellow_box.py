@@ -1,7 +1,5 @@
 import logging
 
-from src.actions import Action
-
 
 class YellowBox:
     def __init__(  # pylint: disable=too-many-arguments
@@ -9,16 +7,12 @@ class YellowBox:
         value: int,
         row_position: int,
         column_position: int,
-        row_action: Action,
-        column_action: Action
     ) -> None:
         logging.debug("Initializing a yellow box")
         self._validate_input(value, row_position, column_position)
         self.value = value
         self.row_position = row_position
         self.column_position = column_position
-        self.row_action = row_action
-        self.column_action = column_action
         self.is_circled = False
         self.is_crossed = False
 
