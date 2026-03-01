@@ -2,14 +2,14 @@ import pytest
 
 from src.pink_board_part import PinkBoardPart
 from src.dice import Dice, DiceColor
-from src.actions import Action
+from src.actions import ActionType
 
 
 def test_add_dice_return_action_on_first_box():
     pink_board_part = PinkBoardPart()
     dice = Dice(DiceColor.PINK)
     dice.roll()
-    assert pink_board_part.add_dice(dice) == Action.NONE
+    assert pink_board_part.add_dice(dice) == ActionType.NONE
 
 
 def test_add_dice_return_action_on_second_box():
@@ -21,7 +21,7 @@ def test_add_dice_return_action_on_second_box():
 
     dice2 = Dice(DiceColor.PINK)
     dice2.roll()
-    assert pink_board_part.add_dice(dice2) == Action.NONE
+    assert pink_board_part.add_dice(dice2) == ActionType.NONE
 
 
 def test_add_dice_return_action_on_third_box():
@@ -37,7 +37,7 @@ def test_add_dice_return_action_on_third_box():
 
     dice3 = Dice(DiceColor.PINK)
     dice3.value = 2
-    assert pink_board_part.add_dice(dice3) == Action.REROLL
+    assert pink_board_part.add_dice(dice3) == ActionType.REROLL
 
 
 def test_add_dice_return_none_action_on_third_box():
@@ -53,7 +53,7 @@ def test_add_dice_return_none_action_on_third_box():
 
     dice3 = Dice(DiceColor.PINK)
     dice3.value = 1
-    assert pink_board_part.add_dice(dice3) == Action.NONE
+    assert pink_board_part.add_dice(dice3) == ActionType.NONE
 
 
 def test_fail_on_add_dice_with_different_color():

@@ -4,10 +4,10 @@ from typing import Optional
 
 from src.dice import Dice, DiceColor
 from src.board import Board
-from src.actions import Action
+from src.actions import ActionType
 
 
-class ActiveRound:  # pylint: disable=too-few-public-methods,too-many-instance-attributes
+class ActiveRound:  # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         board: Board,
@@ -90,8 +90,8 @@ class ActiveRound:  # pylint: disable=too-few-public-methods,too-many-instance-a
 
             logging.info(f"Actions received in round {game_round}: {actions}")
 
-    def place_a_grey_dice(self, dice: Dice, smaller_die: list[Dice]) -> list[Action]:
-        if DiceColor.WHITE in [dice.color for dice in smaller_die]:
+    def place_a_grey_dice(self, dice: Dice, smaller_die: list[Dice]) -> list[ActionType]:
+        if DiceColor.WHITE in [dice.color for dice in smaller_die] or dice.color == DiceColor.WHITE:
             use_white_as = random.choice(
                 [DiceColor.BLUE, DiceColor.GREEN, DiceColor.PINK, DiceColor.YELLOW]
             ) if self.automatic else input('Pick an available color to substitute white as: ')
@@ -109,7 +109,7 @@ class ActiveRound:  # pylint: disable=too-few-public-methods,too-many-instance-a
             color_to_use_grey_as=use_grey_as
         )
 
-    def place_a_yellow_dice(self, dice: Dice) -> list[Action]:
+    def place_a_yellow_dice(self, dice: Dice) -> list[ActionType]:
         possible_dice_placements = self.board.yellow_board_part.possible_dice_placements(dice)
         logging.info(f'Possible dice placements: {possible_dice_placements}')
 
@@ -141,7 +141,7 @@ class ActiveRound:  # pylint: disable=too-few-public-methods,too-many-instance-a
             action=action
         )
 
-    def place_a_white_dice(self, dice: Dice, blue_dice: Dice) -> list[Action]:
+    def place_a_white_dice(self, dice: Dice, blue_dice: Dice) -> list[ActionType]:
         if self.automatic:
             play_white_as = random.choice(
                 [

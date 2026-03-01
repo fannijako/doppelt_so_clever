@@ -2,7 +2,7 @@ import logging
 
 from enum import Enum
 
-from src.actions import Action
+from src.actions import ActionType
 from src.yellow_box import YellowBox
 from src.dice import Dice, DiceColor
 
@@ -69,18 +69,18 @@ class YellowBoardPart:
         ]
 
         self._available_columns_for_action = {
-            0: Action.REROLL,
-            1: Action.PLUS_ONE,
-            2: Action.GREY_QUESTION_MARK,
-            3: Action.FOX,
+            0: ActionType.REROLL,
+            1: ActionType.PLUS_ONE,
+            2: ActionType.GREY_QUESTION_MARK,
+            3: ActionType.FOX,
         }
 
         self._available_rows_for_action = {
-            0: Action.BLUE_QUESTION_MARK,
-            1: Action.REUSE,
-            2: Action.YELLOW_QUESTION_MARK,
-            3: Action.GREEN_QUESTION_MARK,
-            4: Action.PINK_QUESTION_MARK,
+            0: ActionType.BLUE_QUESTION_MARK,
+            1: ActionType.REUSE,
+            2: ActionType.YELLOW_QUESTION_MARK,
+            3: ActionType.GREEN_QUESTION_MARK,
+            4: ActionType.PINK_QUESTION_MARK,
         }
 
     def circle_box(self, value: int, row_position: int, column_position: int) -> None:
@@ -97,7 +97,7 @@ class YellowBoardPart:
                 return
         raise ValueError("Box not found")
 
-    def add_dice(self, dice: Dice, row_position: int, column_position: int, action: YellowBoardAction) -> Action:
+    def add_dice(self, dice: Dice, row_position: int, column_position: int, action: YellowBoardAction) -> ActionType:
         if (row_position, column_position, action) not in self.possible_dice_placements(dice):
             raise ValueError("Invalid dice placement")
 
@@ -139,10 +139,10 @@ class YellowBoardPart:
             logging.warning(message)
             raise ValueError(message)
 
-    def _calculate_actions_received_in_round(self) -> list[Action]:
+    def _calculate_actions_received_in_round(self) -> list[ActionType]:
         return self._calculate_row_actions_received_in_round() + self._calculate_column_actions_received_in_round()
 
-    def _calculate_row_actions_received_in_round(self) -> list[Action]:
+    def _calculate_row_actions_received_in_round(self) -> list[ActionType]:
         actions = []
         for row_position in range(5):
             circled_boxes_in_row = [
@@ -157,7 +157,7 @@ class YellowBoardPart:
 
         return actions
 
-    def _calculate_column_actions_received_in_round(self) -> list[Action]:
+    def _calculate_column_actions_received_in_round(self) -> list[ActionType]:
         actions = []
         for column_position in range(4):
             circled_boxes_in_column = [

@@ -1,10 +1,10 @@
 import logging
 
-from src.actions import Action
+from src.actions import ActionType
 
 
 class BlueBox:
-    def __init__(self, maximum_value_limit: int, action: Action) -> None:
+    def __init__(self, maximum_value_limit: int, action: ActionType) -> None:
         logging.debug("Initializing a blue box")
         self._validate_input(maximum_value_limit)
         self.maximum_value_limit = maximum_value_limit

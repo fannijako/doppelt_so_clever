@@ -3,7 +3,7 @@ import pytest
 
 from src.grey_board_part import GreyBoardPart
 from src.dice import DiceColor, Dice
-from src.actions import Action
+from src.actions import ActionType
 
 
 def test_board_init_available_actions():
@@ -110,7 +110,7 @@ def test_plus_one_action_returned_when_all_ones_are_crossed():
             box.is_crossed = True
 
     actions = grey_board_part._calculate_actions_received_in_round()
-    assert Action.PLUS_ONE in actions
+    assert ActionType.PLUS_ONE in actions
 
 
 def test_plus_one_action_returned_only_once():
@@ -122,7 +122,7 @@ def test_plus_one_action_returned_only_once():
     grey_board_part._calculate_actions_received_in_round()
     second_actions = grey_board_part._calculate_actions_received_in_round()
 
-    assert Action.PLUS_ONE not in second_actions
+    assert ActionType.PLUS_ONE not in second_actions
 
 
 def test_get_color_to_use_as_returns_original_color_for_non_special_die():

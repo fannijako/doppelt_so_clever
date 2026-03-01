@@ -1,10 +1,10 @@
 import logging
 
-from src.actions import Action
+from src.actions import ActionType
 
 
 class GreenBox:
-    def __init__(self, value_multiplier: int, action: Action) -> None:
+    def __init__(self, value_multiplier: int, action: ActionType) -> None:
         logging.debug("Initializing a green box")
         self._validate_input(value_multiplier)
         self.value_multiplier = value_multiplier

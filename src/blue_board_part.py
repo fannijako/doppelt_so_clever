@@ -1,6 +1,6 @@
 import logging
 
-from src.actions import Action
+from src.actions import ActionType
 from src.blue_box import BlueBox
 from src.dice import Dice, DiceColor
 
@@ -9,21 +9,21 @@ class BlueBoardPart:
     def __init__(self) -> None:
         logging.debug("Initializing a blue board part")
         self.boxes: list[BlueBox] = [
-            BlueBox(12, Action.NONE),
-            BlueBox(12, Action.REUSE),
-            BlueBox(12, Action.YELLOW_QUESTION_MARK),
-            BlueBox(12, Action.NONE),
-            BlueBox(12, Action.PLUS_ONE),
-            BlueBox(12, Action.REROLL),
-            BlueBox(12, Action.PINK_QUESTION_MARK),
-            BlueBox(12, Action.NONE),
-            BlueBox(12, Action.FOX),
-            BlueBox(12, Action.REUSE),
-            BlueBox(12, Action.NONE),
-            BlueBox(12, Action.GREEN_QUESTION_MARK),
+            BlueBox(12, ActionType.NONE),
+            BlueBox(12, ActionType.REUSE),
+            BlueBox(12, ActionType.YELLOW_QUESTION_MARK),
+            BlueBox(12, ActionType.NONE),
+            BlueBox(12, ActionType.PLUS_ONE),
+            BlueBox(12, ActionType.REROLL),
+            BlueBox(12, ActionType.PINK_QUESTION_MARK),
+            BlueBox(12, ActionType.NONE),
+            BlueBox(12, ActionType.FOX),
+            BlueBox(12, ActionType.REUSE),
+            BlueBox(12, ActionType.NONE),
+            BlueBox(12, ActionType.GREEN_QUESTION_MARK),
         ]
 
-    def add_dice(self, blue_dice: Dice, white_dice: Dice) -> Action:
+    def add_dice(self, blue_dice: Dice, white_dice: Dice) -> ActionType:
         self._validate_dice(blue_dice, white_dice)
         logging.info(f'Adding dice {str(blue_dice)} to blue board part with {str(white_dice)}')
 

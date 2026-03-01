@@ -1,6 +1,6 @@
 import logging
 
-from src.actions import Action
+from src.actions import ActionType
 from src.pink_box import PinkBox
 from src.dice import Dice, DiceColor
 
@@ -9,21 +9,21 @@ class PinkBoardPart:  # pylint: disable=too-few-public-methods
     def __init__(self) -> None:
         logging.debug("Initializing a pink board part")
         self.boxes: list[PinkBox] = [
-            PinkBox(0, Action.NONE),
-            PinkBox(0, Action.NONE),
-            PinkBox(2, Action.REROLL),
-            PinkBox(3, Action.REUSE),
-            PinkBox(4, Action.PLUS_ONE),
-            PinkBox(5, Action.GREEN_QUESTION_MARK),
-            PinkBox(6, Action.YELLOW_QUESTION_MARK),
-            PinkBox(2, Action.FOX),
-            PinkBox(3, Action.GREY_QUESTION_MARK),
-            PinkBox(4, Action.REROLL),
-            PinkBox(5, Action.BLUE_QUESTION_MARK),
-            PinkBox(6, Action.YELLOW_QUESTION_MARK),
+            PinkBox(0, ActionType.NONE),
+            PinkBox(0, ActionType.NONE),
+            PinkBox(2, ActionType.REROLL),
+            PinkBox(3, ActionType.REUSE),
+            PinkBox(4, ActionType.PLUS_ONE),
+            PinkBox(5, ActionType.GREEN_QUESTION_MARK),
+            PinkBox(6, ActionType.YELLOW_QUESTION_MARK),
+            PinkBox(2, ActionType.FOX),
+            PinkBox(3, ActionType.GREY_QUESTION_MARK),
+            PinkBox(4, ActionType.REROLL),
+            PinkBox(5, ActionType.BLUE_QUESTION_MARK),
+            PinkBox(6, ActionType.YELLOW_QUESTION_MARK),
         ]
 
-    def add_dice(self, dice: Dice) -> Action:
+    def add_dice(self, dice: Dice) -> ActionType:
         self._validate_dice(dice)
         logging.info(f'Adding dice {str(dice)} to pink board part')
 
@@ -31,7 +31,7 @@ class PinkBoardPart:  # pylint: disable=too-few-public-methods
             if pink_box.value_used is None:
                 pink_box.add_dice_value(dice.value)
                 logging.info(f'Added dice {str(dice)} to pink box {index}')
-                return pink_box.action if dice.value >= pink_box.action_filter_limit else Action.NONE
+                return pink_box.action if dice.value >= pink_box.action_filter_limit else ActionType.NONE
 
         raise ValueError("No free pink box available to add dice")
 

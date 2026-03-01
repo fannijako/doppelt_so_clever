@@ -1,10 +1,10 @@
 import logging
 
-from src.actions import Action
+from src.actions import ActionType
 
 
 class PinkBox:
-    def __init__(self, action_filter_limit: int, action: Action) -> None:
+    def __init__(self, action_filter_limit: int, action: ActionType) -> None:
         logging.debug("Initializing a pink box")
         self._validate_input(action_filter_limit, action)
         self.action_filter_limit = action_filter_limit
@@ -12,8 +12,8 @@ class PinkBox:
         self.value_used = None
 
     @staticmethod
-    def _validate_input(action_filter_limit: int, action: Action) -> None:
-        if action == Action.NONE and action_filter_limit != 0:
+    def _validate_input(action_filter_limit: int, action: ActionType) -> None:
+        if action == ActionType.NONE and action_filter_limit != 0:
             message = "action_filter_limit must be 0 if action is NONE"
             logging.error(message)
             raise ValueError(message)

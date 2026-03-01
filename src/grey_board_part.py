@@ -3,7 +3,7 @@ from typing import Optional
 
 from src.grey_box import GreyBox
 from src.dice import DiceColor, Dice
-from src.actions import Action
+from src.actions import ActionType
 
 
 class GreyBoardPart:
@@ -16,12 +16,12 @@ class GreyBoardPart:
             for number in range(1, 7)
         ]
         self._available_columns_for_action = {
-            1: Action.PLUS_ONE,
-            2: Action.YELLOW_QUESTION_MARK,
-            3: Action.FOX,
-            4: Action.BLUE_QUESTION_MARK,
-            5: Action.GREEN_QUESTION_MARK,
-            6: Action.PINK_QUESTION_MARK,
+            1: ActionType.PLUS_ONE,
+            2: ActionType.YELLOW_QUESTION_MARK,
+            3: ActionType.FOX,
+            4: ActionType.BLUE_QUESTION_MARK,
+            5: ActionType.GREEN_QUESTION_MARK,
+            6: ActionType.PINK_QUESTION_MARK,
         }
 
     def add_dice(
@@ -30,7 +30,7 @@ class GreyBoardPart:
         smaller_die: list[Dice],
         color_to_use_white_as: Optional[DiceColor] = None,
         color_to_use_grey_as: Optional[DiceColor] = None,
-    ) -> list[Action]:
+    ) -> list[ActionType]:
 
         self._validate_dice(dice)
         self._validate_smaller_die(dice, smaller_die)
@@ -53,7 +53,7 @@ class GreyBoardPart:
 
         return self._calculate_actions_received_in_round()
 
-    def _calculate_actions_received_in_round(self) -> list[Action]:
+    def _calculate_actions_received_in_round(self) -> list[ActionType]:
         actions_received = []
 
         for value in range(1, 7):

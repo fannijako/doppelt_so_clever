@@ -1,6 +1,6 @@
 import logging
 
-from src.actions import Action
+from src.actions import ActionType
 from src.green_box import GreenBox
 from src.dice import Dice, DiceColor
 
@@ -9,21 +9,21 @@ class GreenBoardPart:
     def __init__(self) -> None:
         logging.debug("Initializing a green board part")
         self.boxes: list[GreenBox] = [
-            GreenBox(2, Action.NONE),
-            GreenBox(2, Action.REROLL),
-            GreenBox(2, Action.NONE),
-            GreenBox(1, Action.BLUE_QUESTION_MARK),
-            GreenBox(3, Action.REUSE),
-            GreenBox(3, Action.NONE),
-            GreenBox(3, Action.FOX),
-            GreenBox(2, Action.GREY_QUESTION_MARK),
-            GreenBox(3, Action.PLUS_ONE),
-            GreenBox(1, Action.NONE),
-            GreenBox(4, Action.PINK_QUESTION_MARK),
-            GreenBox(1, Action.YELLOW_QUESTION_MARK),
+            GreenBox(2, ActionType.NONE),
+            GreenBox(2, ActionType.REROLL),
+            GreenBox(2, ActionType.NONE),
+            GreenBox(1, ActionType.BLUE_QUESTION_MARK),
+            GreenBox(3, ActionType.REUSE),
+            GreenBox(3, ActionType.NONE),
+            GreenBox(3, ActionType.FOX),
+            GreenBox(2, ActionType.GREY_QUESTION_MARK),
+            GreenBox(3, ActionType.PLUS_ONE),
+            GreenBox(1, ActionType.NONE),
+            GreenBox(4, ActionType.PINK_QUESTION_MARK),
+            GreenBox(1, ActionType.YELLOW_QUESTION_MARK),
         ]
 
-    def add_dice(self, dice: Dice) -> Action:
+    def add_dice(self, dice: Dice) -> ActionType:
         self._validate_dice(dice)
         logging.info(f'Adding dice {str(dice)} to green board part')
         for index, green_box in enumerate(self.boxes):
