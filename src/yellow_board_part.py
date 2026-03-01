@@ -20,73 +20,68 @@ class YellowBoardPart:
                 value=3,
                 row_position=0,
                 column_position=1,
-                row_action=Action.BLUE_QUESTION_MARK,
-                column_action=Action.PLUS_ONE
             ),
             YellowBox(
                 value=6,
                 row_position=0,
                 column_position=3,
-                row_action=Action.BLUE_QUESTION_MARK,
-                column_action=Action.FOX
             ),
             YellowBox(
                 value=1,
                 row_position=1,
                 column_position=0,
-                row_action=Action.REUSE,
-                column_action=Action.REROLL
             ),
             YellowBox(
                 value=2,
                 row_position=1,
                 column_position=2,
-                row_action=Action.REUSE,
-                column_action=Action.GREEN_QUESTION_MARK
             ),
             YellowBox(
                 value=4,
                 row_position=2,
                 column_position=1,
-                row_action=Action.YELLOW_QUESTION_MARK,
-                column_action=Action.PLUS_ONE
             ),
             YellowBox(
                 value=3,
                 row_position=2,
                 column_position=3,
-                row_action=Action.YELLOW_QUESTION_MARK,
-                column_action=Action.FOX
             ),
             YellowBox(
                 value=2,
                 row_position=3,
                 column_position=0,
-                row_action=Action.GREEN_QUESTION_MARK,
-                column_action=Action.REROLL
             ),
             YellowBox(
                 value=5,
                 row_position=3,
                 column_position=2,
-                row_action=Action.GREEN_QUESTION_MARK,
-                column_action=Action.GREEN_QUESTION_MARK
             ),
             YellowBox(
                 value=5,
                 row_position=4,
                 column_position=1,
-                row_action=Action.PINK_QUESTION_MARK,
-                column_action=Action.PLUS_ONE
             ),
             YellowBox(
                 value=4,
                 row_position=4,
                 column_position=3,
-                row_action=Action.PINK_QUESTION_MARK,
-                column_action=Action.FOX
             ),
         ]
+
+        self._available_columns_for_action = {
+            0: Action.REROLL,
+            1: Action.PLUS_ONE,
+            2: Action.GREY_QUESTION_MARK,
+            3: Action.FOX,
+        }
+
+        self._available_rows_for_action = {
+            0: Action.BLUE_QUESTION_MARK,
+            1: Action.REUSE,
+            2: Action.YELLOW_QUESTION_MARK,
+            3: Action.GREEN_QUESTION_MARK,
+            4: Action.PINK_QUESTION_MARK,
+        }
 
     def circle_box(self, value: int, row_position: int, column_position: int) -> None:
         for box in self.boxes:
@@ -111,8 +106,7 @@ class YellowBoardPart:
         elif action == YellowBoardAction.CROSS:
             self.cross_box(dice.value, row_position, column_position)
 
-        # TODO: return winned actions
-        return []
+        return self._calculate_actions_received_in_round()
 
     def possible_dice_placements(self, dice: Dice) -> list[tuple[int, int, YellowBoardAction]]:
         return [
@@ -144,6 +138,39 @@ class YellowBoardPart:
             message = "Attempted to add an unrolled dice to yellow board part"
             logging.warning(message)
             raise ValueError(message)
+
+    def _calculate_actions_received_in_round(self) -> list[Action]:
+        return self._calculate_row_actions_received_in_round() + self._calculate_column_actions_received_in_round()
+
+    def _calculate_row_actions_received_in_round(self) -> list[Action]:
+        actions = []
+        for row_position in range(5):
+            circled_boxes_in_row = [
+                box.is_circled for box in self.boxes
+                if box.row_position == row_position
+            ]
+            is_row_eligible_for_action = len(circled_boxes_in_row) == sum(circled_boxes_in_row)
+            is_action_already_used = row_position not in self._available_rows_for_action
+            if is_row_eligible_for_action and not is_action_already_used:
+                actions.append(self._available_rows_for_action[row_position])
+                self._available_rows_for_action.pop(row_position)
+
+        return actions
+
+    def _calculate_column_actions_received_in_round(self) -> list[Action]:
+        actions = []
+        for column_position in range(4):
+            circled_boxes_in_column = [
+                box.is_circled for box in self.boxes
+                if box.column_position == column_position
+            ]
+            is_column_eligible_for_action = len(circled_boxes_in_column) == sum(circled_boxes_in_column)
+            is_action_already_used = column_position not in self._available_columns_for_action
+            if is_column_eligible_for_action and not is_action_already_used:
+                actions.append(self._available_columns_for_action[column_position])
+                self._available_columns_for_action.pop(column_position)
+
+        return actions
 
     def __str__(self) -> str:
         return '\n'.join([str(box) for box in self.boxes])
