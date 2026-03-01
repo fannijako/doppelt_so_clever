@@ -1,11 +1,18 @@
 import logging
 
+from enum import Enum
+
 from src.actions import Action
 from src.yellow_box import YellowBox
 from src.dice import Dice, DiceColor
 
 
-class YellowBoardPart:  # pylint: disable=too-few-public-methods
+class YellowBoardAction(Enum):
+    CIRCLE = "circle"
+    CROSS = "cross"
+
+
+class YellowBoardPart:
     def __init__(self) -> None:
         logging.debug("Initializing a yellow board part")
         self.boxes: list[YellowBox] = [
@@ -94,6 +101,37 @@ class YellowBoardPart:  # pylint: disable=too-few-public-methods
                 box.cross_box()
                 return
         raise ValueError("Box not found")
+
+    def add_dice(self, dice: Dice, row_position: int, column_position: int, action: YellowBoardAction) -> Action:
+        if (row_position, column_position, action) not in self.possible_dice_placements(dice):
+            raise ValueError("Invalid dice placement")
+
+        if action == YellowBoardAction.CIRCLE:
+            self.circle_box(dice.value, row_position, column_position)
+        elif action == YellowBoardAction.CROSS:
+            self.cross_box(dice.value, row_position, column_position)
+
+        # TODO: return winned actions
+        return []
+
+    def possible_dice_placements(self, dice: Dice) -> list[tuple[int, int, YellowBoardAction]]:
+        return [
+            (
+                box.row_position,
+                box.column_position,
+                YellowBoardAction.CIRCLE
+            )
+            for box in self.boxes
+            if box.value == dice.value and not box.is_circled
+        ] + [
+            (
+                box.row_position,
+                box.column_position,
+                YellowBoardAction.CROSS
+            )
+            for box in self.boxes
+            if box.value == dice.value and box.is_circled and not box.is_crossed
+        ]
 
     @staticmethod
     def _validate_dice(dice: Dice) -> None:

@@ -20,7 +20,7 @@ class Dice:
 
     def roll(self) -> None:
         self.value = random.randint(1, 6)
-        logging.info(f"{self.color.value} dice rolled: {self.value}")
+        logging.debug(f"{self.color.value} dice rolled: {self.value}")
 
     def __str__(self) -> str:
         if self.value is None:
