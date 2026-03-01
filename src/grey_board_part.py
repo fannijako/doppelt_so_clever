@@ -1,14 +1,134 @@
+import logging
+from typing import Optional
+
 from src.grey_box import GreyBox
-from src.dice import DiceColor
+from src.dice import DiceColor, Dice
+from src.actions import Action
 
 
-class GreyBoardPart:  # pylint: disable=too-few-public-methods
+class GreyBoardPart:
     def __init__(self):
+        logging.debug("Initializing a grey board part")
+        colors = [DiceColor.YELLOW, DiceColor.BLUE, DiceColor.BLUE, DiceColor.PINK]
         self.boxes = [
             GreyBox(color=color, number=number)
-            for color in DiceColor
+            for color in colors
             for number in range(1, 7)
         ]
 
+    def add_dice(
+        self,
+        dice: Dice,
+        smaller_die: list[Dice],
+        color_to_use_white_as: Optional[DiceColor] = None,
+        color_to_use_grey_as: Optional[DiceColor] = None,
+    ) -> list[Action]:
+
+        self._validate_dice(dice)
+        self._validate_smaller_die(dice, smaller_die)
+        self._validate_color_changes(dice, smaller_die, color_to_use_white_as, color_to_use_grey_as)
+        all_die = [dice] + smaller_die
+        logging.info(
+            f'Adding dice {" + ".join([str(die) for die in all_die])} to grey board part.'
+            f'White die will be used as: {color_to_use_white_as}'
+            f'Grey die will be used as: {color_to_use_grey_as}'
+        )
+
+        for die in all_die:
+            value = die.value
+            color = self._get_color_to_use_as(die, color_to_use_white_as, color_to_use_grey_as)
+            box_to_cross = [box for box in self.boxes if box.color == color and box.number == value and not box.is_crossed]
+            if box_to_cross:
+                box_to_cross[0].cross_box(die.color, die.value)
+            else:
+                message = f"No box to cross for die {die.color} | {die.value}"
+                logging.warning(message)
+                raise ValueError(message)
+
+        # TODO: actions received
+        return []
+
+    def _get_color_to_use_as(
+        self,
+        die: Dice,
+        color_to_use_white_as: Optional[DiceColor],
+        color_to_use_grey_as: Optional[DiceColor],
+    ) -> DiceColor:
+
+        if die.color not in [DiceColor.WHITE, DiceColor.GREY]:
+            return die.color
+        if die.color == DiceColor.WHITE:
+            return color_to_use_white_as
+        return color_to_use_grey_as
+
+    def _validate_color_changes(
+        self,
+        dice: Dice,
+        smaller_die: list[Dice],
+        color_to_use_white_as: Optional[DiceColor] = None,
+        color_to_use_grey_as: Optional[DiceColor] = None,
+    ) -> None:
+
+        die_colors = [die.color for die in smaller_die] + [dice.color]
+        if DiceColor.WHITE in die_colors and not color_to_use_white_as:
+            message = "Attempted to add a white dice to grey board part without specifying a color to use white as"
+            logging.warning(message)
+            raise ValueError(message)
+
+        if DiceColor.GREY in die_colors and not color_to_use_grey_as:
+            message = "Attempted to add a grey dice to grey board part without specifying a color to use grey as"
+            logging.warning(message)
+            raise ValueError(message)
+
+    def _validate_dice(self, dice: Dice) -> None:
+        if dice.color not in [DiceColor.GREY, DiceColor.WHITE]:
+            message = "Attempted to add a dice of a different color to grey board part"
+            logging.warning(message)
+            raise ValueError(message)
+
+        if dice.value is None:
+            message = "Attempted to add an unrolled dice to grey board part"
+            logging.warning(message)
+            raise ValueError(message)
+
+    def _validate_smaller_die(self, dice: Dice, smaller_die: list[Dice]) -> None:
+        for smaller_dice in smaller_die:
+            if smaller_dice.value is None:
+                message = "Attempted to add an unrolled dice to grey board part"
+                logging.warning(message)
+                raise ValueError(message)
+
+            if smaller_dice.color == dice.color:
+                message = "Attempted to add a dice of the same color to grey board part"
+                logging.warning(message)
+                raise ValueError(message)
+
+            if smaller_dice.value >= dice.value:
+                message = "Attempted to add a dice with greater or equal value to grey board part"
+                logging.warning(message)
+                raise ValueError(message)
+
+    def __str__(self) -> str:
+        return '\n'.join([str(box) for box in self.boxes])
+
     def evaluate(self) -> int:
-        return 0
+        return sum(
+            self._crossed_box_to_points(
+                len([
+                    box for box in row if box.is_crossed
+                ])
+            )
+            for row in self.boxes[::6]
+        )
+
+    def _crossed_box_to_points(self, number_of_crossed_boxes: int) -> int:
+        crossed_box_to_points_map = {
+            0: 0,
+            1: 2,
+            2: 4,
+            3: 7,
+            4: 11,
+            5: 16,
+            6: 22,
+        }
+        return crossed_box_to_points_map[number_of_crossed_boxes]

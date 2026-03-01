@@ -21,10 +21,12 @@ def test_grey_box_cross_box():
     grey_box.cross_box(DiceColor.GREEN, 1)
     assert grey_box.is_crossed is True
 
+
 def test_grey_box_cross_box_invalid_input():
     grey_box = GreyBox(DiceColor.GREEN, 1)
     grey_box.cross_box(DiceColor.GREEN, 2)
     assert grey_box.is_crossed is False
+
 
 def test_grey_box_str():
     grey_box = GreyBox(DiceColor.GREEN, 1)
