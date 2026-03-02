@@ -4,12 +4,13 @@ from src.actions.actions import ActionType
 
 
 class GreenBox:
-    def __init__(self, value_multiplier: int, action: ActionType) -> None:
+    def __init__(self, value_multiplier: int, action: ActionType, index: int) -> None:
         logging.debug("Initializing a green box")
         self._validate_input(value_multiplier)
         self.value_multiplier = value_multiplier
         self.action = action
         self.value_used = None
+        self.index = index
 
     def add_dice_value(self, dice_value: int) -> None:
         self.value_used = dice_value * self.value_multiplier

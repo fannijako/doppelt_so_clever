@@ -9,10 +9,10 @@ if TYPE_CHECKING:
     from src.board import Board
 
 
-class PinkQuestionMarkAction(Action):  # pylint: disable=too-few-public-methods
+class GreenQuestionMarkAction(Action):  # pylint: disable=too-few-public-methods
     def __init__(self):
         super().__init__(
-            action_type=ActionType.PINK_QUESTION_MARK,
+            action_type=ActionType.GREEN_QUESTION_MARK,
             is_immediate=True
         )
 
@@ -20,7 +20,7 @@ class PinkQuestionMarkAction(Action):  # pylint: disable=too-few-public-methods
         raise ValueError("Action cannot be saved")
 
     def use(self, board: Board) -> list[Action]:
-        pink_dice = Dice(DiceColor.PINK)
-        pink_dice.set_value(6)
-        action = board.pink_board_part.add_dice(pink_dice)
+        green_dice = Dice(DiceColor.GREEN)
+        green_dice.set_value(6 if board.green_board_part.sign_of_next_empty_field() == 1 else 1)
+        action = board.green_board_part.add_dice(green_dice)
         return [action]

@@ -79,17 +79,6 @@ class BlackQuestionMarkAction(Action):
         pass
 
 
-class GreenQuestionMarkAction(Action):
-    def __init__(self):
-        super().__init__(action_type=ActionType.GREEN_QUESTION_MARK, is_immediate=True)
-
-    def save(self):
-        raise ValueError("Action cannot be saved")
-
-    def use(self, board: Board) -> list[Action]:
-        pass
-
-
 class YellowQuestionMarkAction(Action):
     def __init__(self):
         super().__init__(action_type=ActionType.YELLOW_QUESTION_MARK, is_immediate=True)

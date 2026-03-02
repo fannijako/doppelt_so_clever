@@ -69,7 +69,7 @@ def test_fail_on_add_dice_with_full_board():
     for _ in range(12):
         green_board_part.add_dice(dice)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         green_board_part.add_dice(dice)
 
 
