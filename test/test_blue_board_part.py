@@ -2,7 +2,7 @@ import pytest
 
 from src.blue_board_part import BlueBoardPart
 from src.dice import Dice, DiceColor
-from src.actions import ActionType
+from src.actions.actions import ActionType
 
 
 def test_add_dice_return_action_on_first_box(blue_and_white_dices):

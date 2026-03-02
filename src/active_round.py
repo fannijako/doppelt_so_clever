@@ -4,7 +4,7 @@ from typing import Optional
 
 from src.dice import Dice, DiceColor
 from src.board import Board
-from src.actions import ActionType
+from src.actions.actions import ActionType
 
 
 class ActiveRound:  # pylint: disable=too-many-instance-attributes

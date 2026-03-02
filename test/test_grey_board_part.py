@@ -3,7 +3,7 @@ import pytest
 
 from src.grey_board_part import GreyBoardPart
 from src.dice import DiceColor, Dice
-from src.actions import ActionType
+from src.actions.actions import ActionType
 
 
 def test_board_init_available_actions():

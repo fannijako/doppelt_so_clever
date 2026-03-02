@@ -1,6 +1,6 @@
 import logging
 
-from src.actions import ActionType
+from src.actions.actions import ActionType
 from src.blue_box import BlueBox
 from src.dice import Dice, DiceColor
 

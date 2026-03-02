@@ -1,7 +1,7 @@
 import pytest
 
 from src.green_box import GreenBox
-from src.actions import ActionType
+from src.actions.actions import ActionType
 
 
 def test_green_box_invalid_input():
