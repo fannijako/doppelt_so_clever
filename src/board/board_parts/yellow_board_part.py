@@ -128,6 +128,30 @@ class YellowBoardPart:
             if box.value == dice.value and box.is_circled and not box.is_crossed
         ]
 
+    def all_possible_dice_placements(self, dice: Dice) -> list[tuple[int, int, int, YellowBoardAction]]:
+        if dice.value is not None:
+            return [(dice.value, *placement) for placement in self.possible_dice_placements(dice)]
+
+        return [
+            (
+                box.value,
+                box.row_position,
+                box.column_position,
+                YellowBoardAction.CIRCLE
+            )
+            for box in self.boxes
+            if not box.is_circled
+        ] + [
+            (
+                box.value,
+                box.row_position,
+                box.column_position,
+                YellowBoardAction.CROSS
+            )
+            for box in self.boxes
+            if box.is_circled and not box.is_crossed
+        ]
+
     @staticmethod
     def _validate_dice(dice: Dice) -> None:
         if dice.color not in [DiceColor.YELLOW, DiceColor.WHITE]:

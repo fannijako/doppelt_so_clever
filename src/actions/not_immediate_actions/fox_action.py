@@ -7,8 +7,8 @@ class FoxAction(Action):
     def __init__(self):
         super().__init__(action_type=ActionType.FOX, is_immediate=True)
 
-    def save(self):
-        raise ValueError("Action cannot be saved")
+    def save(self) -> None:
+        return
 
-    def use(self, board: Board) -> list[Action]:
-        pass
+    def use(self, board: Board, automatic: bool) -> list[Action]:
+        raise ValueError("Action cannot be used")

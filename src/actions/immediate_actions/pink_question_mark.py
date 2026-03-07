@@ -18,10 +18,10 @@ class PinkQuestionMarkAction(Action):  # pylint: disable=too-few-public-methods
             is_immediate=True
         )
 
-    def save(self):
+    def save(self) -> None:
         raise ValueError("Action cannot be saved")
 
-    def use(self, board: Board) -> list[Action]:
+    def use(self, board: Board, automatic: bool) -> list[Action]:
         pink_dice = Dice(DiceColor.PINK)
         pink_dice.set_value(6)
         action = board.pink_board_part.add_dice(pink_dice)

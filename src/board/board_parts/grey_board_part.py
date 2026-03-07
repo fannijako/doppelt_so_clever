@@ -10,10 +10,14 @@ from src.actions.action_type import ActionType
 class GreyBoardPart:
     def __init__(self):
         logging.debug("Initializing a grey board part")
-        colors = [DiceColor.YELLOW, DiceColor.BLUE, DiceColor.BLUE, DiceColor.PINK]
         self.boxes = [
             GreyBox(color=color, number=number)
-            for color in colors
+            for color in [
+                DiceColor.YELLOW,
+                DiceColor.BLUE,
+                DiceColor.BLUE,
+                DiceColor.PINK,
+            ]
             for number in range(1, 7)
         ]
         self._available_columns_for_action = {
