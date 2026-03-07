@@ -2,7 +2,8 @@ import logging
 import random
 from typing import Optional
 
-from src.dice import Dice, DiceColor
+from src.dice.dice import Dice
+from src.dice.dice_color import DiceColor
 from src.board import Board
 from src.actions.action_type import ActionType
 

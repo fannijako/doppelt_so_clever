@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING
 
 from src.actions.action_type import ActionType
 from src.actions.base_action import Action
-from src.dice import Dice, DiceColor
+from src.dice.dice import Dice
+from src.dice.dice_color import DiceColor
 
 if TYPE_CHECKING:
     from src.board import Board

@@ -1,7 +1,7 @@
 import pytest
 
 from src.board.boxes.grey_box import GreyBox
-from src.dice import DiceColor
+from src.dice.dice import DiceColor
 
 
 def test_grey_box_invalid_input():

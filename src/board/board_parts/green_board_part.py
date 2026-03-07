@@ -2,7 +2,8 @@ import logging
 
 from src.actions.action_type import ActionType
 from src.board.boxes.green_box import GreenBox
-from src.dice import Dice, DiceColor
+from src.dice.dice import Dice
+from src.dice.dice_color import DiceColor
 
 
 class GreenBoardPart:

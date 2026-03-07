@@ -1,15 +1,7 @@
-from enum import Enum
 import random
 import logging
 
-
-class DiceColor(Enum):
-    GREEN = "green"
-    BLUE = "blue"
-    WHITE = "white"
-    YELLOW = "yellow"
-    GREY = "grey"
-    PINK = "pink"
+from src.dice.dice_color import DiceColor
 
 
 class Dice:

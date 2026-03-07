@@ -2,7 +2,8 @@ import logging
 from typing import Optional
 
 from src.board.boxes.grey_box import GreyBox
-from src.dice import DiceColor, Dice
+from src.dice.dice import Dice
+from src.dice.dice_color import DiceColor
 from src.actions.action_type import ActionType
 
 

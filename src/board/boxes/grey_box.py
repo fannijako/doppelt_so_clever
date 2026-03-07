@@ -1,6 +1,6 @@
 import logging
 
-from src.dice import DiceColor
+from src.dice.dice import DiceColor
 
 
 class GreyBox:  # pylint: disable=too-few-public-methods
