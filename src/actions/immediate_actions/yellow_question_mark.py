@@ -7,8 +7,8 @@ class YellowQuestionMarkAction(Action):
     def __init__(self):
         super().__init__(action_type=ActionType.YELLOW_QUESTION_MARK, is_immediate=True)
 
-    def save(self):
+    def save(self) -> None:
         raise ValueError("Action cannot be saved")
 
-    def use(self, board: Board) -> list[Action]:
-        pass
+    def use(self, board: Board, automatic: bool) -> list[Action]:
+        return []

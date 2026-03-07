@@ -7,8 +7,8 @@ class ReUseAction(Action):
     def __init__(self):
         super().__init__(action_type=ActionType.REUSE, is_immediate=False)
 
-    def save(self):
-        pass
+    def save(self) -> None:
+        return
 
-    def use(self, board: Board) -> list[Action]:
-        pass
+    def use(self, board: Board, automatic: bool) -> list[Action]:
+        return []
