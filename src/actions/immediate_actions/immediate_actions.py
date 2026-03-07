@@ -10,7 +10,7 @@ class ImmediateActions(Action):
             is_immediate=True
         )
 
-    def save(self) -> None:
+    def save(self, board: Board) -> None:
         raise ValueError("Action cannot be saved")
 
     def use(self, board: Board, automatic: bool) -> list[Action]:

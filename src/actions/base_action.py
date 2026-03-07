@@ -12,7 +12,7 @@ class Action(ABC):
         self.is_immediate = is_immediate
 
     @abstractmethod
-    def save(self) -> None:
+    def save(self, board: Board) -> None:
         raise NotImplementedError
 
     @abstractmethod
