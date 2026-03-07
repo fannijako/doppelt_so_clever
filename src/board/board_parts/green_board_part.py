@@ -1,7 +1,7 @@
 import logging
 
 from src.actions.action_type import ActionType
-from src.green_box import GreenBox
+from src.board.boxes.green_box import GreenBox
 from src.dice import Dice, DiceColor
 
 

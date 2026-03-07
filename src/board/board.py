@@ -1,10 +1,10 @@
 import logging
 
-from src.blue_board_part import BlueBoardPart
-from src.pink_board_part import PinkBoardPart
-from src.green_board_part import GreenBoardPart
-from src.yellow_board_part import YellowBoardPart
-from src.grey_board_part import GreyBoardPart
+from src.board.board_parts.blue_board_part import BlueBoardPart
+from src.board.board_parts.pink_board_part import PinkBoardPart
+from src.board.board_parts.green_board_part import GreenBoardPart
+from src.board.board_parts.yellow_board_part import YellowBoardPart
+from src.board.board_parts.grey_board_part import GreyBoardPart
 
 
 class Board:  # pylint: disable=too-few-public-methods

@@ -1,6 +1,6 @@
 import pytest
 
-from src.green_board_part import GreenBoardPart
+from src.board.board_parts.green_board_part import GreenBoardPart
 from src.dice import Dice, DiceColor
 from src.actions.action_type import ActionType
 

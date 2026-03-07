@@ -3,7 +3,7 @@ import logging
 from enum import Enum
 
 from src.actions.action_type import ActionType
-from src.yellow_box import YellowBox
+from src.board.boxes.yellow_box import YellowBox
 from src.dice import Dice, DiceColor
 
 

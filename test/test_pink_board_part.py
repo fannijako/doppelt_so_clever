@@ -1,6 +1,6 @@
 import pytest
 
-from src.pink_board_part import PinkBoardPart
+from src.board.board_parts.pink_board_part import PinkBoardPart
 from src.dice import Dice, DiceColor
 from src.actions.action_type import ActionType
 

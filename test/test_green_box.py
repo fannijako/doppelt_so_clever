@@ -1,6 +1,6 @@
 import pytest
 
-from src.green_box import GreenBox
+from src.board.boxes.green_box import GreenBox
 from src.actions.action_type import ActionType
 
 

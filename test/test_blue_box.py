@@ -1,6 +1,6 @@
 import pytest
 
-from src.blue_box import BlueBox
+from src.board.boxes.blue_box import BlueBox
 from src.actions.action_type import ActionType
 
 

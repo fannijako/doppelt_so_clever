@@ -1,6 +1,6 @@
 import pytest
 
-from src.grey_box import GreyBox
+from src.board.boxes.grey_box import GreyBox
 from src.dice import DiceColor
 
 
