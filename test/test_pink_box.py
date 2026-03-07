@@ -1,7 +1,7 @@
 import pytest
 
 from src.pink_box import PinkBox
-from src.actions.actions import ActionType
+from src.actions.action_type import ActionType
 
 
 def test_pink_box_invalid_input():

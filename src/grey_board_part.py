@@ -3,7 +3,7 @@ from typing import Optional
 
 from src.grey_box import GreyBox
 from src.dice import DiceColor, Dice
-from src.actions.actions import ActionType
+from src.actions.action_type import ActionType
 
 
 class GreyBoardPart:

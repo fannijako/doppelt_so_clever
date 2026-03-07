@@ -1,6 +1,7 @@
 import logging
 
-from src.actions.actions import Action, ActionType
+from src.actions.action_type import ActionType
+from src.actions.base_action import Action
 from src.board import Board
 
 

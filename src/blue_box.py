@@ -1,6 +1,6 @@
 import logging
 
-from src.actions.actions import ActionType
+from src.actions.action_type import ActionType
 
 
 class BlueBox:

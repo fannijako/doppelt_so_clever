@@ -2,7 +2,7 @@ import pytest
 
 from src.green_board_part import GreenBoardPart
 from src.dice import Dice, DiceColor
-from src.actions.actions import ActionType
+from src.actions.action_type import ActionType
 
 
 def test_add_dice_return_action_on_first_box():

@@ -1,7 +1,7 @@
 import pytest
 
 from src.blue_box import BlueBox
-from src.actions.actions import ActionType
+from src.actions.action_type import ActionType
 
 
 def test_blue_box_invalid_input():

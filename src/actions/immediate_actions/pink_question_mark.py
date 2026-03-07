@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.actions.actions import Action, ActionType
+from src.actions.action_type import ActionType
+from src.actions.base_action import Action
 from src.dice import Dice, DiceColor
 
 if TYPE_CHECKING:
