@@ -24,6 +24,12 @@ class BlueBoardPart:
             BlueBox(12, ActionType.GREEN_QUESTION_MARK),
         ]
 
+    def get_value_limit_on_next_box(self) -> int:
+        for box in self.boxes:
+            if box.value_used is None:
+                return box.maximum_value_limit
+        return 0
+
     def add_dice(self, blue_dice: Dice, white_dice: Dice) -> ActionType:
         self._validate_dice(blue_dice, white_dice)
         logging.info(f'Adding dice {str(blue_dice)} to blue board part with {str(white_dice)}')
