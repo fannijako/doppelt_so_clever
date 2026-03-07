@@ -1,6 +1,6 @@
 from src.actions.action_type import ActionType
 from src.actions.base_action import Action
-from src.board import Board
+from src.board.board import Board
 
 
 class ReUseAction(Action):

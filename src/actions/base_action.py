@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from src.actions.action_type import ActionType
-from src.board import Board
+from src.board.board import Board
 
 
 class Action(ABC):

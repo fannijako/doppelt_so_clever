@@ -8,7 +8,7 @@ from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 
 if TYPE_CHECKING:
-    from src.board import Board
+    from src.board.board import Board
 
 
 class PinkQuestionMarkAction(Action):  # pylint: disable=too-few-public-methods
