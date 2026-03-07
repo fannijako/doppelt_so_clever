@@ -1,8 +1,8 @@
 import logging
 import argparse
 
-from src.active_round import ActiveRound
-from src.board import Board
+from src.round.active_round import ActiveRound
+from src.board.board import Board
 
 
 def main() -> None:
