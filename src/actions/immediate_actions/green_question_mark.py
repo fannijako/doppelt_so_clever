@@ -2,24 +2,21 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.actions.action_type import ActionType
-from src.actions.base_action import Action
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
+from src.actions.base_action import Action
+from src.actions.action_type import ActionType
+from src.actions.immediate_actions.immediate_actions import ImmediateActions
 
 if TYPE_CHECKING:
     from src.board.board import Board
 
 
-class GreenQuestionMarkAction(Action):  # pylint: disable=too-few-public-methods
+class GreenQuestionMarkAction(ImmediateActions):  # pylint: disable=too-few-public-methods
     def __init__(self):
         super().__init__(
-            action_type=ActionType.GREEN_QUESTION_MARK,
-            is_immediate=True
+            action_type=ActionType.GREEN_QUESTION_MARK
         )
-
-    def save(self) -> None:
-        raise ValueError("Action cannot be saved")
 
     def use(self, board: Board, automatic: bool) -> list[Action]:
         green_dice = Dice(DiceColor.GREEN)
