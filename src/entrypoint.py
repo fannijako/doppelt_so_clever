@@ -3,6 +3,7 @@ import argparse
 
 from src.round.active_round import ActiveRound
 from src.board.board import Board
+from src.actions.action_handler import ActionHandler
 
 
 def main() -> None:
@@ -10,7 +11,8 @@ def main() -> None:
     setup_logging(arguments)
     logging.info(f"args: {arguments}")
     board = Board()
-    active_round = ActiveRound(board, automatic=arguments.automatic)
+    action_handler = ActionHandler(board=board)
+    active_round = ActiveRound(board, action_handler, automatic=arguments.automatic)
     active_round.execute()
     logging.info(f"board value: {board.evaluate()}")
 

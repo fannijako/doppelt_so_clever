@@ -6,23 +6,16 @@ from src.board.board import Board
 
 
 class ActionHandler:  # pylint: disable=too-few-public-methods
-    def __init__(self, actions: list[Action], board: Board) -> list[Action]:
-        self.actions = actions
+    def __init__(self, board: Board) -> list[Action]:
         self.board = board
-        self._not_immediate_actions_received = {
-            ActionType.REROLL: self._get_number_of_actions_by_type(actions, ActionType.REROLL),
-            ActionType.REUSE: self._get_number_of_actions_by_type(actions, ActionType.REUSE),
-            ActionType.PLUS_ONE: self._get_number_of_actions_by_type(actions, ActionType.PLUS_ONE),
-            ActionType.FOX: self._get_number_of_actions_by_type(actions, ActionType.FOX),
-        }
-        self._not_used_immediate_actions = self._get_immediate_actions(actions)
 
-    def execute(self, automatic: bool = True) -> dict[ActionType, int]:
+    def execute(self, actions: list[Action], automatic: bool = True) -> None:
+        not_used_immediate_actions = self._get_immediate_actions(actions)
 
-        while self._not_used_immediate_actions:
-            logging.info(f'Executing ActionHandler with {self._not_used_immediate_actions=}')
+        while not_used_immediate_actions:
+            logging.info(f'Executing ActionHandler with {not_used_immediate_actions=}')
 
-            action_to_use = self._pick_action_to_use(automatic=automatic)
+            action_to_use = self._pick_action_to_use(not_used_immediate_actions, automatic=automatic)
             logging.info(f'Action to use: {action_to_use}')
 
             actions_received = action_to_use.use(board=self.board)
@@ -33,26 +26,26 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
                 f'{immediate_actions_received=}, {not_immediate_actions_received=}'
             )
 
-            if len(self._not_used_immediate_actions) > 1:
-                self._not_used_immediate_actions = self._not_used_immediate_actions[1:]
+            if len(not_used_immediate_actions) > 1:
+                not_used_immediate_actions = not_used_immediate_actions[1:]
             else:
-                self._not_used_immediate_actions = []
+                not_used_immediate_actions = []
             logging.info('Used action removed from action list')
 
             if immediate_actions_received:
-                self._not_used_immediate_actions.extend(immediate_actions_received)
+                not_used_immediate_actions.extend(immediate_actions_received)
             if not_immediate_actions_received:
                 for action in not_immediate_actions_received:
-                    self._not_immediate_actions_received[action.action_type] += 1
+                    new_action = action.save(board=self.board)
+                    if new_action:
+                        not_used_immediate_actions.append(new_action)
 
-        return self._not_immediate_actions_received
-
-    def _pick_action_to_use(self, automatic: bool = True) -> Action:
+    def _pick_action_to_use(self, not_used_immediate_actions: list[Action], automatic: bool = True) -> Action:
         if automatic:
-            return self._not_used_immediate_actions[0]
+            return not_used_immediate_actions[0]
         while True:
             try:
-                return self._not_used_immediate_actions[int(input('Add the index of the action to use: '))]
+                return not_used_immediate_actions[int(input('Add the index of the action to use: '))]
             except ValueError:
                 logging.error('Invalid index')
 

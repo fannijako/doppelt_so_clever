@@ -6,16 +6,19 @@ from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 from src.board.board import Board
 from src.actions.action_type import ActionType
+from src.actions.action_handler import ActionHandler
 
 
 class ActiveRound:  # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         board: Board,
-        automatic: bool = True
+        action_handler: ActionHandler,
+        automatic: bool = True,
     ):
         self.board = board
         self.automatic = automatic
+        self.action_handler = action_handler
 
         self.blue_dice = Dice(DiceColor.BLUE)
         self.white_dice = Dice(DiceColor.WHITE)
@@ -58,8 +61,8 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
         picked_dice = dice[0] if dice else None
         if not picked_dice:
             return None
-        picked_number = picked_dice.value
-        smaller_die = [dice for dice in self.available_die if dice.value < picked_number]
+
+        smaller_die = [dice for dice in self.available_die if dice.value < picked_dice.value]
         self.available_die.remove(picked_dice)
         self.picked_die.append(picked_dice)
         self.discarded_die.extend(smaller_die)
@@ -88,6 +91,8 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
                 actions.append(self.place_a_yellow_dice(picked_die))
             if picked_die.color == DiceColor.WHITE:
                 actions.append(self.place_a_white_dice(picked_die, self.blue_dice))
+
+            self.action_handler.execute(actions, self.automatic)
 
             logging.info(f"Actions received in round {game_round}: {actions}")
 
