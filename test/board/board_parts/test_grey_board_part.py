@@ -5,6 +5,7 @@ from src.board.board_parts.grey_board_part import GreyBoardPart
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 from src.actions.action_type import ActionType
+from src.actions.action_map import ActionMap
 
 
 def test_board_init_available_actions():
@@ -111,7 +112,7 @@ def test_plus_one_action_returned_when_all_ones_are_crossed():
             box.is_crossed = True
 
     actions = grey_board_part._calculate_actions_received_in_round()
-    assert ActionType.PLUS_ONE in actions
+    assert ActionMap.get(ActionType.PLUS_ONE) in actions
 
 
 def test_plus_one_action_returned_only_once():
@@ -123,7 +124,7 @@ def test_plus_one_action_returned_only_once():
     grey_board_part._calculate_actions_received_in_round()
     second_actions = grey_board_part._calculate_actions_received_in_round()
 
-    assert ActionType.PLUS_ONE not in second_actions
+    assert ActionMap.get(ActionType.PLUS_ONE) not in second_actions
 
 
 def test_get_color_to_use_as_returns_original_color_for_non_special_die():

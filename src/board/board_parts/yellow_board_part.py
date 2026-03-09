@@ -3,6 +3,8 @@ import logging
 from enum import Enum
 
 from src.actions.action_type import ActionType
+from src.actions.action_map import ActionMap
+from src.actions.base_action import Action
 from src.board.boxes.yellow_box import YellowBox
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
@@ -98,7 +100,7 @@ class YellowBoardPart:
                 return
         raise ValueError("Box not found")
 
-    def add_dice(self, dice: Dice, row_position: int, column_position: int, action: YellowBoardAction) -> ActionType:
+    def add_dice(self, dice: Dice, row_position: int, column_position: int, action: YellowBoardAction) -> Action:
         if (row_position, column_position, action) not in self.possible_dice_placements(dice):
             raise ValueError("Invalid dice placement")
 
@@ -164,10 +166,10 @@ class YellowBoardPart:
             logging.warning(message)
             raise ValueError(message)
 
-    def _calculate_actions_received_in_round(self) -> list[ActionType]:
+    def _calculate_actions_received_in_round(self) -> list[Action]:
         return self._calculate_row_actions_received_in_round() + self._calculate_column_actions_received_in_round()
 
-    def _calculate_row_actions_received_in_round(self) -> list[ActionType]:
+    def _calculate_row_actions_received_in_round(self) -> list[Action]:
         actions = []
         for row_position in range(5):
             circled_boxes_in_row = [
@@ -177,12 +179,12 @@ class YellowBoardPart:
             is_row_eligible_for_action = len(circled_boxes_in_row) == sum(circled_boxes_in_row)
             is_action_already_used = row_position not in self._available_rows_for_action
             if is_row_eligible_for_action and not is_action_already_used:
-                actions.append(self._available_rows_for_action[row_position])
+                actions.append(ActionMap.get(self._available_rows_for_action[row_position]))
                 self._available_rows_for_action.pop(row_position)
 
         return actions
 
-    def _calculate_column_actions_received_in_round(self) -> list[ActionType]:
+    def _calculate_column_actions_received_in_round(self) -> list[Action]:
         actions = []
         for column_position in range(4):
             circled_boxes_in_column = [
@@ -192,7 +194,7 @@ class YellowBoardPart:
             is_column_eligible_for_action = len(circled_boxes_in_column) == sum(circled_boxes_in_column)
             is_action_already_used = column_position not in self._available_columns_for_action
             if is_column_eligible_for_action and not is_action_already_used:
-                actions.append(self._available_columns_for_action[column_position])
+                actions.append(ActionMap.get(self._available_columns_for_action[column_position]))
                 self._available_columns_for_action.pop(column_position)
 
         return actions

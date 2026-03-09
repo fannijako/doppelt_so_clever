@@ -4,13 +4,14 @@ from src.board.board_parts.pink_board_part import PinkBoardPart
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 from src.actions.action_type import ActionType
+from src.actions.action_map import ActionMap
 
 
 def test_add_dice_return_action_on_first_box():
     pink_board_part = PinkBoardPart()
     dice = Dice(DiceColor.PINK)
     dice.roll()
-    assert pink_board_part.add_dice(dice) == ActionType.NONE
+    assert pink_board_part.add_dice(dice) == ActionMap.get(ActionType.NONE)
 
 
 def test_add_dice_return_action_on_second_box():
@@ -22,7 +23,7 @@ def test_add_dice_return_action_on_second_box():
 
     dice2 = Dice(DiceColor.PINK)
     dice2.roll()
-    assert pink_board_part.add_dice(dice2) == ActionType.NONE
+    assert pink_board_part.add_dice(dice2) == ActionMap.get(ActionType.NONE)
 
 
 def test_add_dice_return_action_on_third_box():
@@ -38,7 +39,7 @@ def test_add_dice_return_action_on_third_box():
 
     dice3 = Dice(DiceColor.PINK)
     dice3.value = 2
-    assert pink_board_part.add_dice(dice3) == ActionType.REROLL
+    assert pink_board_part.add_dice(dice3) == ActionMap.get(ActionType.REROLL)
 
 
 def test_add_dice_return_none_action_on_third_box():
@@ -54,7 +55,7 @@ def test_add_dice_return_none_action_on_third_box():
 
     dice3 = Dice(DiceColor.PINK)
     dice3.value = 1
-    assert pink_board_part.add_dice(dice3) == ActionType.NONE
+    assert pink_board_part.add_dice(dice3) == ActionMap.get(ActionType.NONE)
 
 
 def test_fail_on_add_dice_with_different_color():

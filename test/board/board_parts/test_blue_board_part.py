@@ -4,19 +4,20 @@ from src.board.board_parts.blue_board_part import BlueBoardPart
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 from src.actions.action_type import ActionType
+from src.actions.action_map import ActionMap
 
 
 def test_add_dice_return_action_on_first_box(blue_and_white_dices):
     blue_board_part = BlueBoardPart()
     blue_dice, white_dice = blue_and_white_dices
-    assert blue_board_part.add_dice(blue_dice, white_dice) == ActionType.NONE
+    assert blue_board_part.add_dice(blue_dice, white_dice) == ActionMap.get(ActionType.NONE)
 
 
 def test_add_dice_return_action_on_second_box(blue_and_white_dices):
     blue_board_part = BlueBoardPart()
     blue_dice, white_dice = blue_and_white_dices
     blue_board_part.add_dice(blue_dice, white_dice)
-    assert blue_board_part.add_dice(blue_dice, white_dice) == ActionType.REUSE
+    assert blue_board_part.add_dice(blue_dice, white_dice) == ActionMap.get(ActionType.REUSE)
 
 
 def test_add_dice_return_action_on_third_box(blue_and_white_dices):
@@ -24,7 +25,7 @@ def test_add_dice_return_action_on_third_box(blue_and_white_dices):
     blue_dice, white_dice = blue_and_white_dices
     blue_board_part.add_dice(blue_dice, white_dice)
     blue_board_part.add_dice(blue_dice, white_dice)
-    assert blue_board_part.add_dice(blue_dice, white_dice) == ActionType.YELLOW_QUESTION_MARK
+    assert blue_board_part.add_dice(blue_dice, white_dice) == ActionMap.get(ActionType.YELLOW_QUESTION_MARK)
 
 
 def test_fail_on_add_dice_with_different_color():

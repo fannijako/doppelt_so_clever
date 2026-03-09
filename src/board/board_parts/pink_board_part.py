@@ -1,6 +1,9 @@
 import logging
+from typing import Optional
 
 from src.actions.action_type import ActionType
+from src.actions.action_map import ActionMap
+from src.actions.base_action import Action
 from src.board.boxes.pink_box import PinkBox
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
@@ -24,7 +27,7 @@ class PinkBoardPart:  # pylint: disable=too-few-public-methods
             PinkBox(6, ActionType.YELLOW_QUESTION_MARK),
         ]
 
-    def add_dice(self, dice: Dice) -> ActionType:
+    def add_dice(self, dice: Dice) -> Optional[Action]:
         self._validate_dice(dice)
         logging.info(f'Adding dice {str(dice)} to pink board part')
 
@@ -32,7 +35,7 @@ class PinkBoardPart:  # pylint: disable=too-few-public-methods
             if pink_box.value_used is None:
                 pink_box.add_dice_value(dice.value)
                 logging.info(f'Added dice {str(dice)} to pink box {index}')
-                return pink_box.action if dice.value >= pink_box.action_filter_limit else ActionType.NONE
+                return ActionMap.get(pink_box.action) if dice.value >= pink_box.action_filter_limit else None
 
         raise ValueError("No free pink box available to add dice")
 
