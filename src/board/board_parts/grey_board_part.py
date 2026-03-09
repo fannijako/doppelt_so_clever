@@ -5,6 +5,8 @@ from src.board.boxes.grey_box import GreyBox
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 from src.actions.action_type import ActionType
+from src.actions.action_map import ActionMap
+from src.actions.base_action import Action
 
 
 class GreyBoardPart:
@@ -35,7 +37,7 @@ class GreyBoardPart:
         smaller_die: list[Dice],
         color_to_use_white_as: Optional[DiceColor] = None,
         color_to_use_grey_as: Optional[DiceColor] = None,
-    ) -> list[ActionType]:
+    ) -> list[Action]:
 
         self._validate_dice(dice)
         self._validate_smaller_die(dice, smaller_die)
@@ -58,13 +60,13 @@ class GreyBoardPart:
 
         return self._calculate_actions_received_in_round()
 
-    def _calculate_actions_received_in_round(self) -> list[ActionType]:
+    def _calculate_actions_received_in_round(self) -> list[Action]:
         actions_received = []
 
         for value in range(1, 7):
             boxes_with_value = [box for box in self.boxes if box.number == value and box.is_crossed]
             if len(boxes_with_value) == 4 and value in self._available_columns_for_action:
-                actions_received.append(self._available_columns_for_action[value])
+                actions_received.append(ActionMap.get(self._available_columns_for_action[value]))
                 self._available_columns_for_action.pop(value)
 
         return actions_received

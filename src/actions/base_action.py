@@ -1,16 +1,23 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from src.actions.action_type import ActionType
-from src.board.board import Board
+
+if TYPE_CHECKING:
+    from src.board.board import Board
 
 
 class Action(ABC):
     def __init__(self, action_type: ActionType, is_immediate: bool = False):
         self.action_type = action_type
         self.is_immediate = is_immediate
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Action):
+            return NotImplemented
+        return self.action_type == other.action_type
 
     @abstractmethod
     def save(self, board: Board) -> Action:

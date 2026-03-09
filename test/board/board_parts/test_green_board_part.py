@@ -4,13 +4,14 @@ from src.board.board_parts.green_board_part import GreenBoardPart
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 from src.actions.action_type import ActionType
+from src.actions.action_map import ActionMap
 
 
 def test_add_dice_return_action_on_first_box():
     green_board_part = GreenBoardPart()
     dice = Dice(DiceColor.GREEN)
     dice.roll()
-    assert green_board_part.add_dice(dice) == ActionType.NONE
+    assert green_board_part.add_dice(dice) == ActionMap.get(ActionType.NONE)
 
 
 def test_add_dice_return_action_on_second_box():
@@ -22,7 +23,7 @@ def test_add_dice_return_action_on_second_box():
 
     dice2 = Dice(DiceColor.GREEN)
     dice2.roll()
-    assert green_board_part.add_dice(dice2) == ActionType.REROLL
+    assert green_board_part.add_dice(dice2) == ActionMap.get(ActionType.REROLL)
 
 
 def test_add_dice_return_action_on_third_box():
@@ -38,7 +39,7 @@ def test_add_dice_return_action_on_third_box():
 
     dice3 = Dice(DiceColor.GREEN)
     dice3.value = 2
-    assert green_board_part.add_dice(dice3) == ActionType.NONE
+    assert green_board_part.add_dice(dice3) == ActionMap.get(ActionType.NONE)
 
 
 def test_fail_on_add_dice_with_different_color():

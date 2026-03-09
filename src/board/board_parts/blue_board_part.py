@@ -1,6 +1,8 @@
 import logging
 
 from src.actions.action_type import ActionType
+from src.actions.action_map import ActionMap
+from src.actions.base_action import Action
 from src.board.boxes.blue_box import BlueBox
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
@@ -30,7 +32,7 @@ class BlueBoardPart:
                 return box.maximum_value_limit
         return 0
 
-    def add_dice(self, blue_dice: Dice, white_dice: Dice) -> ActionType:
+    def add_dice(self, blue_dice: Dice, white_dice: Dice) -> Action:
         self._validate_dice(blue_dice, white_dice)
         logging.info(f'Adding dice {str(blue_dice)} to blue board part with {str(white_dice)}')
 
@@ -43,7 +45,7 @@ class BlueBoardPart:
                     following_box.maximum_value_limit = current_blue_box.value_used
                 logging.info(f'Lowered following boxes upper limits to {current_blue_box.value_used}')
 
-                return current_blue_box.action
+                return ActionMap.get(current_blue_box.action)
 
         raise ValueError("No free blue box available to add dice")
 

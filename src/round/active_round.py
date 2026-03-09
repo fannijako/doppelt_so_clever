@@ -5,7 +5,7 @@ from typing import Optional
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 from src.board.board import Board
-from src.actions.action_type import ActionType
+from src.actions.base_action import Action
 from src.actions.action_handler import ActionHandler
 
 
@@ -72,31 +72,35 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
         logging.info(f"Discarded dice: {[str(dice) for dice in self.discarded_die]}")
         return picked_dice, smaller_die
 
+    def _get_actions(self, picked_die: Dice, smaller_die: list[Dice]) -> list[Action]:
+        dispatch = {
+            DiceColor.BLUE: lambda: self.board.blue_board_part.add_dice(picked_die, self.white_dice),
+            DiceColor.PINK: lambda: self.board.pink_board_part.add_dice(picked_die),
+            DiceColor.GREEN: lambda: self.board.green_board_part.add_dice(picked_die),
+            DiceColor.GREY: lambda: self.place_a_grey_dice(picked_die, smaller_die),
+            DiceColor.YELLOW: lambda: self.place_a_yellow_dice(picked_die),
+            DiceColor.WHITE: lambda: self.place_a_white_dice(picked_die, self.blue_dice),
+        }
+        handler = dispatch.get(picked_die.color)
+        if not handler:
+            return []
+        result = handler()
+        if isinstance(result, list):
+            return result
+        return [result] if result else []
+
     def execute(self):
         for game_round in range(1, 4):
             logging.info(f'Starting round {game_round}')
             self.roll_die()
 
-            actions = []
             picked_die, smaller_die = self.pick_die()
-            if picked_die.color == DiceColor.BLUE:
-                actions.append(self.board.blue_board_part.add_dice(picked_die, self.white_dice))
-            if picked_die.color == DiceColor.PINK:
-                actions.append(self.board.pink_board_part.add_dice(picked_die))
-            if picked_die.color == DiceColor.GREEN:
-                actions.append(self.board.green_board_part.add_dice(picked_die))
-            if picked_die.color == DiceColor.GREY:
-                actions.append(self.place_a_grey_dice(picked_die, smaller_die))
-            if picked_die.color == DiceColor.YELLOW:
-                actions.append(self.place_a_yellow_dice(picked_die))
-            if picked_die.color == DiceColor.WHITE:
-                actions.append(self.place_a_white_dice(picked_die, self.blue_dice))
-
+            actions = self._get_actions(picked_die, smaller_die)
             self.action_handler.execute(actions, self.automatic)
 
             logging.info(f"Actions received in round {game_round}: {actions}")
 
-    def place_a_grey_dice(self, dice: Dice, smaller_die: list[Dice]) -> list[ActionType]:
+    def place_a_grey_dice(self, dice: Dice, smaller_die: list[Dice]) -> list[Action]:
         if DiceColor.WHITE in [dice.color for dice in smaller_die] or dice.color == DiceColor.WHITE:
             use_white_as = random.choice(
                 [DiceColor.BLUE, DiceColor.GREEN, DiceColor.PINK, DiceColor.YELLOW]
@@ -115,7 +119,7 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
             color_to_use_grey_as=use_grey_as
         )
 
-    def place_a_yellow_dice(self, dice: Dice) -> list[ActionType]:
+    def place_a_yellow_dice(self, dice: Dice) -> list[Action]:
         possible_dice_placements = self.board.yellow_board_part.possible_dice_placements(dice)
         logging.info(f'Possible dice placements: {possible_dice_placements}')
 
@@ -147,7 +151,7 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
             action=action
         )
 
-    def place_a_white_dice(self, dice: Dice, blue_dice: Dice) -> list[ActionType]:
+    def place_a_white_dice(self, dice: Dice, blue_dice: Dice) -> list[Action]:
         if self.automatic:
             play_white_as = random.choice(
                 [

@@ -1,6 +1,8 @@
 import logging
 
 from src.actions.action_type import ActionType
+from src.actions.action_map import ActionMap
+from src.actions.base_action import Action
 from src.board.boxes.green_box import GreenBox
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
@@ -24,14 +26,14 @@ class GreenBoardPart:
             GreenBox(1, ActionType.YELLOW_QUESTION_MARK, 11),
         ]
 
-    def add_dice(self, dice: Dice) -> ActionType:
+    def add_dice(self, dice: Dice) -> Action:
         self._validate_dice(dice)
         logging.info(f'Adding dice {str(dice)} to green board part')
         index_of_next_empty_field = self.index_of_next_empty_field()
         box = self.boxes[index_of_next_empty_field]
         box.add_dice_value(dice.value)
         logging.info(f'Added dice {str(dice)} to green box {index_of_next_empty_field}: {box.value_used}')
-        return box.action
+        return ActionMap.get(box.action)
 
     def index_of_next_empty_field(self) -> int:
         empty_boxes = list(filter(lambda box: box.value_used is None, self.boxes))
