@@ -18,7 +18,7 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
             action_to_use = self._pick_action_to_use(not_used_immediate_actions, automatic=automatic)
             logging.info(f'Action to use: {action_to_use}')
 
-            actions_received = action_to_use.use(board=self.board)
+            actions_received = action_to_use.use(board=self.board, automatic=automatic)
             immediate_actions_received = self._get_immediate_actions(actions_received)
             not_immediate_actions_received = self._get_not_immediate_actions(actions_received)
             logging.info(

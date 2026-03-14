@@ -14,6 +14,9 @@ class Action(ABC):
         self.action_type = action_type
         self.is_immediate = is_immediate
 
+    def __repr__(self) -> str:
+        return f"{self.action_type.value}"
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Action):
             return NotImplemented

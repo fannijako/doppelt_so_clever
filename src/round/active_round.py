@@ -7,9 +7,16 @@ from src.dice.dice_color import DiceColor
 from src.board.board import Board
 from src.actions.base_action import Action
 from src.actions.action_handler import ActionHandler
+from src.actions.not_immediate_actions.reroll_action import ReRollAction
+from src.actions.not_immediate_actions.reuse_action import ReUseAction
+from src.actions.not_immediate_actions.plus_one_action import PlusOneAction
 
 
-class ActiveRound:  # pylint: disable=too-many-instance-attributes
+class ActiveRound:
+    _NUM_ROUNDS = 3
+    _SUBSTITUTABLE_COLORS = [DiceColor.BLUE, DiceColor.GREEN, DiceColor.PINK, DiceColor.YELLOW]
+    _WHITE_SUBSTITUTABLE_COLORS = [*_SUBSTITUTABLE_COLORS, DiceColor.GREY]
+
     def __init__(
         self,
         board: Board,
@@ -20,41 +27,31 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
         self.automatic = automatic
         self.action_handler = action_handler
 
-        self.blue_dice = Dice(DiceColor.BLUE)
-        self.white_dice = Dice(DiceColor.WHITE)
-        self.pink_dice = Dice(DiceColor.PINK)
-        self.green_dice = Dice(DiceColor.GREEN)
-        self.grey_dice = Dice(DiceColor.GREY)
-        self.yellow_dice = Dice(DiceColor.YELLOW)
+        self.dice_by_color: dict[DiceColor, Dice] = {
+            color: Dice(color) for color in DiceColor
+        }
+        self.available_dice: list[Dice] = list(self.dice_by_color.values())
+        self.picked_dice: list[Dice] = []
+        self.discarded_dice: list[Dice] = []
 
-        self.available_die = [
-            self.blue_dice,
-            self.white_dice,
-            self.pink_dice,
-            self.green_dice,
-            self.grey_dice,
-            self.yellow_dice
+    def roll_dice(self) -> None:
+        for die in self.available_dice:
+            die.roll()
+        logging.info(f"ActiveRound: {self}")
+
+    def __str__(self) -> str:
+        sections = [
+            ("Available dice", self.available_dice),
+            ("Picked dice", self.picked_dice),
+            ("Discarded dice", self.discarded_dice),
         ]
-        self.picked_die = []
-        self.discarded_die = []
-
-    def roll_die(self):
-        for dice in self.available_die:
-            dice.roll()
-        logging.info(f"ActiveRound: {str(self)}")
-
-    def __str__(self):
-        return (
-            "Available die:\n" +
-            "\n".join([str(dice) for dice in self.available_die]) +
-            "\nPicked die:\n" +
-            "\n".join([str(dice) for dice in self.picked_die]) +
-            "\nDiscarded die:\n" +
-            "\n".join([str(dice) for dice in self.discarded_die])
+        return "\n".join(
+            f"{label}:\n" + "\n".join(str(die) for die in dice)
+            for label, dice in sections
         )
 
-    def pick_dice_color(self):
-        colors = [str(dice.color.value) for dice in self.available_die]
+    def _pick_color(self) -> str:
+        colors = [str(die.color.value) for die in self.available_dice]
         logging.info(f'Available dice colors: {", ".join(colors)}')
 
         color = random.choice(colors) if self.automatic else input('Pick an available color: ')
@@ -62,126 +59,191 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
         return color
 
     def pick_die(self) -> Optional[tuple[Dice, list[Dice]]]:
-        color = self.pick_dice_color()
-        dice = [dice for dice in self.available_die if str(dice.color.value) == color]
+        color = self._pick_color()
+        matched = [die for die in self.available_dice if str(die.color.value) == color]
 
-        picked_dice = dice[0] if dice else None
-        if not picked_dice:
+        if not matched:
             return None
 
-        smaller_die = [dice for dice in self.available_die if dice.value < picked_dice.value]
-        self.available_die.remove(picked_dice)
-        for die in smaller_die:
-            self.available_die.remove(die)
-        self.picked_die.append(picked_dice)
-        self.discarded_die.extend(smaller_die)
+        picked = matched[0]
+        smaller = [die for die in self.available_dice if die.value < picked.value]
+        self.available_dice.remove(picked)
+        for die in smaller:
+            self.available_dice.remove(die)
+        self.picked_dice.append(picked)
+        self.discarded_dice.extend(smaller)
 
-        logging.info(f"Picked die: {picked_dice}")
-        logging.info(f"ActiveRound: {str(self)}")
-        return picked_dice, smaller_die
+        logging.info(f"Picked die: {picked}")
+        logging.info(f"ActiveRound: {self}")
+        return picked, smaller
 
-    def _get_actions(self, picked_die: Dice, smaller_die: list[Dice]) -> list[Action]:
+    def _get_actions(self, picked: Dice, smaller: list[Dice]) -> list[Action]:
         dispatch = {
-            DiceColor.BLUE: lambda: self.board.blue_board_part.add_dice(picked_die, self.white_dice),
-            DiceColor.PINK: lambda: self.board.pink_board_part.add_dice(picked_die),
-            DiceColor.GREEN: lambda: self.board.green_board_part.add_dice(picked_die),
-            DiceColor.GREY: lambda: self.place_a_grey_dice(picked_die, smaller_die),
-            DiceColor.YELLOW: lambda: self.place_a_yellow_dice(picked_die),
-            DiceColor.WHITE: lambda: self.place_a_white_dice(picked_die, self.blue_dice),
+            DiceColor.BLUE: lambda: self.board.blue_board_part.add_dice(
+                picked, self.dice_by_color[DiceColor.WHITE]
+            ),
+            DiceColor.PINK: lambda: self.board.pink_board_part.add_dice(picked),
+            DiceColor.GREEN: lambda: self.board.green_board_part.add_dice(picked),
+            DiceColor.GREY: lambda: self._place_grey_dice(picked, smaller),
+            DiceColor.YELLOW: lambda: self._place_yellow_dice(picked),
+            DiceColor.WHITE: lambda: self._place_white_dice(picked),
         }
-        handler = dispatch.get(picked_die.color)
+        handler = dispatch.get(picked.color)
         if not handler:
             return []
         result = handler()
-        if isinstance(result, list):
-            return result
-        return [result] if result else []
+        return result if isinstance(result, list) else [result] if result else []
 
-    def execute(self):
-        for game_round in range(1, 4):
+    def _try_reuse(self) -> None:
+        logging.info(f"Usable reuses: {self.board.usable_reuses}, discarded dice: {len(self.discarded_dice)}")
+        while self.board.usable_reuses > 0 and self.discarded_dice:
+            if self.automatic:
+                should_use = random.choice([True, False])
+            else:
+                should_use = input('Use a reuse? (y/n): ').lower() == 'y'
+
+            if not should_use:
+                logging.info("Chose not to use reuse")
+                break
+
+            chosen_die = ReUseAction().use(
+                self.board, self.automatic,
+                discarded_dice=self.discarded_dice,
+            )
+            if chosen_die is not None:
+                self.discarded_dice.remove(chosen_die)
+                self.available_dice.append(chosen_die)
+                logging.info(f"Moved {chosen_die} from discarded to available dice")
+
+    def _try_reroll(self) -> None:
+        logging.info(f"Usable rerolls: {self.board.usable_rerolls}")
+        while self.board.usable_rerolls > 0:
+            if self.automatic:
+                should_use = random.choice([True, False])
+            else:
+                should_use = input('Use a reroll? (y/n): ').lower() == 'y'
+
+            if not should_use:
+                logging.info("Chose not to use reroll")
+                break
+
+            logging.info(f"Using reroll (remaining after use: {self.board.usable_rerolls - 1})")
+            ReRollAction().use(self.board, self.automatic)
+            self.roll_dice()
+
+    def _try_plus_one(self) -> None:
+        logging.info(f"Usable plus ones: {self.board.usable_plus_ones}")
+        while self.board.usable_plus_ones > 0:
+            if not any(die.value is not None for die in self.dice_by_color.values()):
+                logging.info("No dice with values available for plus one")
+                break
+
+            if self.automatic:
+                should_use = random.choice([True, False])
+            else:
+                should_use = input('Use a plus one? (y/n): ').lower() == 'y'
+
+            if not should_use:
+                logging.info("Chose not to use plus one")
+                break
+
+            logging.info(f"Using plus one (remaining after use: {self.board.usable_plus_ones - 1})")
+            picked = PlusOneAction().use(
+                self.board, self.automatic,
+                dice_by_color=self.dice_by_color,
+            )
+            if picked is None:
+                logging.info("No die was picked for plus one")
+                break
+
+            actions = self._get_actions(picked, [])
+            logging.info(f"Plus one actions: {actions}")
+            self.action_handler.execute(actions, self.automatic)
+
+    def execute(self) -> None:
+        for game_round in range(1, self._NUM_ROUNDS + 1):
             logging.info("-" * 100)
-            logging.info(f'Starting round {game_round}')
-            self.roll_die()
+            logging.info(f"Starting round {game_round}")
 
-            picked_die, smaller_die = self.pick_die()
-            actions = self._get_actions(picked_die, smaller_die)
+            self._try_reuse()
+            self.roll_dice()
+            self._try_reroll()
+
+            result = self.pick_die()
+            if result is None:
+                logging.info("No dice could be picked, ending round")
+                break
+
+            picked, smaller = result
+            actions = self._get_actions(picked, smaller)
             self.action_handler.execute(actions, self.automatic)
 
             logging.info(f"Actions received in round {game_round}: {actions}")
 
-            if not self.available_die:
+            if not self.available_dice:
                 logging.info("No available dice left, ending round")
                 break
 
-    def place_a_grey_dice(self, dice: Dice, smaller_die: list[Dice]) -> list[Action]:
-        if DiceColor.WHITE in [dice.color for dice in smaller_die] or dice.color == DiceColor.WHITE:
-            use_white_as = random.choice(
-                [DiceColor.BLUE, DiceColor.GREEN, DiceColor.PINK, DiceColor.YELLOW]
-            ) if self.automatic else input('Pick an available color to substitute white as: ')
+        self._try_plus_one()
+
+    def _place_grey_dice(self, picked: Dice, smaller: list[Dice]) -> list[Action]:
+        has_white = picked.color == DiceColor.WHITE or any(
+            die.color == DiceColor.WHITE for die in smaller
+        )
+        if has_white:
+            use_white_as = (
+                random.choice(self._SUBSTITUTABLE_COLORS) if self.automatic
+                else DiceColor(input('Pick an available color to substitute white as: '))
+            )
         else:
             use_white_as = None
 
-        use_grey_as = random.choice(
-            [DiceColor.BLUE, DiceColor.GREEN, DiceColor.PINK, DiceColor.YELLOW]
-            ) if self.automatic else input('Pick an available color to substitute grey as: ')
+        use_grey_as = (
+            random.choice(self._SUBSTITUTABLE_COLORS) if self.automatic
+            else DiceColor(input('Pick an available color to substitute grey as: '))
+        )
 
         return self.board.grey_board_part.add_dice(
-            dice=dice,
-            smaller_die=smaller_die,
+            dice=picked,
+            smaller_die=smaller,
             color_to_use_white_as=use_white_as,
-            color_to_use_grey_as=use_grey_as
+            color_to_use_grey_as=use_grey_as,
         )
 
-    def place_a_yellow_dice(self, dice: Dice) -> list[Action]:
-        possible_dice_placements = self.board.yellow_board_part.possible_dice_placements(dice)
-        logging.info(f'Possible dice placements: {possible_dice_placements}')
+    def _place_yellow_dice(self, picked: Dice) -> list[Action]:
+        placements = self.board.yellow_board_part.possible_dice_placements(picked)
+        logging.info(f"Possible dice placements: {placements}")
 
-        if len(possible_dice_placements) == 0:
+        if not placements:
             return []
-        if len(possible_dice_placements) == 1:
-            return self.board.yellow_board_part.add_dice(
-                dice=dice,
-                row_position=possible_dice_placements[0][0],
-                column_position=possible_dice_placements[0][1],
-                action=possible_dice_placements[0][2]
-            )
-        if self.automatic:
-            dice_placement = random.choice(possible_dice_placements)
-            return self.board.yellow_board_part.add_dice(
-                dice=dice,
-                row_position=dice_placement[0],
-                column_position=dice_placement[1],
-                action=dice_placement[2]
-            )
 
-        action_index_to_play = int(input('Pick an action index: '))
+        if len(placements) == 1:
+            placement = placements[0]
+        elif self.automatic:
+            placement = random.choice(placements)
+        else:
+            placement = placements[int(input('Pick an action index: '))]
+
         return self.board.yellow_board_part.add_dice(
-            dice=dice,
-            row_position=possible_dice_placements[action_index_to_play][0],
-            column_position=possible_dice_placements[action_index_to_play][1],
-            action=possible_dice_placements[action_index_to_play][2]
+            dice=picked,
+            row_position=placement[0],
+            column_position=placement[1],
+            action=placement[2],
         )
 
-    def place_a_white_dice(self, dice: Dice, blue_dice: Dice) -> list[Action]:
+    def _place_white_dice(self, picked: Dice) -> list[Action]:
         if self.automatic:
-            play_white_as = random.choice(
-                [
-                    DiceColor.BLUE,
-                    DiceColor.GREEN,
-                    DiceColor.PINK,
-                    DiceColor.YELLOW,
-                    DiceColor.GREY
-                ]
-            )
+            play_as = random.choice(self._WHITE_SUBSTITUTABLE_COLORS)
         else:
-            play_white_as = DiceColor(input('Pick an available color to play white as: '))
+            play_as = DiceColor(input('Pick an available color to play white as: '))
 
-        if play_white_as == DiceColor.BLUE:
-            return self.board.blue_board_part.add_dice(blue_dice, dice)
-        if play_white_as == DiceColor.GREEN:
-            return self.board.green_board_part.add_dice(dice)
-        if play_white_as == DiceColor.PINK:
-            return self.board.pink_board_part.add_dice(dice)
-        if play_white_as == DiceColor.YELLOW:
-            return self.place_a_yellow_dice(dice)
-        return self.place_a_grey_dice(dice, [])
+        dispatch = {
+            DiceColor.BLUE: lambda: self.board.blue_board_part.add_dice(
+                self.dice_by_color[DiceColor.BLUE], picked
+            ),
+            DiceColor.GREEN: lambda: self.board.green_board_part.add_dice(picked),
+            DiceColor.PINK: lambda: self.board.pink_board_part.add_dice(picked),
+            DiceColor.YELLOW: lambda: self._place_yellow_dice(picked),
+            DiceColor.GREY: lambda: self._place_grey_dice(picked, []),
+        }
+        return dispatch[play_as]()

@@ -22,4 +22,4 @@ class PinkQuestionMarkAction(ImmediateActions):  # pylint: disable=too-few-publi
         pink_dice = Dice(DiceColor.PINK)
         pink_dice.set_value(6)
         action = board.pink_board_part.add_dice(pink_dice)
-        return [action]
+        return [action] if action else []

@@ -56,7 +56,7 @@ class GreyBoardPart:
             if not box_to_cross:
                 logging.info(f"No box to cross for die {die.color} | {die.value}")
                 continue
-            box_to_cross[0].cross_box(die.color, die.value)
+            box_to_cross[0].cross_box(color, die.value)
 
         return self._calculate_actions_received_in_round()
 

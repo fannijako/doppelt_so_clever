@@ -1,5 +1,8 @@
+import logging
+import random
 from typing import Optional
 
+from src.dice.dice import Dice
 from src.board.board import Board
 from src.actions.base_action import Action
 from src.actions.action_type import ActionType
@@ -13,11 +16,30 @@ class ReUseAction(NotImmediateActions):
 
     def save(self, board: Board) -> Optional[Action]:
         board.gained_reuses += 1
+        board.usable_reuses += 1
         if board.gained_reuses == 6:
             return PinkQuestionMarkAction()
         return None
 
-    def use(self, board: Board, automatic: bool) -> None:
+    def use(
+        self,
+        board: Board,
+        automatic: bool,
+        discarded_dice: list[Dice] = None,
+    ) -> Optional[Dice]:
         if board.usable_reuses == 0:
             raise ValueError("No usable reuses")
         board.usable_reuses -= 1
+
+        if discarded_dice is not None:
+            if automatic:
+                chosen_die = random.choice(discarded_dice)
+            else:
+                logging.info(f"Discarded dice: {', '.join(str(die) for die in discarded_dice)}")
+                index = int(input('Pick a discarded die index: '))
+                chosen_die = discarded_dice[index]
+
+            logging.info(f"Reused die: {chosen_die}")
+            return chosen_die
+
+        return None

@@ -13,6 +13,7 @@ class ReRollAction(NotImmediateActions):
 
     def save(self, board: Board) -> Optional[Action]:
         board.gained_rerolls += 1
+        board.usable_rerolls += 1
         if board.gained_rerolls == 6:
             return FoxAction()
         return None

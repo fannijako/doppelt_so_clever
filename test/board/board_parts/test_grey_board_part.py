@@ -90,19 +90,25 @@ def test_add_dice_adds_white_dice_as_green_if_color_to_use_white_as_is_green():
 
 def test_add_dice_has_no_effect_if_die_is_already_crossed():
     grey_board_part = GreyBoardPart()
-    yellow_box = next(
+    yellow_box_3 = next(
         box for box in grey_board_part.boxes
         if box.color == DiceColor.YELLOW and box.number == 3
     )
-    yellow_box.is_crossed = True
+    yellow_box_3.is_crossed = True
+
+    yellow_box_5 = next(
+        box for box in grey_board_part.boxes
+        if box.color == DiceColor.YELLOW and box.number == 5
+    )
+    yellow_box_5.is_crossed = True
 
     dice = Dice(DiceColor.GREY)
     dice.value = 5
     smaller = Dice(DiceColor.YELLOW)
     smaller.value = 3
-    grey_board_part.add_dice(dice, [smaller], color_to_use_grey_as=DiceColor.BLUE)
+    grey_board_part.add_dice(dice, [smaller], color_to_use_grey_as=DiceColor.YELLOW)
 
-    assert sum(1 for box in grey_board_part.boxes if box.is_crossed) == 1
+    assert sum(1 for box in grey_board_part.boxes if box.is_crossed) == 2
 
 
 def test_plus_one_action_returned_when_all_ones_are_crossed():
