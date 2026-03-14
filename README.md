@@ -1,15 +1,14 @@
-# Python repository template
+# Doppelt So Clever Board Game
 
 [![Coverage Status](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/fannijako/repo_template)
 
 ## Project Overview
 
-Repository template for my Python projects
+Reinforcement learning based model trainer for the Doppelt So Clever board game.
 
 ## Dependencies
 
-- python package 1
-- python package 2
+- None
 
 ## Installation
 
@@ -40,15 +39,7 @@ make lint
 
 ## Usage
 
-Create a .env file with the following variables:
-
 ```bash
-KEY_NAME=key_value
-```
-
-```bash
-make venv
-source .venv/bin/activate
-make build
+make run-auto
 make run
 ```
