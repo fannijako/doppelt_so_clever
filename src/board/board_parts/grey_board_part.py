@@ -45,8 +45,8 @@ class GreyBoardPart:
         all_die = [dice] + smaller_die
         logging.info(
             f'Adding dice {" + ".join([str(die) for die in all_die])} to grey board part.'
-            f'White die will be used as: {color_to_use_white_as}'
-            f'Grey die will be used as: {color_to_use_grey_as}'
+            f'White die will be used as: {color_to_use_white_as}. '
+            f'Grey die will be used as: {color_to_use_grey_as}.'
         )
 
         for die in all_die:

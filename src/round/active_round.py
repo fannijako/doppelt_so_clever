@@ -26,7 +26,8 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
         self.green_dice = Dice(DiceColor.GREEN)
         self.grey_dice = Dice(DiceColor.GREY)
         self.yellow_dice = Dice(DiceColor.YELLOW)
-        self.die = [
+
+        self.available_die = [
             self.blue_dice,
             self.white_dice,
             self.pink_dice,
@@ -34,17 +35,23 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
             self.grey_dice,
             self.yellow_dice
         ]
-        self.available_die = self.die.copy()
         self.picked_die = []
         self.discarded_die = []
 
     def roll_die(self):
-        for dice in self.die:
+        for dice in self.available_die:
             dice.roll()
         logging.info(f"ActiveRound: {str(self)}")
 
     def __str__(self):
-        return "\n".join([str(dice) for dice in self.die])
+        return (
+            "Available die:\n" +
+            "\n".join([str(dice) for dice in self.available_die]) +
+            "\nPicked die:\n" +
+            "\n".join([str(dice) for dice in self.picked_die]) +
+            "\nDiscarded die:\n" +
+            "\n".join([str(dice) for dice in self.discarded_die])
+        )
 
     def pick_dice_color(self):
         colors = [str(dice.color.value) for dice in self.available_die]
@@ -64,12 +71,13 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
 
         smaller_die = [dice for dice in self.available_die if dice.value < picked_dice.value]
         self.available_die.remove(picked_dice)
+        for die in smaller_die:
+            self.available_die.remove(die)
         self.picked_die.append(picked_dice)
         self.discarded_die.extend(smaller_die)
 
         logging.info(f"Picked die: {picked_dice}")
-        logging.info(f"Available dice left: {[str(dice) for dice in self.available_die]}")
-        logging.info(f"Discarded dice: {[str(dice) for dice in self.discarded_die]}")
+        logging.info(f"ActiveRound: {str(self)}")
         return picked_dice, smaller_die
 
     def _get_actions(self, picked_die: Dice, smaller_die: list[Dice]) -> list[Action]:
@@ -91,6 +99,7 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
 
     def execute(self):
         for game_round in range(1, 4):
+            logging.info("-" * 100)
             logging.info(f'Starting round {game_round}')
             self.roll_die()
 
@@ -99,6 +108,10 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
             self.action_handler.execute(actions, self.automatic)
 
             logging.info(f"Actions received in round {game_round}: {actions}")
+
+            if not self.available_die:
+                logging.info("No available dice left, ending round")
+                break
 
     def place_a_grey_dice(self, dice: Dice, smaller_die: list[Dice]) -> list[Action]:
         if DiceColor.WHITE in [dice.color for dice in smaller_die] or dice.color == DiceColor.WHITE:
@@ -141,14 +154,12 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
                 action=dice_placement[2]
             )
 
-        row_position = int(input('Pick a row position: '))
-        column_position = int(input('Pick a column position: '))
-        action = input('Pick an action: ')
+        action_index_to_play = int(input('Pick an action index: '))
         return self.board.yellow_board_part.add_dice(
             dice=dice,
-            row_position=row_position,
-            column_position=column_position,
-            action=action
+            row_position=possible_dice_placements[action_index_to_play][0],
+            column_position=possible_dice_placements[action_index_to_play][1],
+            action=possible_dice_placements[action_index_to_play][2]
         )
 
     def place_a_white_dice(self, dice: Dice, blue_dice: Dice) -> list[Action]:
