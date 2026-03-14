@@ -18,7 +18,7 @@ class BlackQuestionMarkAction(ImmediateActions):
 
     def use(self, board: Board, automatic: bool) -> list[Action]:
         action_to_use = self._pick_action(automatic=automatic)
-        return action_to_use().use(board)
+        return action_to_use().use(board, automatic)
 
     def _pick_action(self, automatic: bool) -> type[Action]:
         if automatic:

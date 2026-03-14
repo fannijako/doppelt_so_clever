@@ -1,20 +1,15 @@
 import logging
 import argparse
 
-from src.round.active_round import ActiveRound
-from src.board.board import Board
-from src.actions.action_handler import ActionHandler
+from src.game import Game
 
 
 def main() -> None:
     arguments = parse_arguments()
     setup_logging(arguments)
     logging.info(f"args: {arguments}")
-    board = Board()
-    action_handler = ActionHandler(board=board)
-    active_round = ActiveRound(board, action_handler, automatic=arguments.automatic)
-    active_round.execute()
-    logging.info(f"board value: {board.evaluate()}")
+    game = Game(automatic=arguments.automatic)
+    game.play()
 
 
 def parse_arguments() -> argparse.Namespace:

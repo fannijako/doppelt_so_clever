@@ -28,7 +28,8 @@ class BlueQuestionMarkAction(ImmediateActions):
         logging.debug(f"Blue dice value set to: {blue_dice.value}")
         logging.debug(f"White dice value set to: {white_dice.value}")
 
-        return board.blue_board_part.add_dice(
+        action = board.blue_board_part.add_dice(
             blue_dice,
             white_dice
         )
+        return [action] if action else []

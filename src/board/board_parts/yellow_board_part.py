@@ -104,6 +104,12 @@ class YellowBoardPart:
         if (row_position, column_position, action) not in self.possible_dice_placements(dice):
             raise ValueError("Invalid dice placement")
 
+        logging.info(
+            f"Adding dice {dice} to yellow board part at "
+            f"row {row_position}, column {column_position} "
+            f"with action {action.value}."
+        )
+
         if action == YellowBoardAction.CIRCLE:
             self.circle_box(dice.value, row_position, column_position)
         elif action == YellowBoardAction.CROSS:
