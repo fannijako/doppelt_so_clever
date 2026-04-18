@@ -15,7 +15,7 @@ class GreyQuestionMarkAction(ImmediateActions):
 
     def use(self, board: Board, automatic: bool) -> list[Action]:
         dice = Dice(DiceColor.GREY)
-        color, value = self._pick_color_and_value(automatic)
+        color, value = self._pick_color_and_value(board, automatic)
         dice.set_value(value)
 
         return board.grey_board_part.add_dice(
@@ -24,16 +24,11 @@ class GreyQuestionMarkAction(ImmediateActions):
             color_to_use_grey_as=color,
         )
 
-    def _pick_color_and_value(self, automatic: bool) -> tuple[DiceColor, int]:
+    def _pick_color_and_value(self, board: Board, automatic: bool) -> tuple[DiceColor, int]:
         possible_combinations = [
-            (color, value)
-            for color in [
-                DiceColor.YELLOW,
-                DiceColor.BLUE,
-                DiceColor.BLUE,
-                DiceColor.PINK,
-            ]
-            for value in list(range(1, 7))
+            (box.color, box.number)
+            for box in board.grey_board_part.boxes
+            if not box.is_crossed
         ]
         if automatic:
             return random.choice(possible_combinations)
