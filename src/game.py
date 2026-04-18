@@ -1,6 +1,7 @@
 import logging
 
 from src.round.active_round import ActiveRound
+from src.round.passive_round import PassiveRound
 from src.board.board import Board
 from src.actions.action_handler import ActionHandler
 from src.actions.not_immediate_actions.reroll_action import ReRollAction
@@ -40,6 +41,9 @@ class Game:  # pylint: disable=too-few-public-methods
 
             active_round = ActiveRound(self.board, self.action_handler, automatic=self.automatic)
             active_round.execute()
+
+            passive_round = PassiveRound(self.board, self.action_handler, automatic=self.automatic)
+            passive_round.execute()
 
         score = self.board.evaluate()
         logging.info(f"board value: {score}")

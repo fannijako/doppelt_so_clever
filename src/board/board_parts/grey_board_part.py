@@ -1,4 +1,5 @@
 import logging
+import random
 from typing import Optional
 
 from src.board.boxes.grey_box import GreyBox
@@ -10,6 +11,8 @@ from src.actions.base_action import Action
 
 
 class GreyBoardPart:
+    _SUBSTITUTABLE_COLORS = [DiceColor.YELLOW, DiceColor.BLUE, DiceColor.PINK, DiceColor.GREEN]
+
     def __init__(self):
         logging.debug("Initializing a grey board part")
         self.boxes = [
@@ -59,6 +62,40 @@ class GreyBoardPart:
             box_to_cross[0].cross_box(color, die.value)
 
         return self._calculate_actions_received_in_round()
+
+    def place_dice(
+        self,
+        dice: Dice,
+        automatic: bool,
+        smaller_die: list[Dice] = None,
+    ) -> list[Action]:
+        if smaller_die is None:
+            smaller_die = []
+
+        all_die = [dice] + smaller_die
+        has_white = any(die.color == DiceColor.WHITE for die in all_die)
+        has_grey = any(die.color == DiceColor.GREY for die in all_die)
+
+        color_to_use_white_as = None
+        if has_white:
+            color_to_use_white_as = (
+                random.choice(self._SUBSTITUTABLE_COLORS) if automatic
+                else DiceColor(input('Pick an available color to substitute white as: '))
+            )
+
+        color_to_use_grey_as = None
+        if has_grey:
+            color_to_use_grey_as = (
+                random.choice(self._SUBSTITUTABLE_COLORS) if automatic
+                else DiceColor(input('Pick an available color to substitute grey as: '))
+            )
+
+        return self.add_dice(
+            dice=dice,
+            smaller_die=smaller_die,
+            color_to_use_white_as=color_to_use_white_as,
+            color_to_use_grey_as=color_to_use_grey_as,
+        )
 
     def _calculate_actions_received_in_round(self) -> list[Action]:
         actions_received = []

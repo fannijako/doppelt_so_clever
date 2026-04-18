@@ -14,8 +14,6 @@ from src.actions.not_immediate_actions.plus_one_action import PlusOneAction
 
 class ActiveRound:
     _NUM_ROUNDS = 3
-    _SUBSTITUTABLE_COLORS = [DiceColor.BLUE, DiceColor.GREEN, DiceColor.PINK, DiceColor.YELLOW]
-    _WHITE_SUBSTITUTABLE_COLORS = [*_SUBSTITUTABLE_COLORS, DiceColor.GREY]
 
     def __init__(
         self,
@@ -84,9 +82,9 @@ class ActiveRound:
             ),
             DiceColor.PINK: lambda: self.board.pink_board_part.add_dice(picked),
             DiceColor.GREEN: lambda: self.board.green_board_part.add_dice(picked),
-            DiceColor.GREY: lambda: self._place_grey_dice(picked, smaller),
-            DiceColor.YELLOW: lambda: self._place_yellow_dice(picked),
-            DiceColor.WHITE: lambda: self._place_white_dice(picked),
+            DiceColor.GREY: lambda: self.board.grey_board_part.place_dice(picked, self.automatic, smaller),
+            DiceColor.YELLOW: lambda: self.board.yellow_board_part.place_dice(picked, self.automatic),
+            DiceColor.WHITE: lambda: self.board.place_white_dice(picked, self.automatic, self.dice_by_color),
         }
         handler = dispatch.get(picked.color)
         if not handler:
@@ -185,65 +183,3 @@ class ActiveRound:
                 break
 
         self._try_plus_one()
-
-    def _place_grey_dice(self, picked: Dice, smaller: list[Dice]) -> list[Action]:
-        has_white = picked.color == DiceColor.WHITE or any(
-            die.color == DiceColor.WHITE for die in smaller
-        )
-        if has_white:
-            use_white_as = (
-                random.choice(self._SUBSTITUTABLE_COLORS) if self.automatic
-                else DiceColor(input('Pick an available color to substitute white as: '))
-            )
-        else:
-            use_white_as = None
-
-        use_grey_as = (
-            random.choice(self._SUBSTITUTABLE_COLORS) if self.automatic
-            else DiceColor(input('Pick an available color to substitute grey as: '))
-        )
-
-        return self.board.grey_board_part.add_dice(
-            dice=picked,
-            smaller_die=smaller,
-            color_to_use_white_as=use_white_as,
-            color_to_use_grey_as=use_grey_as,
-        )
-
-    def _place_yellow_dice(self, picked: Dice) -> list[Action]:
-        placements = self.board.yellow_board_part.possible_dice_placements(picked)
-        logging.info(f"Possible dice placements: {placements}")
-
-        if not placements:
-            return []
-
-        if len(placements) == 1:
-            placement = placements[0]
-        elif self.automatic:
-            placement = random.choice(placements)
-        else:
-            placement = placements[int(input('Pick an action index: '))]
-
-        return self.board.yellow_board_part.add_dice(
-            dice=picked,
-            row_position=placement[0],
-            column_position=placement[1],
-            action=placement[2],
-        )
-
-    def _place_white_dice(self, picked: Dice) -> list[Action]:
-        if self.automatic:
-            play_as = random.choice(self._WHITE_SUBSTITUTABLE_COLORS)
-        else:
-            play_as = DiceColor(input('Pick an available color to play white as: '))
-
-        dispatch = {
-            DiceColor.BLUE: lambda: self.board.blue_board_part.add_dice(
-                self.dice_by_color[DiceColor.BLUE], picked
-            ),
-            DiceColor.GREEN: lambda: self.board.green_board_part.add_dice(picked),
-            DiceColor.PINK: lambda: self.board.pink_board_part.add_dice(picked),
-            DiceColor.YELLOW: lambda: self._place_yellow_dice(picked),
-            DiceColor.GREY: lambda: self._place_grey_dice(picked, []),
-        }
-        return dispatch[play_as]()
