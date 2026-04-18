@@ -9,6 +9,7 @@ This project is a simulation of the board game **Doppelt so clever** (Twice as C
 ```
 src/
 ├── entrypoint.py          # CLI entry point
+├── monte_carlo.py         # Monte Carlo simulation
 ├── game.py                # Game orchestrator
 ├── dice/                  # Dice and color definitions
 ├── round/                 # Active and passive round logic
@@ -35,6 +36,7 @@ src/
 |-------|------|----------------|--------------|
 | *(module)* `entrypoint` | `src/entrypoint.py` | Parses CLI args (`-v`, `-a`), sets up logging, starts a `Game` | `Game` |
 | `Game` | `src/game.py` | Runs 6 active rounds, each followed by a passive round; grants round-specific bonus actions; triggers final scoring | `Board`, `ActionHandler`, `ActiveRound`, `PassiveRound`, `ReRollAction`, `ReUseAction`, `PlusOneAction`, `BlackQuestionMarkAction` |
+| *(module)* `monte_carlo` | `src/monte_carlo.py` | Runs Monte Carlo simulations with configurable rounds | `Game` |
 
 ### Rounds
 

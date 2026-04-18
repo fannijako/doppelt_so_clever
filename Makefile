@@ -27,6 +27,9 @@ run:
 run-auto:
 	python main.py -a
 
+run-monte-carlo:
+	python monte_carlo.py -r 1000
+
 clean:
 	rm -rf .venv
 	rm -rf __pycache__
