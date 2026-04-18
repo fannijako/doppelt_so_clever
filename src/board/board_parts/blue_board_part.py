@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from src.actions.action_type import ActionType
 from src.actions.action_map import ActionMap
@@ -32,13 +33,18 @@ class BlueBoardPart:
                 return box.maximum_value_limit
         return 0
 
-    def add_dice(self, blue_dice: Dice, white_dice: Dice) -> Action:
+    def add_dice(self, blue_dice: Dice, white_dice: Dice) -> Optional[Action]:
         self._validate_dice(blue_dice, white_dice)
         logging.info(f'Adding dice {str(blue_dice)} to blue board part with {str(white_dice)}')
 
         for index, current_blue_box in enumerate(self.boxes):
             if current_blue_box.value_used is None:
                 current_blue_box.add_dice_value(blue_dice.value, white_dice.value)
+
+                if current_blue_box.value_used is None:
+                    logging.info(f'Dice sum exceeds limit on blue box {index}, skipping placement')
+                    return None
+
                 logging.info(f'Added dice {str(blue_dice)} to blue box {index}')
 
                 for following_box in self.boxes[index + 1:]:

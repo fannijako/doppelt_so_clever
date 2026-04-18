@@ -56,6 +56,23 @@ def test_fail_on_add_dice_with_full_board(blue_and_white_dices):
         blue_board_part.add_dice(blue_dice, white_dice)
 
 
+def test_add_dice_skips_placement_when_sum_exceeds_limit():
+    blue_board_part = BlueBoardPart()
+    blue_dice = Dice(DiceColor.BLUE)
+    white_dice = Dice(DiceColor.WHITE)
+    blue_dice.value = 1
+    white_dice.value = 1
+    blue_board_part.add_dice(blue_dice, white_dice)
+
+    blue_dice.value = 6
+    white_dice.value = 6
+    result = blue_board_part.add_dice(blue_dice, white_dice)
+
+    assert result is None
+    assert blue_board_part.boxes[1].value_used is None
+    assert blue_board_part.boxes[2].maximum_value_limit == 2
+
+
 def test_evaluate(blue_and_white_dices):
     blue_board_part = BlueBoardPart()
     blue_dice, white_dice = blue_and_white_dices

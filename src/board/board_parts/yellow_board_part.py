@@ -1,4 +1,5 @@
 import logging
+import random
 
 from enum import Enum
 
@@ -159,6 +160,27 @@ class YellowBoardPart:
             for box in self.boxes
             if box.is_circled and not box.is_crossed
         ]
+
+    def place_dice(self, dice: Dice, automatic: bool) -> list[Action]:
+        placements = self.possible_dice_placements(dice)
+        logging.info(f"Possible dice placements: {placements}")
+
+        if not placements:
+            return []
+
+        if len(placements) == 1:
+            placement = placements[0]
+        elif automatic:
+            placement = random.choice(placements)
+        else:
+            placement = placements[int(input('Pick an action index: '))]
+
+        return self.add_dice(
+            dice=dice,
+            row_position=placement[0],
+            column_position=placement[1],
+            action=placement[2],
+        )
 
     @staticmethod
     def _validate_dice(dice: Dice) -> None:
