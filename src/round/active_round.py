@@ -132,11 +132,11 @@ class ActiveRound:
     def _ask_to_place_die(self, picked: Dice) -> bool:
         if self.automatic:
             return random.choice([True, False])
-        else:
-            response = input(f'Place die {picked}? (y/n): ').lower()
-            should_place = response == 'y'
-            logging.info(f"Chose to {'place' if should_place else 'skip'} die {picked}")
-            return should_place
+
+        response = input(f'Place die {picked}? (y/n): ').lower()
+        should_place = response == 'y'
+        logging.info(f"Chose to {'place' if should_place else 'skip'} die {picked}")
+        return should_place
 
     def _try_plus_one(self) -> None:
         logging.info(f"Usable plus ones: {self.board.usable_plus_ones}")
