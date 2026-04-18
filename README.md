@@ -20,6 +20,7 @@ A Python simulation of **Doppelt so clever** (*Twice as Clever*), the popular ro
 ```
 src/
 ├── entrypoint.py        # CLI argument parsing and logging setup
+├── monte_carlo.py       # Monte Carlo simulation
 ├── game.py              # Main game loop (6 active rounds)
 ├── board/
 │   ├── board.py         # Board with 5 colored parts and scoring
@@ -69,6 +70,11 @@ make run
 Run the game in **automatic mode** (random decisions):
 ```bash
 make run-auto
+```
+
+Run the **Monte Carlo simulation**:
+```bash
+make run-monte-carlo
 ```
 
 Enable verbose logging with the `-v` flag:
