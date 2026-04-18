@@ -84,7 +84,7 @@ class ActiveRound:
             DiceColor.GREEN: lambda: self.board.green_board_part.add_dice(picked),
             DiceColor.GREY: lambda: self.board.grey_board_part.place_dice(picked, self.automatic, smaller),
             DiceColor.YELLOW: lambda: self.board.yellow_board_part.place_dice(picked, self.automatic),
-            DiceColor.WHITE: lambda: self.board.place_white_dice(picked, self.automatic, self.dice_by_color),
+            DiceColor.WHITE: lambda: self.board.place_white_dice(picked, self.automatic, self.dice_by_color, smaller),
         }
         handler = dispatch.get(picked.color)
         if not handler:
@@ -129,6 +129,15 @@ class ActiveRound:
             ReRollAction().use(self.board, self.automatic)
             self.roll_dice()
 
+    def _ask_to_place_die(self, picked: Dice) -> bool:
+        if self.automatic:
+            return random.choice([True, False])
+        else:
+            response = input(f'Place die {picked}? (y/n): ').lower()
+            should_place = response == 'y'
+            logging.info(f"Chose to {'place' if should_place else 'skip'} die {picked}")
+            return should_place
+
     def _try_plus_one(self) -> None:
         logging.info(f"Usable plus ones: {self.board.usable_plus_ones}")
         while self.board.usable_plus_ones > 0:
@@ -167,12 +176,20 @@ class ActiveRound:
             self.roll_dice()
             self._try_reroll()
 
+            if not self.available_dice:
+                logging.info("No available dice left, ending round")
+                break
+
             result = self.pick_die()
             if result is None:
                 logging.info("No dice could be picked, ending round")
                 break
 
             picked, smaller = result
+            if not self._ask_to_place_die(picked):
+                logging.info(f"Declined to place die {picked}, skipping placement")
+                continue
+
             actions = self._get_actions(picked, smaller)
             self.action_handler.execute(actions, self.automatic)
 

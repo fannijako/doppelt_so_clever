@@ -34,7 +34,10 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
         white_dice: Dice,
         automatic: bool,
         dice_by_color: dict[DiceColor, Dice],
+        smaller_die: list[Dice] = None,
     ) -> list[Action]:
+        if smaller_die is None:
+            smaller_die = []
         if automatic:
             play_as = random.choice(self._WHITE_SUBSTITUTABLE_COLORS)
         else:
@@ -47,7 +50,7 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
             DiceColor.GREEN: lambda: self.green_board_part.add_dice(white_dice),
             DiceColor.PINK: lambda: self.pink_board_part.add_dice(white_dice),
             DiceColor.YELLOW: lambda: self.yellow_board_part.place_dice(white_dice, automatic),
-            DiceColor.GREY: lambda: self.grey_board_part.place_dice(white_dice, automatic),
+            DiceColor.GREY: lambda: self.grey_board_part.place_dice(white_dice, automatic, smaller_die),
         }
         result = dispatch[play_as]()
         return result if isinstance(result, list) else [result] if result else []
