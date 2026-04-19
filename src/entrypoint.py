@@ -2,6 +2,7 @@ import logging
 import argparse
 
 from src.game import Game
+from src.pygame_game import PygameGame
 
 
 def main() -> None:
@@ -10,7 +11,6 @@ def main() -> None:
     logging.info(f"args: {arguments}")
 
     if arguments.pygame:
-        from src.pygame_game import PygameGame  # pylint: disable=import-outside-toplevel
         game = PygameGame()
     else:
         game = Game(automatic=arguments.automatic)

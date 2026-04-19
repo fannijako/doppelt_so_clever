@@ -1,5 +1,3 @@
-"""Pygame-based UI for Doppelt So Clever."""
-
 import logging
 import sys
 from typing import Optional, Callable, Any
@@ -12,14 +10,12 @@ from src.dice.dice import Dice
 
 
 class GameState(Enum):
-    """Game states for UI flow control."""
     WAITING_FOR_INPUT = auto()
     ANIMATING = auto()
     IDLE = auto()
 
 
 class Colors:  # pylint: disable=too-few-public-methods
-    """Color palette."""
     BG = (30, 30, 40)
     BG_LIGHT = (45, 45, 60)
     TEXT = (240, 240, 240)
@@ -39,8 +35,6 @@ class Colors:  # pylint: disable=too-few-public-methods
 
 
 class Button:
-    """Interactive button."""
-
     def __init__(
         self,
         x: int,
@@ -94,8 +88,6 @@ class Button:
 
 
 class PygameUI:
-    """Pygame UI for Doppelt So Clever."""
-
     WIDTH = 1200
     HEIGHT = 900
 
@@ -108,13 +100,11 @@ class PygameUI:
         self.board = board
         self.running = True
 
-        # Fonts
         self.font_large = pygame.font.SysFont("arial", 24, bold=True)
         self.font_medium = pygame.font.SysFont("arial", 18)
         self.font_small = pygame.font.SysFont("arial", 14)
         self.font_title = pygame.font.SysFont("arial", 32, bold=True)
 
-        # UI State
         self.buttons: list[Button] = []
         self.current_dice: Optional[list[Dice]] = None
         self.discarded_dice: Optional[list[Dice]] = None
@@ -124,11 +114,9 @@ class PygameUI:
         self.input_type: Optional[str] = None
         self.input_options: list[Any] = []
 
-        # Animation
         self.animation_time = 0
 
     def clear_buttons(self) -> None:
-        """Clear all buttons."""
         self.buttons = []
 
     def add_button(
@@ -141,7 +129,6 @@ class PygameUI:
         value: Any = None,
         enabled: bool = True
     ) -> Button:
-        """Add a button that stores its value when clicked."""
         def callback():
             self.input_result = value if value is not None else text
             self.waiting_for_input = False
@@ -151,17 +138,14 @@ class PygameUI:
         return btn
 
     def wait_for_input(self, input_type: str, options: list[Any], message: str) -> Any:
-        """Block until user makes a selection."""
         self.input_type = input_type
         self.input_options = options
         self.message = message
         self.waiting_for_input = True
         self.input_result = None
 
-        # Create buttons based on input type
         self._create_input_buttons(input_type, options)
 
-        # Event loop waiting for input
         while self.waiting_for_input and self.running:
             self._handle_events()
             self._render()
@@ -170,12 +154,11 @@ class PygameUI:
         return self.input_result
 
     def _create_yes_no_buttons(self, button_y: int) -> None:
-        """Create yes/no buttons."""
         self.add_button(520, button_y, 120, 60, "Yes", True)
         self.add_button(660, button_y, 120, 60, "No", False)
 
     def _create_dice_color_buttons(self, options: list[Any], button_y: int) -> None:
-        """Create color selection buttons."""
+
         colors = ["blue", "pink", "green", "yellow", "grey", "white"]
         option_strs = [str(o).lower() for o in options]
         matching = [c for c in colors if c in option_strs]
@@ -187,7 +170,6 @@ class PygameUI:
                 x += 110
 
     def _create_dice_index_buttons(self, options: list[Any], button_y: int) -> None:
-        """Create dice index buttons."""
         x = (self.WIDTH - len(options) * 140) // 2
         for i, die in enumerate(options):
             self.add_button(x, button_y, 130, 70, str(die), i)
@@ -195,7 +177,6 @@ class PygameUI:
             x += 140
 
     def _create_action_index_buttons(self, options: list[Any], button_y: int) -> None:
-        """Create action/placement index buttons."""
         items_per_row = 4
         button_width = 240
         button_height = 55
@@ -209,7 +190,6 @@ class PygameUI:
             self.add_button(x, y, button_width, button_height, str(opt), i)
 
     def _create_color_choice_buttons(self, options: list[Any], button_y: int) -> None:
-        """Create color substitution buttons."""
         all_colors = ["yellow", "blue", "pink", "green", "grey"]
         option_strs = [
             str(o).lower().replace('dicecolor.', '') if hasattr(o, 'value') else str(o).lower()
@@ -223,7 +203,6 @@ class PygameUI:
                 x += 140
 
     def _create_input_buttons(self, input_type: str, options: list[Any]) -> None:
-        """Create appropriate buttons for the input type."""
         self.clear_buttons()
 
         button_y = 750
@@ -240,7 +219,6 @@ class PygameUI:
             self._create_color_choice_buttons(options, button_y)
 
     def _handle_events(self) -> None:
-        """Handle pygame events."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
@@ -252,43 +230,33 @@ class PygameUI:
                 btn.handle_event(event)
 
     def _render(self) -> None:
-        """Render the game screen."""
         self.screen.fill(Colors.BG)
 
-        # Title
         title = self.font_title.render("Doppelt So Clever", True, Colors.WHITE)
         self.screen.blit(title, (self.WIDTH // 2 - title.get_width() // 2, 10))
 
-        # Draw all board sections - two column layout
-        # Left column: Blue, Pink, Green
         self._draw_blue_section(30, 50)
         self._draw_pink_section(30, 160)
         self._draw_green_section(30, 270)
 
-        # Right column: Yellow (top), Grey (bottom)
         self._draw_yellow_section(700, 50)
         self._draw_grey_section(700, 350)
 
-        # Bottom left: Resources
         self._draw_resources(30, 380)
 
-        # Draw current message - positioned above buttons at bottom
         if self.message:
             msg_surf = self.font_large.render(self.message, True, Colors.HIGHLIGHT)
             self.screen.blit(msg_surf, (self.WIDTH // 2 - msg_surf.get_width() // 2, 700))
 
-        # Draw current dice if available
         if self.current_dice:
             self._draw_current_dice()
 
-        # Draw buttons
         for btn in self.buttons:
             btn.draw(self.screen, self.font_medium)
 
         pygame.display.flip()
 
     def _draw_blue_section(self, x: int, y: int) -> None:
-        """Draw the blue section (12 boxes in a row)."""
         title = self.font_medium.render("BLUE", True, Colors.BLUE)
         self.screen.blit(title, (x, y))
 
@@ -300,12 +268,10 @@ class PygameUI:
             bx = start_x + i * (box_width + 4)
             by = y
 
-            # Background
             color = Colors.BLUE if box.value_used is not None else Colors.BG_LIGHT
             pygame.draw.rect(self.screen, color, (bx, by, box_width, box_height), border_radius=3)
             pygame.draw.rect(self.screen, Colors.WHITE, (bx, by, box_width, box_height), 1, border_radius=3)
 
-            # Value text
             limit_text = self.font_small.render(str(box.maximum_value_limit), True, Colors.TEXT_DIM)
             self.screen.blit(limit_text, (bx + 2, by + 2))
 
@@ -314,7 +280,6 @@ class PygameUI:
                 self.screen.blit(value_text, (bx + box_width // 2 - value_text.get_width() // 2, by + 20))
 
     def _draw_pink_section(self, x: int, y: int) -> None:
-        """Draw the pink section (12 boxes in a row)."""
         title = self.font_medium.render("PINK", True, Colors.PINK)
         self.screen.blit(title, (x, y))
 
@@ -338,7 +303,6 @@ class PygameUI:
                 self.screen.blit(value_text, (bx + box_width // 2 - value_text.get_width() // 2, by + 20))
 
     def _draw_green_section(self, x: int, y: int) -> None:
-        """Draw the green section (12 boxes with alternating signs)."""
         title = self.font_medium.render("GREEN", True, Colors.GREEN)
         self.screen.blit(title, (x, y))
 
@@ -363,7 +327,6 @@ class PygameUI:
                 self.screen.blit(value_text, (bx + box_width // 2 - value_text.get_width() // 2, by + 20))
 
     def _draw_yellow_section(self, x: int, y: int) -> None:
-        """Draw the yellow section (5 rows x 4 columns grid)."""
         title = self.font_medium.render("YELLOW", True, Colors.YELLOW)
         self.screen.blit(title, (x, y))
 
@@ -402,7 +365,6 @@ class PygameUI:
                     self.screen.blit(text, (text_x, text_y))
 
     def _draw_grey_section(self, x: int, y: int) -> None:
-        """Draw the grey section (4 rows x 6 values)."""
         title = self.font_medium.render("GREY", True, Colors.GREY)
         self.screen.blit(title, (x, y))
 
@@ -438,7 +400,6 @@ class PygameUI:
                 self.screen.blit(text, (text_x, text_y))
 
     def _draw_resources(self, x: int, y: int) -> None:
-        """Draw resources section."""
         title = self.font_medium.render("RESOURCES", True, Colors.WHITE)
         self.screen.blit(title, (x, y))
 
@@ -454,7 +415,6 @@ class PygameUI:
             self.screen.blit(surf, (x, y + 25 + i * 25))
 
     def _draw_current_dice(self) -> None:
-        """Draw current available dice."""
         if not self.current_dice:
             return
 
@@ -478,20 +438,16 @@ class PygameUI:
             self.screen.blit(color_text, (x + 5, y + 35))
 
     def update_dice(self, dice: list[Dice], discarded: Optional[list[Dice]] = None) -> None:
-        """Update current dice display."""
         self.current_dice = dice
         self.discarded_dice = discarded
 
     def show_message(self, message: str) -> None:
-        """Show a message to the user."""
         self.message = message
         logging.info(message)
 
     def refresh(self) -> None:
-        """Refresh the display."""
         self._render()
         pygame.event.pump()
 
     def close(self) -> None:
-        """Close the pygame window."""
         pygame.quit()

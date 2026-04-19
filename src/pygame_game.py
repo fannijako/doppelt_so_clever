@@ -1,5 +1,3 @@
-"""Pygame-based game wrapper for Doppelt So Clever."""
-
 import logging
 from typing import Any
 
@@ -7,70 +5,38 @@ import pygame
 
 from src.game import Game
 from src.ui.pygame_ui import PygameUI
-from src.board.board import Board
+from src.board.board_parts.yellow_board_part import YellowBoardAction
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 from src.round.active_round import ActiveRound
 from src.round.passive_round import PassiveRound
-from src.actions.action_handler import ActionHandler
-from src.actions.not_immediate_actions.reroll_action import ReRollAction
 from src.actions.not_immediate_actions.reuse_action import ReUseAction
 from src.actions.not_immediate_actions.plus_one_action import PlusOneAction
 
 
 class PygameGame(Game):
-    """Game subclass that uses Pygame UI for input."""
-
-    def __init__(self):  # pylint: disable=super-init-not-called
-        # Don't call super().__init__ since we handle our own setup
-        self.automatic = False
-        self.board = Board()
-        self.action_handler = ActionHandler(board=self.board)
+    def __init__(self):
+        super().__init__(automatic=False)
         self.ui = PygameUI(self.board)
 
-        # Monkey-patch input methods
-        self._patch_board()
-        self._patch_rounds()
-        self._patch_actions()
+    def _white_placement(self, dice: Dice, dice_by_color: dict, smaller_die: list) -> list:
+        colors = [DiceColor.BLUE, DiceColor.GREEN, DiceColor.PINK, DiceColor.YELLOW, DiceColor.GREY]
 
-    def _patch_board(self) -> None:
-        """Patch Board methods to use UI."""
-        def patched_place_white(white_dice, automatic, dice_by_color, smaller_die=None):  # pylint: disable=unused-argument
-            if smaller_die is None:
-                smaller_die = []
+        self.ui.show_message(f"White dice rolled {dice.value}. Pick a color to play as:")
+        result = self.ui.wait_for_input("color_choice", colors, "Select color for white dice")
+        play_as = DiceColor(result)
 
-            self.ui.update_dice(list(dice_by_color.values()))
-            self.ui.refresh()
-
-            available = [DiceColor.BLUE, DiceColor.GREEN, DiceColor.PINK, DiceColor.YELLOW, DiceColor.GREY]
-            colors = list(available)
-
-            self.ui.show_message(f"White dice rolled {white_dice.value}. Pick a color to play as:")
-            result = self.ui.wait_for_input("color_choice", colors, "Select color for white dice")
-
-            play_as = DiceColor(result)
-
-            if play_as == DiceColor.BLUE:
-                return self.board.blue_board_part.add_dice(
-                    dice_by_color[DiceColor.BLUE], white_dice
-                )
-            if play_as == DiceColor.GREEN:
-                return self.board.green_board_part.add_dice(white_dice)
-            if play_as == DiceColor.PINK:
-                return self.board.pink_board_part.add_dice(white_dice)
-            if play_as == DiceColor.YELLOW:
-                return self._yellow_placement(white_dice)
-            if play_as == DiceColor.GREY:
-                return self._grey_placement(white_dice, smaller_die)
-
-            return []
-
-        self.board.place_white_dice = patched_place_white
+        dispatch = {
+            DiceColor.BLUE: lambda: self.board.blue_board_part.add_dice(dice_by_color[DiceColor.BLUE], dice),
+            DiceColor.GREEN: lambda: self.board.green_board_part.add_dice(dice),
+            DiceColor.PINK: lambda: self.board.pink_board_part.add_dice(dice),
+            DiceColor.YELLOW: lambda: self._yellow_placement(dice),
+            DiceColor.GREY: lambda: self._grey_placement(dice, smaller_die),
+        }
+        result = dispatch[play_as]()
+        return result if isinstance(result, list) else [result] if result else []
 
     def _yellow_placement(self, dice: Dice) -> list:
-        """Handle yellow board placement with UI."""
-        from src.board.board_parts.yellow_board_part import YellowBoardAction  # pylint: disable=import-outside-toplevel
-
         placements = self.board.yellow_board_part.possible_dice_placements(dice)
         if not placements:
             return []
@@ -94,7 +60,6 @@ class PygameGame(Game):
         )
 
     def _grey_placement(self, dice: Dice, smaller_die: list) -> list:
-        """Handle grey board placement with UI."""
         all_die = [dice] + smaller_die
         has_white = any(d.color == DiceColor.WHITE for d in all_die)
         has_grey = any(d.color == DiceColor.GREY for d in all_die)
@@ -120,69 +85,17 @@ class PygameGame(Game):
             color_to_use_grey_as=color_to_use_grey_as
         )
 
-    def _patch_rounds(self) -> None:
-        """Patch round classes - we override execute methods instead."""
-
-    def _patch_actions(self) -> None:
-        """Patch action classes to use UI."""
-        def patched_reuse_use(self_action, board, automatic, discarded_dice=None):  # pylint: disable=unused-argument
-            if board.usable_reuses == 0:
-                raise ValueError("No usable reuses")
-            board.usable_reuses -= 1
-
-            if discarded_dice:
-                self.ui.show_message("Select a discarded die to reuse:")
-                options = [str(d) for d in discarded_dice]
-                idx = self.ui.wait_for_input("dice_index", options, "Pick discarded die")
-                chosen = discarded_dice[idx]
-                logging.info(f"Reused die: {chosen}")
-                return chosen
-            return None
-
-        ReUseAction.use = patched_reuse_use
-
-        def patched_plusone_use(self_action, board, automatic, dice_by_color=None):  # pylint: disable=unused-argument
-            if board.usable_plus_ones == 0:
-                raise ValueError("No usable plus ones")
-            board.usable_plus_ones -= 1
-
-            if dice_by_color:
-                usable = [d for d in dice_by_color.values() if d.value is not None]
-                if not usable:
-                    return None
-
-                self.ui.show_message("Select a die to use +1 on:")
-                options = [d.color.value for d in usable]
-                result = self.ui.wait_for_input("dice_color", options, "Pick die color")
-                chosen = dice_by_color[DiceColor(result)]
-                logging.info(f"Plus one used with die: {chosen}")
-                return chosen
-            return None
-
-        PlusOneAction.use = patched_plusone_use
-
-        def patched_reroll_use(self_action, board, automatic):  # pylint: disable=unused-argument
-            if board.usable_rerolls == 0:
-                raise ValueError("No usable rerolls")
-            board.usable_rerolls -= 1
-            logging.info(f"Used reroll, remaining: {board.usable_rerolls}")
-
-        ReRollAction.use = patched_reroll_use
-
     def _ask_yes_no(self, message: str) -> bool:
-        """Ask user a yes/no question via UI."""
         self.ui.show_message(message)
         return self.ui.wait_for_input("yes_no", [True, False], message)
 
     def _pick_from_options(self, message: str, options: list, display_func=None) -> Any:
-        """Ask user to pick from options."""
         display_options = [display_func(o) if display_func else str(o) for o in options]
         self.ui.show_message(message)
         idx = self.ui.wait_for_input("action_index", display_options, message)
         return options[idx]
 
     def _apply_reuses(self, round_obj) -> None:
-        """Offer reuse of discarded dice before rolling."""
         while self.board.usable_reuses > 0 and round_obj.discarded_dice:
             if self._ask_yes_no(f"Use a reuse? ({len(round_obj.discarded_dice)} discarded dice)"):
                 options = [str(d) for d in round_obj.discarded_dice]
@@ -194,7 +107,6 @@ class PygameGame(Game):
                 break
 
     def _apply_rerolls(self, round_obj) -> None:
-        """Offer rerolls after initial roll."""
         while self.board.usable_rerolls > 0:
             if self._ask_yes_no("Use a reroll?"):
                 self.board.usable_rerolls -= 1
@@ -207,7 +119,6 @@ class PygameGame(Game):
                 break
 
     def _pick_die(self, round_obj):
-        """Ask user to pick a die; return the picked die or None."""
         self.ui.show_message("Select a die color:")
         options = [str(d.color.value) for d in round_obj.available_dice]
         result = self.ui.wait_for_input("dice_color", options, "Pick a die")
@@ -217,7 +128,6 @@ class PygameGame(Game):
         return None
 
     def _run_active_round(self, round_num: int) -> None:
-        """Run an active round with UI."""
         round_obj = ActiveRound(self.board, self.action_handler, automatic=False)
         dice_by_color = round_obj.dice_by_color
 
@@ -242,7 +152,6 @@ class PygameGame(Game):
             if not picked:
                 break
 
-            # Calculate smaller dice
             smaller = [d for d in round_obj.available_dice if d.value < picked.value]
             round_obj.available_dice.remove(picked)
             for d in smaller:
@@ -255,43 +164,34 @@ class PygameGame(Game):
             if not self._ask_yes_no(f"Place {picked}?"):
                 continue
 
-            actions = self._get_die_actions(picked, smaller, dice_by_color)
+            actions = self._get_placement_actions(picked, dice_by_color, smaller)
             self.action_handler.execute(actions, automatic=False)
 
             if not round_obj.available_dice:
                 break
 
-        # Try plus one at end
-        self._try_plus_one(round_obj, dice_by_color)
+        self._try_plus_one(None, dice_by_color)
 
-    def _get_die_actions(self, picked: Dice, smaller: list, dice_by_color: dict):
-        """Get actions for a picked die."""
-        actions = []
-        if picked.color == DiceColor.BLUE:
-            action = self.board.blue_board_part.add_dice(picked, dice_by_color[DiceColor.WHITE])
-            if action:
-                actions = [action]
-        elif picked.color == DiceColor.PINK:
-            action = self.board.pink_board_part.add_dice(picked)
-            if action:
-                actions = [action]
-        elif picked.color == DiceColor.GREEN:
-            action = self.board.green_board_part.add_dice(picked)
-            if action:
-                actions = [action]
-        elif picked.color == DiceColor.GREY:
-            actions = self._grey_placement(picked, smaller)
-        elif picked.color == DiceColor.YELLOW:
-            actions = self._yellow_placement(picked)
-        elif picked.color == DiceColor.WHITE:
-            # Handle white via patched method
-            actions = self.board.place_white_dice(picked, False, dice_by_color, smaller)
+    def _get_placement_actions(self, picked: Dice, dice_by_color: dict, smaller: list = None) -> list:
+        if smaller is None:
+            smaller = []
 
-        # Filter out None values
-        return [a for a in actions if a is not None]
+        dispatch = {
+            DiceColor.BLUE: lambda: self.board.blue_board_part.add_dice(picked, dice_by_color[DiceColor.WHITE]),
+            DiceColor.PINK: lambda: self.board.pink_board_part.add_dice(picked),
+            DiceColor.GREEN: lambda: self.board.green_board_part.add_dice(picked),
+            DiceColor.GREY: lambda: self._grey_placement(picked, smaller),
+            DiceColor.YELLOW: lambda: self._yellow_placement(picked),
+            DiceColor.WHITE: lambda: self._white_placement(picked, dice_by_color, smaller),
+        }
 
-    def _try_plus_one(self, round_obj, dice_by_color: dict) -> None:  # pylint: disable=unused-argument
-        """Handle plus one actions."""
+        handler = dispatch.get(picked.color)
+        if not handler:
+            return []
+        result = handler()
+        return [a for a in (result if isinstance(result, list) else [result]) if a is not None]
+
+    def _try_plus_one(self, _, dice_by_color: dict) -> None:
         while self.board.usable_plus_ones > 0:
             usable = [d for d in dice_by_color.values() if d.value is not None]
             if not usable:
@@ -305,15 +205,13 @@ class PygameGame(Game):
             result = self.ui.wait_for_input("dice_color", options, "Pick die")
             picked = dice_by_color[DiceColor(result)]
 
-            actions = self._get_die_actions(picked, [], dice_by_color)
+            actions = self._get_placement_actions(picked, dice_by_color)
             self.action_handler.execute(actions, automatic=False)
 
     def _run_passive_round(self) -> None:
-        """Run a passive round with UI."""
         round_obj = PassiveRound(self.board, self.action_handler, automatic=False)
         dice_by_color = round_obj.dice_by_color
 
-        # Roll all dice
         for die in dice_by_color.values():
             die.roll()
 
@@ -328,38 +226,11 @@ class PygameGame(Game):
         idx = self.ui.wait_for_input("dice_index", options, "Pick a die")
         picked = eligible[idx]
 
-        # Execute action based on picked color
-        actions = self._get_passive_actions(picked, dice_by_color)
+        actions = self._get_placement_actions(picked, dice_by_color)
         self.action_handler.execute(actions, automatic=False)
 
-    def _get_passive_actions(self, picked: Dice, dice_by_color: dict):
-        """Get actions for passive round."""
-        actions = []
-        if picked.color == DiceColor.BLUE:
-            action = self.board.blue_board_part.add_dice(picked, dice_by_color[DiceColor.WHITE])
-            if action:
-                actions = [action]
-        elif picked.color == DiceColor.PINK:
-            action = self.board.pink_board_part.add_dice(picked)
-            if action:
-                actions = [action]
-        elif picked.color == DiceColor.GREEN:
-            action = self.board.green_board_part.add_dice(picked)
-            if action:
-                actions = [action]
-        elif picked.color == DiceColor.GREY:
-            actions = self._grey_placement(picked, [])
-        elif picked.color == DiceColor.YELLOW:
-            actions = self._yellow_placement(picked)
-        elif picked.color == DiceColor.WHITE:
-            actions = self.board.place_white_dice(picked, False, dice_by_color, [])
-
-        return [a for a in actions if a is not None]
-
     def play(self) -> int:
-        """Main game loop with Pygame UI."""
         try:
-            # Grant round actions (same as original)
             round_actions = [
                 ReUseAction,
                 ReUseAction,
@@ -371,7 +242,6 @@ class PygameGame(Game):
                 logging.info("=" * 50)
                 logging.info(f"Starting active round {active_round_num}")
 
-                # Grant automatic action if applicable
                 if active_round_num - 1 < len(round_actions) and round_actions[active_round_num - 1]:
                     action = round_actions[active_round_num - 1]()
                     if action.is_immediate:
@@ -381,17 +251,13 @@ class PygameGame(Game):
                         if new_action:
                             self.action_handler.execute([new_action], automatic=False)
 
-                # Run active round with UI
                 self._run_active_round(active_round_num)
 
-                # Run passive round with UI
                 self._run_passive_round()
 
-            # Final score
             score = self.board.evaluate()
             self.ui.show_message(f"Game Over! Final Score: {score}")
 
-            # Wait for user to close
             waiting = True
             while waiting:
                 for event in pygame.event.get():
