@@ -44,6 +44,12 @@ class YellowQuestionMarkAction(ImmediateActions):
             return random.choice(possible_placements)
 
         logging.info(f"Possible placements: {possible_placements}")
-
-        index = int(input("Select a placement: "))
+        options = [
+            f"val={val} row={row} col={col} {'circle' if act.value == 'circle' else 'cross'}"
+            for val, row, col, act in possible_placements
+        ]
+        if self.pick_option_callback:
+            index = self.pick_option_callback("Pick a yellow placement", options)  # pylint: disable=not-callable
+        else:
+            index = int(input("Select a placement: "))
         return possible_placements[index]

@@ -18,20 +18,11 @@ class BlackQuestionMarkAction(ImmediateActions):
 
     def use(self, board: Board, automatic: bool) -> list[Action]:
         action_to_use = self._pick_action(automatic=automatic)
-        return action_to_use().use(board, automatic)
+        instance = action_to_use()
+        instance.pick_option_callback = self.pick_option_callback
+        return instance.use(board, automatic)
 
     def _pick_action(self, automatic: bool) -> type[Action]:
-        if automatic:
-            return random.choice(
-                [
-                    BlueQuestionMarkAction,
-                    GreenQuestionMarkAction,
-                    GreyQuestionMarkAction,
-                    PinkQuestionMarkAction,
-                    YellowQuestionMarkAction,
-                ]
-            )
-
         color_action_map = {
             "blue": BlueQuestionMarkAction,
             "green": GreenQuestionMarkAction,
@@ -39,6 +30,14 @@ class BlackQuestionMarkAction(ImmediateActions):
             "pink": PinkQuestionMarkAction,
             "yellow": YellowQuestionMarkAction,
         }
+
+        if automatic:
+            return random.choice(list(color_action_map.values()))
+
+        colors = list(color_action_map.keys())
+        if self.pick_option_callback:
+            index = self.pick_option_callback("Pick a color for black question mark", colors)  # pylint: disable=not-callable
+            return color_action_map[colors[index]]
 
         if (color := input("Enter a color: ")) in color_action_map:
             return color_action_map[color]

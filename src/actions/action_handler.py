@@ -8,9 +8,17 @@ from src.board.board import Board
 class ActionHandler:  # pylint: disable=too-few-public-methods
     def __init__(self, board: Board) -> list[Action]:
         self.board = board
+        self.pick_action_callback = None
+        self.pick_option_callback = None
 
     def execute(self, actions: list[Action], automatic: bool = True) -> None:
         not_used_immediate_actions = self._get_immediate_actions(actions)
+        not_immediate_actions = self._get_not_immediate_actions(actions)
+
+        for action in not_immediate_actions:
+            new_action = action.save(board=self.board)
+            if new_action:
+                not_used_immediate_actions.append(new_action)
 
         while not_used_immediate_actions:
             logging.info(f'Executing ActionHandler with {not_used_immediate_actions=}')
@@ -18,6 +26,7 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
             action_to_use = self._pick_action_to_use(not_used_immediate_actions, automatic=automatic)
             logging.info(f'Action to use: {action_to_use}')
 
+            action_to_use.pick_option_callback = self.pick_option_callback
             actions_received = action_to_use.use(board=self.board, automatic=automatic)
             immediate_actions_received = self._get_immediate_actions(actions_received)
             not_immediate_actions_received = self._get_not_immediate_actions(actions_received)
@@ -41,8 +50,10 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
                         not_used_immediate_actions.append(new_action)
 
     def _pick_action_to_use(self, not_used_immediate_actions: list[Action], automatic: bool = True) -> Action:
-        if automatic:
+        if automatic or len(not_used_immediate_actions) == 1:
             return not_used_immediate_actions[0]
+        if self.pick_action_callback:
+            return self.pick_action_callback(not_used_immediate_actions)
         while True:
             try:
                 return not_used_immediate_actions[int(input('Add the index of the action to use: '))]

@@ -20,7 +20,7 @@ class GreyBoardPart:
             for color in [
                 DiceColor.YELLOW,
                 DiceColor.BLUE,
-                DiceColor.BLUE,
+                DiceColor.GREEN,
                 DiceColor.PINK,
             ]
             for number in range(1, 7)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from src.actions.action_type import ActionType
 
@@ -13,6 +13,7 @@ class Action(ABC):
     def __init__(self, action_type: ActionType, is_immediate: bool = False):
         self.action_type = action_type
         self.is_immediate = is_immediate
+        self.pick_option_callback: Optional[Callable[[str, list], int]] = None
 
     def __repr__(self) -> str:
         return f"{self.action_type.value}"

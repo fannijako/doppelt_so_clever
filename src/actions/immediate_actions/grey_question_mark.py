@@ -34,5 +34,9 @@ class GreyQuestionMarkAction(ImmediateActions):
             return random.choice(possible_combinations)
 
         logging.info(f"Possible combinations: {possible_combinations}")
-        index = int(input("Enter index: "))
+        options = [f"{color.value} {value}" for color, value in possible_combinations]
+        if self.pick_option_callback:
+            index = self.pick_option_callback("Pick a grey box to cross", options)  # pylint: disable=not-callable
+        else:
+            index = int(input("Enter index: "))
         return possible_combinations[index]
