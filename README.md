@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A Python simulation of **Doppelt so clever** (*Twice as Clever*), the popular roll-and-write dice game. The game can be played interactively via the command line or run in fully automatic mode with randomized decisions.
+A Python simulation of **Doppelt so clever** (*Twice as Clever*), the popular roll-and-write dice game. The game can be played interactively via the command line, through a graphical pygame UI, or run in fully automatic mode with randomized decisions.
 
 ### Game Mechanics
 
@@ -21,7 +21,10 @@ A Python simulation of **Doppelt so clever** (*Twice as Clever*), the popular ro
 src/
 ├── entrypoint.py        # CLI argument parsing and logging setup
 ├── monte_carlo.py       # Monte Carlo simulation
-├── game.py              # Main game loop (6 active rounds)
+├── game.py              # Main game loop (6 active rounds, CLI / automatic)
+├── pygame_game.py       # Pygame-based interactive game (extends Game)
+├── ui/
+│   └── pygame_ui.py     # Pygame graphical UI renderer and input handler
 ├── board/
 │   ├── board.py         # Board with 5 colored parts and scoring
 │   ├── board_parts/     # Blue, pink, green, yellow, grey board sections
@@ -35,12 +38,15 @@ src/
 │   ├── immediate_actions/       # Actions resolved immediately
 │   └── not_immediate_actions/   # Reroll, reuse, plus-one (saved for later)
 └── round/
-    └── active_round.py  # Round execution, dice picking, and action resolution
+    ├── active_round.py  # Round execution, dice picking, and action resolution
+    └── passive_round.py # Passive round (pick from 3 lowest dice)
 ```
 
 ## Requirements
 
 - Python >= 3.10
+- pygame >= 2.5.0 (for the graphical UI mode)
+- matplotlib >= 3.7.0 (for the Monte Carlo simulation)
 
 ## Installation
 
@@ -62,9 +68,14 @@ make build-test
 
 ## Usage
 
-Run the game in **interactive mode** (prompts for dice choices):
+Run the game with the **pygame graphical UI** (default `make run`):
 ```bash
 make run
+```
+
+Run the game in **CLI interactive mode** (prompts for dice choices):
+```bash
+python main.py
 ```
 
 Run the game in **automatic mode** (random decisions):
@@ -80,6 +91,11 @@ make run-monte-carlo
 Enable verbose logging with the `-v` flag:
 ```bash
 python main.py -a -v
+```
+
+Launch the pygame UI directly:
+```bash
+python main.py -p
 ```
 
 ## Development
