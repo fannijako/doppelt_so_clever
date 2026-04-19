@@ -41,16 +41,16 @@ class Colors:  # pylint: disable=too-few-public-methods
     BUTTON_ACTIVE = (100, 100, 140)
 
     ACTION_COLORS = {
-        ActionType.REROLL: (100, 100, 255),
-        ActionType.REUSE: (255, 105, 180),
-        ActionType.PLUS_ONE: (255, 215, 0),
+        ActionType.REROLL: (0, 195, 195),
+        ActionType.REUSE: (165, 90, 220),
+        ActionType.PLUS_ONE: (235, 115, 95),
         ActionType.FOX: (255, 140, 0),
-        ActionType.GREEN_QUESTION_MARK: (50, 205, 50),
-        ActionType.YELLOW_QUESTION_MARK: (255, 215, 0),
-        ActionType.BLUE_QUESTION_MARK: (65, 105, 225),
-        ActionType.GREY_QUESTION_MARK: (128, 128, 128),
-        ActionType.PINK_QUESTION_MARK: (255, 105, 180),
-        ActionType.BLACK_QUESTION_MARK: (20, 20, 20),
+        ActionType.GREEN_QUESTION_MARK: (100, 210, 180),
+        ActionType.YELLOW_QUESTION_MARK: (210, 175, 80),
+        ActionType.BLUE_QUESTION_MARK: (150, 140, 220),
+        ActionType.GREY_QUESTION_MARK: (185, 185, 200),
+        ActionType.PINK_QUESTION_MARK: (230, 160, 130),
+        ActionType.BLACK_QUESTION_MARK: (90, 90, 100),
     }
 
     @staticmethod
@@ -312,16 +312,19 @@ class PygameUI:  # pylint: disable=too-many-instance-attributes,too-many-public-
         self._draw_pink_section(board_x, top_y + 55)
         self._draw_green_section(board_x, top_y + 110)
 
-        mid_y = top_y + 195
+        self._draw_blue_scoring_track(board_x, top_y + 180, board_w)
+
+        mid_y = top_y + 220
         half_w = (board_w - 20) // 2
         self._draw_section_panel(board_x - 10, mid_y, half_w + 10, 230, Colors.GREY)
         self._draw_grey_section(board_x, mid_y + 10)
         self._draw_section_panel(board_x + half_w + 10, mid_y, half_w + 10, 230, Colors.YELLOW, (60, 55, 30))
         self._draw_yellow_section(board_x + half_w + 20, mid_y + 10)
 
-        track_y = mid_y + 245
-        self._draw_blue_scoring_track(board_x, track_y, board_w)
-        self._draw_resource_tracks(board_x, track_y + 45, board_w)
+        self._draw_grey_scoring_track(board_x, mid_y + 235, half_w)
+        self._draw_yellow_scoring_track(board_x + half_w + 10, mid_y + 235, half_w)
+
+        self._draw_resource_tracks(board_x, mid_y + 275, board_w)
 
         self._draw_scoring(self.width - 310, top_y)
         self._draw_action_log(self.width - 310, top_y + 220)
@@ -362,6 +365,9 @@ class PygameUI:  # pylint: disable=too-many-instance-attributes,too-many-public-
             bg = Colors.BLUE if box.value_used is not None else Colors.BG_LIGHT
             pygame.draw.rect(self.screen, bg, (bx, by, box_w, box_h), border_radius=3)
             pygame.draw.rect(self.screen, Colors.BLUE_LIGHT, (bx, by, box_w, box_h), 1, border_radius=3)
+
+            idx_t = self.font_tiny.render(str(i + 1), True, Colors.BLUE_LIGHT)
+            self.screen.blit(idx_t, (bx + 2, by + 1))
 
             if box.value_used is not None:
                 vt = self.font_medium.render(str(box.value_used), True, Colors.WHITE)
@@ -429,7 +435,7 @@ class PygameUI:  # pylint: disable=too-many-instance-attributes,too-many-public-
 
             self._draw_action_badge(cx - 8, cy + r + 2, box.action)
 
-    def _draw_yellow_section(self, x: int, y: int) -> None:  # pylint: disable=too-many-locals
+    def _draw_yellow_section(self, x: int, y: int) -> None:
         title = self.font_medium.render("YELLOW", True, Colors.YELLOW)
         self.screen.blit(title, (x, y))
 
@@ -437,53 +443,67 @@ class PygameUI:  # pylint: disable=too-many-instance-attributes,too-many-public-
         gap = 4
         grid_x = x + 25
         grid_y = y + 25
+
+        self._draw_yellow_col_actions(grid_x, grid_y, box_size, gap)
+        self._draw_yellow_row_actions(grid_x, grid_y, box_size, gap)
+
         boxes_by_pos = {
             (b.row_position, b.column_position): b
             for b in self.board.yellow_board_part.boxes
         }
+        for row in range(5):
+            for col in range(4):
+                bx = grid_x + col * (box_size + gap)
+                by = grid_y + row * (box_size + gap)
+                box = boxes_by_pos.get((row, col))
+                self._draw_yellow_box(bx, by, box_size, box)
 
+    def _draw_yellow_col_actions(self, grid_x, grid_y, box_size, gap):
         col_actions = self.board.yellow_board_part._available_columns_for_action  # pylint: disable=protected-access
         for col in range(4):
             ax = grid_x + col * (box_size + gap) + box_size // 2
             if col in col_actions:
                 self._draw_action_badge(ax - 8, grid_y - 20, col_actions[col])
 
+    def _draw_yellow_row_actions(self, grid_x, grid_y, box_size, gap):
         row_actions = self.board.yellow_board_part._available_rows_for_action  # pylint: disable=protected-access
         for row in range(5):
             ay = grid_y + row * (box_size + gap) + box_size // 2
             if row in row_actions:
                 self._draw_action_badge(grid_x + 4 * (box_size + gap) + 4, ay - 8, row_actions[row])
 
-        for row in range(5):
-            for col in range(4):
-                bx = grid_x + col * (box_size + gap)
-                by = grid_y + row * (box_size + gap)
+    def _draw_yellow_box(self, bx, by, box_size, box):
+        if not box:
+            pygame.draw.rect(self.screen, (50, 48, 30), (bx, by, box_size, box_size), border_radius=4)
+            pygame.draw.rect(self.screen, (80, 75, 40), (bx, by, box_size, box_size), 1, border_radius=4)
+            return
 
-                box = boxes_by_pos.get((row, col))
-                if box:
-                    if box.is_crossed:
-                        bg_color = (180, 50, 50)
-                        text_color = Colors.WHITE
-                        display = "X"
-                    elif box.is_circled:
-                        bg_color = Colors.YELLOW
-                        text_color = Colors.BLACK
-                        display = "O"
-                    else:
-                        bg_color = (80, 75, 40)
-                        text_color = Colors.YELLOW
-                        display = str(box.value)
+        if box.is_crossed:
+            bg_color = (180, 50, 50)
+            text_color = Colors.WHITE
+            display = "X"
+        elif box.is_circled:
+            bg_color = (120, 110, 50)
+            text_color = Colors.YELLOW
+            display = str(box.value)
+        else:
+            bg_color = (80, 75, 40)
+            text_color = Colors.YELLOW
+            display = str(box.value)
 
-                    pygame.draw.rect(self.screen, bg_color, (bx, by, box_size, box_size), border_radius=4)
-                    pygame.draw.rect(self.screen, Colors.YELLOW, (bx, by, box_size, box_size), 1, border_radius=4)
+        pygame.draw.rect(self.screen, bg_color, (bx, by, box_size, box_size), border_radius=4)
+        pygame.draw.rect(self.screen, Colors.YELLOW, (bx, by, box_size, box_size), 1, border_radius=4)
 
-                    text = self.font_medium.render(display, True, text_color)
-                    tx = bx + box_size // 2 - text.get_width() // 2
-                    ty = by + box_size // 2 - text.get_height() // 2
-                    self.screen.blit(text, (tx, ty))
-                else:
-                    pygame.draw.rect(self.screen, (50, 48, 30), (bx, by, box_size, box_size), border_radius=4)
-                    pygame.draw.rect(self.screen, (80, 75, 40), (bx, by, box_size, box_size), 1, border_radius=4)
+        text = self.font_medium.render(display, True, text_color)
+        tx = bx + box_size // 2 - text.get_width() // 2
+        ty = by + box_size // 2 - text.get_height() // 2
+        self.screen.blit(text, (tx, ty))
+        if box.is_circled and not box.is_crossed:
+            pygame.draw.circle(
+                self.screen, Colors.YELLOW,
+                (bx + box_size // 2, by + box_size // 2),
+                box_size // 2 - 3, 2
+            )
 
     def _draw_grey_section(self, x: int, y: int) -> None:  # pylint: disable=too-many-locals
         box_w = 38
@@ -555,12 +575,53 @@ class PygameUI:  # pylint: disable=too-many-instance-attributes,too-many-public-
             st = self.font_tiny.render(str(score), True, Colors.WHITE if filled else Colors.TEXT_DIM)
             self.screen.blit(st, (cx - st.get_width() // 2, cy - st.get_height() // 2))
 
+    def _draw_grey_scoring_track(self, x: int, y: int, w: int) -> None:
+        scale = [0, 2, 4, 7, 11, 16, 22]
+        row_colors = [Colors.YELLOW, Colors.BLUE, Colors.GREEN, Colors.PINK]
+        rows = [self.board.grey_board_part.boxes[i * 6:(i + 1) * 6] for i in range(4)]
+        row_crossed = [len([b for b in row if b.is_crossed]) for row in rows]
+        row_pts = [scale[c] for c in row_crossed]
+        total = sum(row_pts)
+
+        self._draw_section_panel(x - 10, y, w + 10, 35, Colors.GREY)
+        cx = x
+        for ri in range(4):
+            pt = self.font_medium.render(str(row_pts[ri]), True, row_colors[ri])
+            self.screen.blit(pt, (cx, y + 8))
+            cx += pt.get_width()
+            if ri < 3:
+                plus = self.font_medium.render(" + ", True, Colors.TEXT_DIM)
+                self.screen.blit(plus, (cx, y + 8))
+                cx += plus.get_width()
+        eq = self.font_medium.render(f" = {total}", True, Colors.WHITE)
+        self.screen.blit(eq, (cx, y + 8))
+
+    def _draw_yellow_scoring_track(self, x: int, y: int, w: int) -> None:
+        scores = [0, 3, 10, 21, 36, 55, 75, 96, 118, 141, 165]
+        num_crossed = len([b for b in self.board.yellow_board_part.boxes if b.is_crossed])
+
+        self._draw_section_panel(x, y, w + 10, 35, Colors.YELLOW, (60, 55, 30))
+        r = 12
+        gap = 2
+        total_w = len(scores) * (r * 2 + gap) - gap
+        sx = x + 10 + (w - total_w) // 2
+
+        for i, score in enumerate(scores):
+            cx = sx + i * (r * 2 + gap) + r
+            cy = y + 18
+            filled = 0 < i <= num_crossed
+            bg = Colors.YELLOW_BG if filled else (50, 48, 30)
+            pygame.draw.circle(self.screen, bg, (cx, cy), r)
+            pygame.draw.circle(self.screen, Colors.YELLOW, (cx, cy), r, 1)
+            st = self.font_tiny.render(str(score), True, Colors.BLACK if filled else Colors.TEXT_DIM)
+            self.screen.blit(st, (cx - st.get_width() // 2, cy - st.get_height() // 2))
+
     def _draw_resource_tracks(self, x: int, y: int, w: int) -> None:
         tracks = [
-            ("Rerolls", Colors.BLUE, self.board.gained_rerolls, self.board.usable_rerolls, 6),
-            ("Reuses", Colors.PINK, self.board.gained_reuses, self.board.usable_reuses, 6),
-            ("+1s", Colors.YELLOW, self.board.gained_plus_ones, self.board.usable_plus_ones, 6),
-            ("Foxes", Colors.ORANGE, self.board.foxes, self.board.foxes, 4),
+            ("Rerolls", Colors.ACTION_COLORS[ActionType.REROLL], self.board.gained_rerolls, self.board.usable_rerolls, 6),
+            ("Reuses", Colors.ACTION_COLORS[ActionType.REUSE], self.board.gained_reuses, self.board.usable_reuses, 6),
+            ("+1s", Colors.ACTION_COLORS[ActionType.PLUS_ONE], self.board.gained_plus_ones, self.board.usable_plus_ones, 6),
+            ("Foxes", Colors.ACTION_COLORS[ActionType.FOX], self.board.foxes, self.board.foxes, 4),
         ]
 
         row_h = 28
@@ -765,6 +826,12 @@ class PygameUI:  # pylint: disable=too-many-instance-attributes,too-many-public-
     def refresh(self) -> None:
         self._render()
         pygame.event.pump()
+
+    def show_action_popup(self, actions) -> None:
+        if not actions:
+            return
+        for action in actions:
+            self.log_action(f"Received: {action}")
 
     def close(self) -> None:
         pygame.quit()

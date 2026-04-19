@@ -10,6 +10,7 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
         self.board = board
         self.pick_action_callback = None
         self.pick_option_callback = None
+        self.on_actions_received = None
 
     def execute(self, actions: list[Action], automatic: bool = True) -> None:
         not_used_immediate_actions = self._get_immediate_actions(actions)
@@ -28,6 +29,8 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
 
             action_to_use.pick_option_callback = self.pick_option_callback
             actions_received = action_to_use.use(board=self.board, automatic=automatic)
+            if actions_received and self.on_actions_received:
+                self.on_actions_received(actions_received)
             immediate_actions_received = self._get_immediate_actions(actions_received)
             not_immediate_actions_received = self._get_not_immediate_actions(actions_received)
             logging.info(

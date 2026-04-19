@@ -20,6 +20,7 @@ class PygameGame(Game):
         self.ui = PygameUI(self.board)
         self.action_handler.pick_action_callback = self._pick_action_to_use
         self.action_handler.pick_option_callback = self._pick_option_index
+        self.action_handler.on_actions_received = self.ui.show_action_popup
 
     def _white_placement(self, dice: Dice, dice_by_color: dict, smaller_die: list) -> list:
         colors = [DiceColor.BLUE, DiceColor.GREEN, DiceColor.PINK, DiceColor.YELLOW, DiceColor.GREY]
@@ -191,6 +192,7 @@ class PygameGame(Game):
             if actions:
                 action_names = ", ".join(str(a) for a in actions)
                 self.ui.log_action(f"Actions received: {action_names}")
+                self.ui.show_action_popup(actions)
             self.action_handler.execute(actions, automatic=False)
 
             if not round_obj.available_dice:
@@ -264,6 +266,7 @@ class PygameGame(Game):
         if actions:
             action_names = ", ".join(str(a) for a in actions)
             self.ui.log_action(f"Actions received: {action_names}")
+            self.ui.show_action_popup(actions)
         self.action_handler.execute(actions, automatic=False)
 
     _ROUND_ACTION_LABELS = {

@@ -8,7 +8,7 @@ This project is a simulation of the board game **Doppelt so clever** (Twice as C
 
 ```
 src/
-├── entrypoint.py          # CLI entry point
+├── entrypoint.py          # CLI entry point (supports -v, -a, -p flags)
 ├── monte_carlo.py         # Monte Carlo simulation
 ├── game.py                # Game orchestrator (CLI / automatic)
 ├── pygame_game.py         # Pygame-based interactive game (extends Game)
@@ -24,7 +24,7 @@ src/
     ├── base_action.py     # Abstract action base class
     ├── action_type.py     # Action type enum
     ├── action_map.py      # Action type → class registry
-    ├── action_handler.py  # Recursive action executor (supports UI callbacks)
+    ├── action_handler.py  # Recursive action executor
     ├── immediate_actions/  # Question-mark actions (used immediately)
     └── not_immediate_actions/  # Stored actions (reroll, reuse, etc.)
 ```
