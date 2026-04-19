@@ -35,7 +35,6 @@ class ReUseAction(NotImmediateActions):
             if automatic:
                 chosen_die = random.choice(discarded_dice)
             else:
-                board.display()
                 logging.info(f"Discarded dice: {', '.join(str(die) for die in discarded_dice)}")
                 index = int(input('Pick a discarded die index: '))
                 chosen_die = discarded_dice[index]

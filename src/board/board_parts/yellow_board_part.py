@@ -1,7 +1,7 @@
 import logging
 import random
+
 from enum import Enum
-from typing import TYPE_CHECKING
 
 from src.actions.action_type import ActionType
 from src.actions.action_map import ActionMap
@@ -9,9 +9,6 @@ from src.actions.base_action import Action
 from src.board.boxes.yellow_box import YellowBox
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
-
-if TYPE_CHECKING:
-    from src.board.board import Board
 
 
 class YellowBoardAction(Enum):
@@ -164,7 +161,7 @@ class YellowBoardPart:
             if box.is_circled and not box.is_crossed
         ]
 
-    def place_dice(self, dice: Dice, automatic: bool, board: "Board" = None) -> list[Action]:
+    def place_dice(self, dice: Dice, automatic: bool) -> list[Action]:
         placements = self.possible_dice_placements(dice)
         logging.info(f"Possible dice placements: {placements}")
 
@@ -176,8 +173,6 @@ class YellowBoardPart:
         elif automatic:
             placement = random.choice(placements)
         else:
-            if board:
-                board.display()
             placement = placements[int(input('Pick an action index: '))]
 
         return self.add_dice(

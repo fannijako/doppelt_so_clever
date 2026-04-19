@@ -24,7 +24,7 @@ class YellowQuestionMarkAction(ImmediateActions):
             selected_row,
             selected_column,
             selected_action
-        ) = self._pick_placement(board, possible_placements, automatic)
+        ) = self._pick_placement(possible_placements, automatic)
 
         yellow_dice.set_value(selected_value)
 
@@ -37,14 +37,12 @@ class YellowQuestionMarkAction(ImmediateActions):
 
     def _pick_placement(
         self,
-        board: Board,
         possible_placements: list[tuple[int, int, int, YellowBoardAction]],
         automatic: bool
     ) -> tuple[int, int, int, YellowBoardAction]:
         if automatic:
             return random.choice(possible_placements)
 
-        board.display()
         logging.info(f"Possible placements: {possible_placements}")
 
         index = int(input("Select a placement: "))

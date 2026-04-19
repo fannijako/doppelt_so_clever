@@ -1,6 +1,6 @@
 import logging
 import random
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 
 from src.board.boxes.grey_box import GreyBox
 from src.dice.dice import Dice
@@ -8,9 +8,6 @@ from src.dice.dice_color import DiceColor
 from src.actions.action_type import ActionType
 from src.actions.action_map import ActionMap
 from src.actions.base_action import Action
-
-if TYPE_CHECKING:
-    from src.board.board import Board
 
 
 class GreyBoardPart:
@@ -71,7 +68,6 @@ class GreyBoardPart:
         dice: Dice,
         automatic: bool,
         smaller_die: list[Dice] = None,
-        board: "Board" = None,
     ) -> list[Action]:
         if smaller_die is None:
             smaller_die = []
@@ -82,21 +78,17 @@ class GreyBoardPart:
 
         color_to_use_white_as = None
         if has_white:
-            if automatic:
-                color_to_use_white_as = random.choice(self._SUBSTITUTABLE_COLORS)
-            else:
-                if board:
-                    board.display()
-                color_to_use_white_as = DiceColor(input('Pick an available color to substitute white as: '))
+            color_to_use_white_as = (
+                random.choice(self._SUBSTITUTABLE_COLORS) if automatic
+                else DiceColor(input('Pick an available color to substitute white as: '))
+            )
 
         color_to_use_grey_as = None
         if has_grey:
-            if automatic:
-                color_to_use_grey_as = random.choice(self._SUBSTITUTABLE_COLORS)
-            else:
-                if board:
-                    board.display()
-                color_to_use_grey_as = DiceColor(input('Pick an available color to substitute grey as: '))
+            color_to_use_grey_as = (
+                random.choice(self._SUBSTITUTABLE_COLORS) if automatic
+                else DiceColor(input('Pick an available color to substitute grey as: '))
+            )
 
         return self.add_dice(
             dice=dice,
