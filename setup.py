@@ -2,6 +2,7 @@ from setuptools import setup, find_packages
 
 BUILD = [
     "matplotlib",
+    "pygame>=2.5.0",
 ]
 
 TEST = [

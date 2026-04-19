@@ -5,4 +5,13 @@ disable=missing-module-docstring,missing-function-docstring,missing-class-docstr
 max-line-length=127
 
 [MASTER]
-ignored-modules=setuptools
+ignored-modules=setuptools,pygame
+
+[DESIGN]
+max-args=9
+max-attributes=17
+max-branches=16
+max-locals=23
+max-public-methods=8
+min-public-methods=1
+max-statements=53

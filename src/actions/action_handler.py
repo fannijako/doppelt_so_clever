@@ -43,6 +43,7 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
     def _pick_action_to_use(self, not_used_immediate_actions: list[Action], automatic: bool = True) -> Action:
         if automatic:
             return not_used_immediate_actions[0]
+        self.board.display()
         while True:
             try:
                 return not_used_immediate_actions[int(input('Add the index of the action to use: '))]

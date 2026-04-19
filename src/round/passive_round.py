@@ -42,6 +42,7 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
         if self.automatic:
             picked = random.choice(eligible_dice)
         else:
+            self.board.display()
             logging.info(f"Pick one: {', '.join(f'{i}: {die}' for i, die in enumerate(eligible_dice))}")
             index = int(input('Pick a die index: '))
             picked = eligible_dice[index]
@@ -57,8 +58,8 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
             ),
             DiceColor.PINK: lambda: self.board.pink_board_part.add_dice(picked),
             DiceColor.GREEN: lambda: self.board.green_board_part.add_dice(picked),
-            DiceColor.GREY: lambda: self.board.grey_board_part.place_dice(picked, self.automatic),
-            DiceColor.YELLOW: lambda: self.board.yellow_board_part.place_dice(picked, self.automatic),
+            DiceColor.GREY: lambda: self.board.grey_board_part.place_dice(picked, self.automatic, None, self.board),
+            DiceColor.YELLOW: lambda: self.board.yellow_board_part.place_dice(picked, self.automatic, self.board),
             DiceColor.WHITE: lambda: self.board.place_white_dice(picked, self.automatic, self.dice_by_color),
         }
         handler = dispatch.get(picked.color)

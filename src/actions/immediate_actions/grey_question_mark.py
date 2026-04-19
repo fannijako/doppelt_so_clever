@@ -33,6 +33,7 @@ class GreyQuestionMarkAction(ImmediateActions):
         if automatic:
             return random.choice(possible_combinations)
 
+        board.display()
         logging.info(f"Possible combinations: {possible_combinations}")
         index = int(input("Enter index: "))
         return possible_combinations[index]

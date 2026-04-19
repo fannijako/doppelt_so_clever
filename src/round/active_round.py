@@ -52,6 +52,8 @@ class ActiveRound:
         colors = [str(die.color.value) for die in self.available_dice]
         logging.info(f'Available dice colors: {", ".join(colors)}')
 
+        if not self.automatic:
+            self.board.display()
         color = random.choice(colors) if self.automatic else input('Pick an available color: ')
         logging.info(f'Picked color: {color}')
         return color
@@ -82,8 +84,8 @@ class ActiveRound:
             ),
             DiceColor.PINK: lambda: self.board.pink_board_part.add_dice(picked),
             DiceColor.GREEN: lambda: self.board.green_board_part.add_dice(picked),
-            DiceColor.GREY: lambda: self.board.grey_board_part.place_dice(picked, self.automatic, smaller),
-            DiceColor.YELLOW: lambda: self.board.yellow_board_part.place_dice(picked, self.automatic),
+            DiceColor.GREY: lambda: self.board.grey_board_part.place_dice(picked, self.automatic, smaller, self.board),
+            DiceColor.YELLOW: lambda: self.board.yellow_board_part.place_dice(picked, self.automatic, self.board),
             DiceColor.WHITE: lambda: self.board.place_white_dice(picked, self.automatic, self.dice_by_color, smaller),
         }
         handler = dispatch.get(picked.color)
@@ -98,6 +100,7 @@ class ActiveRound:
             if self.automatic:
                 should_use = random.choice([True, False])
             else:
+                self.board.display()
                 should_use = input('Use a reuse? (y/n): ').lower() == 'y'
 
             if not should_use:
@@ -119,6 +122,7 @@ class ActiveRound:
             if self.automatic:
                 should_use = random.choice([True, False])
             else:
+                self.board.display()
                 should_use = input('Use a reroll? (y/n): ').lower() == 'y'
 
             if not should_use:
@@ -133,6 +137,7 @@ class ActiveRound:
         if self.automatic:
             return random.choice([True, False])
 
+        self.board.display()
         response = input(f'Place die {picked}? (y/n): ').lower()
         should_place = response == 'y'
         logging.info(f"Chose to {'place' if should_place else 'skip'} die {picked}")
@@ -148,6 +153,7 @@ class ActiveRound:
             if self.automatic:
                 should_use = random.choice([True, False])
             else:
+                self.board.display()
                 should_use = input('Use a plus one? (y/n): ').lower() == 'y'
 
             if not should_use:
@@ -171,6 +177,9 @@ class ActiveRound:
         for game_round in range(1, self._NUM_ROUNDS + 1):
             logging.info("-" * 100)
             logging.info(f"Starting round {game_round}")
+
+            if not self.automatic:
+                self.board.display()
 
             self._try_reuse()
             self.roll_dice()

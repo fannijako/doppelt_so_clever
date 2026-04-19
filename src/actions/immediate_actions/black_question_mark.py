@@ -17,10 +17,10 @@ class BlackQuestionMarkAction(ImmediateActions):
         super().__init__(action_type=ActionType.BLACK_QUESTION_MARK)
 
     def use(self, board: Board, automatic: bool) -> list[Action]:
-        action_to_use = self._pick_action(automatic=automatic)
+        action_to_use = self._pick_action(board=board, automatic=automatic)
         return action_to_use().use(board, automatic)
 
-    def _pick_action(self, automatic: bool) -> type[Action]:
+    def _pick_action(self, board: Board, automatic: bool) -> type[Action]:
         if automatic:
             return random.choice(
                 [
@@ -32,6 +32,7 @@ class BlackQuestionMarkAction(ImmediateActions):
                 ]
             )
 
+        board.display()
         color_action_map = {
             "blue": BlueQuestionMarkAction,
             "green": GreenQuestionMarkAction,

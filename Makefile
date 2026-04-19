@@ -22,7 +22,7 @@ test:
 	python -m pytest --cov=src --cov-report=term-missing
 
 run:
-	python main.py
+	python -m src.entrypoint -p
 
 run-auto:
 	python main.py -a

@@ -40,6 +40,7 @@ class PlusOneAction(NotImmediateActions):
             if automatic:
                 chosen_die = random.choice(usable_dice)
             else:
+                board.display()
                 logging.info(f"Available dice: {', '.join(str(die) for die in usable_dice)}")
                 color = input('Pick a die color to reuse: ')
                 chosen_die = dice_by_color[DiceColor(color)]
