@@ -1,5 +1,6 @@
-import random
-from typing import Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 
 from src.dice.dice import Dice
 from src.board.board import Board
@@ -11,6 +12,9 @@ from src.actions.not_immediate_actions.reuse_action import ReUseAction
 from src.actions.not_immediate_actions.reroll_action import ReRollAction
 from src.actions.not_immediate_actions.plus_one_action import PlusOneAction
 
+if TYPE_CHECKING:
+    from src.input_handler import InputHandler
+
 logger = GameLogger(__name__)
 
 
@@ -21,10 +25,10 @@ class ActiveRound:
         self,
         board: Board,
         action_handler: ActionHandler,
-        automatic: bool = True,
+        input_handler: InputHandler,
     ):
         self.board = board
-        self.automatic = automatic
+        self.input_handler = input_handler
         self.action_handler = action_handler
 
         self.dice_by_color: dict[DiceColor, Dice] = {
@@ -48,7 +52,7 @@ class ActiveRound:
         colors = [str(die.color.value) for die in self.available_dice]
         logger.info("Available colors", ", ".join(colors))
 
-        color = random.choice(colors) if self.automatic else input('Pick an available color: ')
+        color = self.input_handler.choose_value('Pick an available color: ', colors)
         logger.info("Picked color", color)
         return color
 
@@ -78,9 +82,9 @@ class ActiveRound:
             ),
             DiceColor.PINK: lambda: self.board.pink_board_part.add_dice(picked),
             DiceColor.GREEN: lambda: self.board.green_board_part.add_dice(picked),
-            DiceColor.GREY: lambda: self.board.grey_board_part.place_dice(picked, self.automatic, smaller),
-            DiceColor.YELLOW: lambda: self.board.yellow_board_part.place_dice(picked, self.automatic),
-            DiceColor.WHITE: lambda: self.board.place_white_dice(picked, self.automatic, self.dice_by_color, smaller),
+            DiceColor.GREY: lambda: self.board.grey_board_part.place_dice(picked, self.input_handler, smaller),
+            DiceColor.YELLOW: lambda: self.board.yellow_board_part.place_dice(picked, self.input_handler),
+            DiceColor.WHITE: lambda: self.board.place_white_dice(picked, self.input_handler, self.dice_by_color, smaller),
         }
         handler = dispatch.get(picked.color)
         if not handler:
@@ -91,17 +95,12 @@ class ActiveRound:
     def _try_reuse(self) -> None:
         logger.info("Usable reuses", self.board.usable_reuses, f"discarded dice: {len(self.discarded_dice)}")
         while self.board.usable_reuses > 0 and self.discarded_dice:
-            if self.automatic:
-                should_use = random.choice([True, False])
-            else:
-                should_use = input('Use a reuse? (y/n): ').lower() == 'y'
-
-            if not should_use:
+            if not self.input_handler.confirm('Use a reuse? (y/n): '):
                 logger.info("Reuse", "declined")
                 break
 
             chosen_die = ReUseAction().use(
-                self.board, self.automatic,
+                self.board, self.input_handler,
                 discarded_dice=self.discarded_dice,
             )
             if chosen_die is not None:
@@ -112,25 +111,16 @@ class ActiveRound:
     def _try_reroll(self) -> None:
         logger.info("Usable rerolls", self.board.usable_rerolls)
         while self.board.usable_rerolls > 0:
-            if self.automatic:
-                should_use = random.choice([True, False])
-            else:
-                should_use = input('Use a reroll? (y/n): ').lower() == 'y'
-
-            if not should_use:
+            if not self.input_handler.confirm('Use a reroll? (y/n): '):
                 logger.info("Reroll", "declined")
                 break
 
             logger.info("Using reroll", f"remaining: {self.board.usable_rerolls - 1}")
-            ReRollAction().use(self.board, self.automatic)
+            ReRollAction().use(self.board, self.input_handler)
             self.roll_dice()
 
     def _ask_to_place_die(self, picked: Dice) -> bool:
-        if self.automatic:
-            return random.choice([True, False])
-
-        response = input(f'Place die {picked}? (y/n): ').lower()
-        should_place = response == 'y'
+        should_place = self.input_handler.confirm(f'Place die {picked}? (y/n): ')
         logger.info("Place die", picked, "placed" if should_place else "skipped")
         return should_place
 
@@ -141,18 +131,13 @@ class ActiveRound:
                 logger.info("Plus one", "no dice with values")
                 break
 
-            if self.automatic:
-                should_use = random.choice([True, False])
-            else:
-                should_use = input('Use a plus one? (y/n): ').lower() == 'y'
-
-            if not should_use:
+            if not self.input_handler.confirm('Use a plus one? (y/n): '):
                 logger.info("Plus one", "declined")
                 break
 
             logger.info("Using plus one", f"remaining: {self.board.usable_plus_ones - 1}")
             picked = PlusOneAction().use(
-                self.board, self.automatic,
+                self.board, self.input_handler,
                 dice_by_color=self.dice_by_color,
             )
             if picked is None:
@@ -161,7 +146,7 @@ class ActiveRound:
 
             actions = self._get_actions(picked, [])
             logger.info("Plus one actions", actions)
-            self.action_handler.execute(actions, self.automatic)
+            self.action_handler.execute(actions, self.input_handler)
 
     def execute(self) -> None:
         for game_round in range(1, self._NUM_ROUNDS + 1):
@@ -189,7 +174,7 @@ class ActiveRound:
                 continue
 
             actions = self._get_actions(picked, smaller)
-            self.action_handler.execute(actions, self.automatic)
+            self.action_handler.execute(actions, self.input_handler)
 
             logger.info("Actions received", actions)
 

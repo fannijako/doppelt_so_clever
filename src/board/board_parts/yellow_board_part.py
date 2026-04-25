@@ -1,5 +1,7 @@
-import random
+from __future__ import annotations
+
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
@@ -8,6 +10,9 @@ from src.actions.base_action import Action
 from src.actions.action_map import ActionMap
 from src.actions.action_type import ActionType
 from src.board.boxes.yellow_box import YellowBox
+
+if TYPE_CHECKING:
+    from src.input_handler import InputHandler
 
 logger = GameLogger(__name__)
 
@@ -158,7 +163,7 @@ class YellowBoardPart:
             if box.is_circled and not box.is_crossed
         ]
 
-    def place_dice(self, dice: Dice, automatic: bool) -> list[Action]:
+    def place_dice(self, dice: Dice, input_handler: InputHandler) -> list[Action]:
         placements = self.possible_dice_placements(dice)
         logger.info("Placements", placements)
 
@@ -167,10 +172,9 @@ class YellowBoardPart:
 
         if len(placements) == 1:
             placement = placements[0]
-        elif automatic:
-            placement = random.choice(placements)
         else:
-            placement = placements[int(input('Pick an action index: '))]
+            index = input_handler.choose_index('Pick an action index: ', placements)
+            placement = placements[index]
 
         return self.add_dice(
             dice=dice,

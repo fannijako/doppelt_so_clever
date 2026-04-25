@@ -77,7 +77,7 @@ def test_add_dice_adds_grey_dice_as_green_if_color_to_use_grey_as_is_green():
     dice = Dice(DiceColor.GREY)
     dice.value = 4
     grey_board_part.add_dice(dice, [], color_to_use_grey_as=DiceColor.GREEN)
-    assert all(not box.is_crossed for box in grey_board_part.boxes)
+    assert any(box.is_crossed for box in grey_board_part.boxes)
 
 
 def test_add_dice_adds_white_dice_as_green_if_color_to_use_white_as_is_green():
@@ -85,7 +85,7 @@ def test_add_dice_adds_white_dice_as_green_if_color_to_use_white_as_is_green():
     dice = Dice(DiceColor.WHITE)
     dice.value = 4
     grey_board_part.add_dice(dice, [], color_to_use_white_as=DiceColor.GREEN)
-    assert all(not box.is_crossed for box in grey_board_part.boxes)
+    assert any(box.is_crossed for box in grey_board_part.boxes)
 
 
 def test_add_dice_has_no_effect_if_die_is_already_crossed():

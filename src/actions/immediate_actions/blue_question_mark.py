@@ -1,10 +1,17 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from src.dice.dice import Dice
-from src.board.board import Board
 from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
 from src.actions.base_action import Action
 from src.actions.action_type import ActionType
 from src.actions.immediate_actions.immediate_actions import ImmediateActions
+
+if TYPE_CHECKING:
+    from src.board.board import Board
+    from src.input_handler import InputHandler
 
 logger = GameLogger(__name__)
 
@@ -13,7 +20,7 @@ class BlueQuestionMarkAction(ImmediateActions):
     def __init__(self):
         super().__init__(action_type=ActionType.BLUE_QUESTION_MARK)
 
-    def use(self, board: Board, automatic: bool) -> list[Action]:
+    def use(self, board: Board, input_handler: InputHandler) -> list[Action]:
         value_limit_on_next_box = board.blue_board_part.get_value_limit_on_next_box()
         logger.debug("Value limit", value_limit_on_next_box, "next blue box")
 

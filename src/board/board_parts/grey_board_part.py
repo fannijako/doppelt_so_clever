@@ -1,5 +1,6 @@
-import random
-from typing import Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
@@ -8,6 +9,9 @@ from src.actions.base_action import Action
 from src.actions.action_map import ActionMap
 from src.board.boxes.grey_box import GreyBox
 from src.actions.action_type import ActionType
+
+if TYPE_CHECKING:
+    from src.input_handler import InputHandler
 
 logger = GameLogger(__name__)
 
@@ -22,7 +26,7 @@ class GreyBoardPart:
             for color in [
                 DiceColor.YELLOW,
                 DiceColor.BLUE,
-                DiceColor.BLUE,
+                DiceColor.GREEN,
                 DiceColor.PINK,
             ]
             for number in range(1, 7)
@@ -68,7 +72,7 @@ class GreyBoardPart:
     def place_dice(
         self,
         dice: Dice,
-        automatic: bool,
+        input_handler: InputHandler,
         smaller_die: list[Dice] = None,
     ) -> list[Action]:
         if smaller_die is None:
@@ -80,17 +84,19 @@ class GreyBoardPart:
 
         color_to_use_white_as = None
         if has_white:
-            color_to_use_white_as = (
-                random.choice(self._SUBSTITUTABLE_COLORS) if automatic
-                else DiceColor(input('Pick an available color to substitute white as: '))
+            color_value = input_handler.choose_value(
+                'Pick an available color to substitute white as: ',
+                [str(c.value) for c in self._SUBSTITUTABLE_COLORS],
             )
+            color_to_use_white_as = DiceColor(color_value)
 
         color_to_use_grey_as = None
         if has_grey:
-            color_to_use_grey_as = (
-                random.choice(self._SUBSTITUTABLE_COLORS) if automatic
-                else DiceColor(input('Pick an available color to substitute grey as: '))
+            color_value = input_handler.choose_value(
+                'Pick an available color to substitute grey as: ',
+                [str(c.value) for c in self._SUBSTITUTABLE_COLORS],
             )
+            color_to_use_grey_as = DiceColor(color_value)
 
         return self.add_dice(
             dice=dice,

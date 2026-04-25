@@ -7,6 +7,7 @@ from src.actions.action_type import ActionType
 
 if TYPE_CHECKING:
     from src.board.board import Board
+    from src.input_handler import InputHandler
 
 
 class Action(ABC):
@@ -27,5 +28,5 @@ class Action(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def use(self, board: Board, automatic: bool) -> Optional[list[Action]]:
+    def use(self, board: Board, input_handler: InputHandler) -> Optional[list[Action]]:
         raise NotImplementedError

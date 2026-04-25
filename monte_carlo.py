@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 from src.game import Game
 from src.logging_config import setup_logging
+from src.input_handler import AutomaticInputHandler
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ def main() -> None:
 def run_simulation(rounds: int) -> list[int]:
     scores = []
     for _ in range(rounds):
-        game = Game(automatic=True)
+        game = Game(input_handler=AutomaticInputHandler())
         score = game.play()
         scores.append(score)
 

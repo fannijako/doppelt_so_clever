@@ -1,4 +1,6 @@
-import random
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
@@ -9,6 +11,9 @@ from src.board.board_parts.grey_board_part import GreyBoardPart
 from src.board.board_parts.pink_board_part import PinkBoardPart
 from src.board.board_parts.green_board_part import GreenBoardPart
 from src.board.board_parts.yellow_board_part import YellowBoardPart
+
+if TYPE_CHECKING:
+    from src.input_handler import InputHandler
 
 logger = GameLogger(__name__)
 
@@ -34,16 +39,17 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
     def place_white_dice(
         self,
         white_dice: Dice,
-        automatic: bool,
+        input_handler: InputHandler,
         dice_by_color: dict[DiceColor, Dice],
         smaller_die: list[Dice] = None,
     ) -> list[Action]:
         if smaller_die is None:
             smaller_die = []
-        if automatic:
-            play_as = random.choice(self._WHITE_SUBSTITUTABLE_COLORS)
-        else:
-            play_as = DiceColor(input('Pick an available color to play white as: '))
+        color_value = input_handler.choose_value(
+            'Pick an available color to play white as: ',
+            [str(c.value) for c in self._WHITE_SUBSTITUTABLE_COLORS],
+        )
+        play_as = DiceColor(color_value)
 
         dispatch = {
             DiceColor.BLUE: lambda: self.blue_board_part.add_dice(
@@ -51,8 +57,8 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
             ),
             DiceColor.GREEN: lambda: self.green_board_part.add_dice(white_dice),
             DiceColor.PINK: lambda: self.pink_board_part.add_dice(white_dice),
-            DiceColor.YELLOW: lambda: self.yellow_board_part.place_dice(white_dice, automatic),
-            DiceColor.GREY: lambda: self.grey_board_part.place_dice(white_dice, automatic, smaller_die),
+            DiceColor.YELLOW: lambda: self.yellow_board_part.place_dice(white_dice, input_handler),
+            DiceColor.GREY: lambda: self.grey_board_part.place_dice(white_dice, input_handler, smaller_die),
         }
         result = dispatch[play_as]()
         return result if isinstance(result, list) else [result] if result else []

@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from src.board.board import Board
 from src.logging_config import GameLogger
 from src.round.active_round import ActiveRound
@@ -7,6 +11,9 @@ from src.actions.not_immediate_actions.reuse_action import ReUseAction
 from src.actions.not_immediate_actions.reroll_action import ReRollAction
 from src.actions.not_immediate_actions.plus_one_action import PlusOneAction
 from src.actions.immediate_actions.black_question_mark import BlackQuestionMarkAction
+
+if TYPE_CHECKING:
+    from src.input_handler import InputHandler
 
 logger = GameLogger(__name__)
 
@@ -22,8 +29,8 @@ class Game:  # pylint: disable=too-few-public-methods
         None,
     ]
 
-    def __init__(self, automatic: bool = True):
-        self.automatic = automatic
+    def __init__(self, input_handler: InputHandler):
+        self.input_handler = input_handler
         self.board = Board()
         self.action_handler = ActionHandler(board=self.board)
 
@@ -35,11 +42,11 @@ class Game:  # pylint: disable=too-few-public-methods
     def _play_round(self, round_number: int) -> None:
         logger.info("Round", round_number, "started")
         self._round_starting_action(round_number)
-        ActiveRound(self.board, self.action_handler, automatic=self.automatic).execute()
+        ActiveRound(self.board, self.action_handler, input_handler=self.input_handler).execute()
         logger.info("Round", round_number, "completed")
 
         logger.info("Passive round", round_number, "started")
-        PassiveRound(self.board, self.action_handler, automatic=self.automatic).execute()
+        PassiveRound(self.board, self.action_handler, input_handler=self.input_handler).execute()
         logger.info("Passive round", round_number, "completed")
 
     def _round_starting_action(self, round_number: int) -> None:
@@ -48,8 +55,8 @@ class Game:  # pylint: disable=too-few-public-methods
             action = action()
             logger.info("Action received", action.action_type.value, "round starting action")
             if action.is_immediate:
-                self.action_handler.execute([action], automatic=self.automatic)
+                self.action_handler.execute([action], input_handler=self.input_handler)
             else:
                 new_action = action.save(board=self.board)
                 if new_action:
-                    self.action_handler.execute([new_action], automatic=self.automatic)
+                    self.action_handler.execute([new_action], input_handler=self.input_handler)

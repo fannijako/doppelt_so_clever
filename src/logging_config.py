@@ -5,7 +5,7 @@ from datetime import datetime
 
 
 SEPARATOR = " | "
-COL_WIDTHS = {"levelname": 5, "location": 27, "category": 20}
+COL_WIDTHS = {"levelname": 5, "location": 32, "category": 20}
 
 
 class _TabularFormatter(logging.Formatter):

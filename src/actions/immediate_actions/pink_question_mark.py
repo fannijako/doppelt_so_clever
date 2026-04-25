@@ -10,6 +10,7 @@ from src.actions.immediate_actions.immediate_actions import ImmediateActions
 
 if TYPE_CHECKING:
     from src.board.board import Board
+    from src.input_handler import InputHandler
 
 
 class PinkQuestionMarkAction(ImmediateActions):  # pylint: disable=too-few-public-methods
@@ -18,7 +19,7 @@ class PinkQuestionMarkAction(ImmediateActions):  # pylint: disable=too-few-publi
             action_type=ActionType.PINK_QUESTION_MARK
         )
 
-    def use(self, board: Board, automatic: bool) -> list[Action]:
+    def use(self, board: Board, input_handler: InputHandler) -> list[Action]:
         pink_dice = Dice(DiceColor.PINK)
         pink_dice.set_value(6)
         action = board.pink_board_part.add_dice(pink_dice)
