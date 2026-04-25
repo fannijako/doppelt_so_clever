@@ -2,6 +2,8 @@ import logging
 from typing import Optional
 
 from src.actions.action_type import ActionType
+
+logger = logging.getLogger(__name__)
 from src.actions.action_map import ActionMap
 from src.actions.base_action import Action
 from src.board.boxes.pink_box import PinkBox
@@ -11,7 +13,7 @@ from src.dice.dice_color import DiceColor
 
 class PinkBoardPart:  # pylint: disable=too-few-public-methods
     def __init__(self) -> None:
-        logging.debug("Initializing a pink board part")
+        logger.debug("Initializing a pink board part")
         self.boxes: list[PinkBox] = [
             PinkBox(0, ActionType.NONE),
             PinkBox(0, ActionType.NONE),
@@ -29,12 +31,12 @@ class PinkBoardPart:  # pylint: disable=too-few-public-methods
 
     def add_dice(self, dice: Dice) -> Optional[Action]:
         self._validate_dice(dice)
-        logging.info(f'Adding dice {str(dice)} to pink board part')
+        logger.info(f'Adding dice {str(dice)} to pink board part')
 
         for index, pink_box in enumerate(self.boxes):
             if pink_box.value_used is None:
                 pink_box.add_dice_value(dice.value)
-                logging.info(f'Added dice {str(dice)} to pink box {index}')
+                logger.info(f'Added dice {str(dice)} to pink box {index}')
                 return ActionMap.get(pink_box.action) if dice.value >= pink_box.action_filter_limit else None
 
         raise ValueError("No free pink box available to add dice")
@@ -43,12 +45,12 @@ class PinkBoardPart:  # pylint: disable=too-few-public-methods
     def _validate_dice(dice: Dice) -> None:
         if dice.color not in [DiceColor.PINK, DiceColor.WHITE]:
             message = "Attempted to add a dice of a different color to pink board part"
-            logging.warning(message)
+            logger.warning(message)
             raise ValueError(message)
 
         if dice.value is None:
             message = "Attempted to add an unrolled dice to pink board part"
-            logging.warning(message)
+            logger.warning(message)
             raise ValueError(message)
 
     def __str__(self) -> str:

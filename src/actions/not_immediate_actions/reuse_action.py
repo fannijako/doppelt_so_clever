@@ -2,6 +2,8 @@ import logging
 import random
 from typing import Optional
 
+logger = logging.getLogger(__name__)
+
 from src.dice.dice import Dice
 from src.board.board import Board
 from src.actions.base_action import Action
@@ -35,11 +37,11 @@ class ReUseAction(NotImmediateActions):
             if automatic:
                 chosen_die = random.choice(discarded_dice)
             else:
-                logging.info(f"Discarded dice: {', '.join(str(die) for die in discarded_dice)}")
+                logger.info(f"Discarded dice: {', '.join(str(die) for die in discarded_dice)}")
                 index = int(input('Pick a discarded die index: '))
                 chosen_die = discarded_dice[index]
 
-            logging.info(f"Reused die: {chosen_die}")
+            logger.info(f"Reused die: {chosen_die}")
             return chosen_die
 
         return None

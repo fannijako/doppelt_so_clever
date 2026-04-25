@@ -3,6 +3,8 @@ import random
 
 from enum import Enum
 
+logger = logging.getLogger(__name__)
+
 from src.actions.action_type import ActionType
 from src.actions.action_map import ActionMap
 from src.actions.base_action import Action
@@ -18,7 +20,7 @@ class YellowBoardAction(Enum):
 
 class YellowBoardPart:
     def __init__(self) -> None:
-        logging.debug("Initializing a yellow board part")
+        logger.debug("Initializing a yellow board part")
         self.boxes: list[YellowBox] = [
             YellowBox(
                 value=3,
@@ -105,7 +107,7 @@ class YellowBoardPart:
         if (row_position, column_position, action) not in self.possible_dice_placements(dice):
             raise ValueError("Invalid dice placement")
 
-        logging.info(
+        logger.info(
             f"Adding dice {dice} to yellow board part at "
             f"row {row_position}, column {column_position} "
             f"with action {action.value}."
@@ -163,7 +165,7 @@ class YellowBoardPart:
 
     def place_dice(self, dice: Dice, automatic: bool) -> list[Action]:
         placements = self.possible_dice_placements(dice)
-        logging.info(f"Possible dice placements: {placements}")
+        logger.info(f"Possible dice placements: {placements}")
 
         if not placements:
             return []
@@ -186,12 +188,12 @@ class YellowBoardPart:
     def _validate_dice(dice: Dice) -> None:
         if dice.color not in [DiceColor.YELLOW, DiceColor.WHITE]:
             message = "Attempted to add a dice of a different color to yellow board part"
-            logging.warning(message)
+            logger.warning(message)
             raise ValueError(message)
 
         if dice.value is None:
             message = "Attempted to add an unrolled dice to yellow board part"
-            logging.warning(message)
+            logger.warning(message)
             raise ValueError(message)
 
     def _calculate_actions_received_in_round(self) -> list[Action]:

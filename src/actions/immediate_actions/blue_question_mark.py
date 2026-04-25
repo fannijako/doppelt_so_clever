@@ -7,6 +7,8 @@ from src.actions.base_action import Action
 from src.actions.action_type import ActionType
 from src.actions.immediate_actions.immediate_actions import ImmediateActions
 
+logger = logging.getLogger(__name__)
+
 
 class BlueQuestionMarkAction(ImmediateActions):
     def __init__(self):
@@ -14,7 +16,7 @@ class BlueQuestionMarkAction(ImmediateActions):
 
     def use(self, board: Board, automatic: bool) -> list[Action]:
         value_limit_on_next_box = board.blue_board_part.get_value_limit_on_next_box()
-        logging.debug(f"Value limit on next blue box: {value_limit_on_next_box}")
+        logger.debug(f"Value limit on next blue box: {value_limit_on_next_box}")
 
         blue_dice = Dice(DiceColor.BLUE)
         white_dice = Dice(DiceColor.WHITE)
@@ -25,8 +27,8 @@ class BlueQuestionMarkAction(ImmediateActions):
         else:
             white_dice.set_value(value_limit_on_next_box // 2 + 1)
 
-        logging.debug(f"Blue dice value set to: {blue_dice.value}")
-        logging.debug(f"White dice value set to: {white_dice.value}")
+        logger.debug(f"Blue dice value set to: {blue_dice.value}")
+        logger.debug(f"White dice value set to: {white_dice.value}")
 
         action = board.blue_board_part.add_dice(
             blue_dice,

@@ -1,6 +1,8 @@
 import logging
 
 from src.round.active_round import ActiveRound
+
+logger = logging.getLogger(__name__)
 from src.round.passive_round import PassiveRound
 from src.board.board import Board
 from src.actions.action_handler import ActionHandler
@@ -26,12 +28,12 @@ class Game:  # pylint: disable=too-few-public-methods
 
     def play(self) -> int:
         for active_round_number in range(1, self._NUM_ACTIVE_ROUNDS + 1):
-            logging.info("=" * 100)
-            logging.info(f"Starting active round {active_round_number}")
+            logger.info("=" * 100)
+            logger.info(f"Starting active round {active_round_number}")
 
             if active_round_number <= len(self._ROUND_ACTIONS):
                 action = self._ROUND_ACTIONS[active_round_number - 1]()
-                logging.info(f"Granting automatic action: {action.action_type.value}")
+                logger.info(f"Granting automatic action: {action.action_type.value}")
                 if action.is_immediate:
                     self.action_handler.execute([action], automatic=self.automatic)
                 else:
@@ -46,5 +48,5 @@ class Game:  # pylint: disable=too-few-public-methods
             passive_round.execute()
 
         score = self.board.evaluate()
-        logging.info(f"board value: {score}")
+        logger.info(f"board value: {score}")
         return score

@@ -3,6 +3,8 @@ import logging
 
 from src.dice.dice import Dice
 from src.board.board import Board
+
+logger = logging.getLogger(__name__)
 from src.dice.dice_color import DiceColor
 from src.actions.base_action import Action
 from src.actions.action_type import ActionType
@@ -33,6 +35,6 @@ class GreyQuestionMarkAction(ImmediateActions):
         if automatic:
             return random.choice(possible_combinations)
 
-        logging.info(f"Possible combinations: {possible_combinations}")
+        logger.info(f"Possible combinations: {possible_combinations}")
         index = int(input("Enter index: "))
         return possible_combinations[index]

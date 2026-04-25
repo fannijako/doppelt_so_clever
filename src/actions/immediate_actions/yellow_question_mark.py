@@ -3,6 +3,8 @@ import logging
 
 from src.dice.dice import Dice
 from src.board.board import Board
+
+logger = logging.getLogger(__name__)
 from src.dice.dice_color import DiceColor
 from src.actions.base_action import Action
 from src.actions.action_type import ActionType
@@ -43,7 +45,7 @@ class YellowQuestionMarkAction(ImmediateActions):
         if automatic:
             return random.choice(possible_placements)
 
-        logging.info(f"Possible placements: {possible_placements}")
+        logger.info(f"Possible placements: {possible_placements}")
 
         index = int(input("Select a placement: "))
         return possible_placements[index]

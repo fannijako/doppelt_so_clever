@@ -3,6 +3,8 @@ import random
 from typing import Optional
 
 from src.dice.dice import Dice
+
+logger = logging.getLogger(__name__)
 from src.dice.dice_color import DiceColor
 from src.board.board import Board
 from src.actions.base_action import Action
@@ -35,7 +37,7 @@ class ActiveRound:
     def roll_dice(self) -> None:
         for die in self.available_dice:
             die.roll()
-        logging.info(f"ActiveRound: {self}")
+        logger.info(f"ActiveRound: {self}")
 
     def __str__(self) -> str:
         sections = [
@@ -50,10 +52,10 @@ class ActiveRound:
 
     def _pick_color(self) -> str:
         colors = [str(die.color.value) for die in self.available_dice]
-        logging.info(f'Available dice colors: {", ".join(colors)}')
+        logger.info(f'Available dice colors: {", ".join(colors)}')
 
         color = random.choice(colors) if self.automatic else input('Pick an available color: ')
-        logging.info(f'Picked color: {color}')
+        logger.info(f'Picked color: {color}')
         return color
 
     def pick_die(self) -> Optional[tuple[Dice, list[Dice]]]:
@@ -71,8 +73,8 @@ class ActiveRound:
         self.picked_dice.append(picked)
         self.discarded_dice.extend(smaller)
 
-        logging.info(f"Picked die: {picked}")
-        logging.info(f"ActiveRound: {self}")
+        logger.info(f"Picked die: {picked}")
+        logger.info(f"ActiveRound: {self}")
         return picked, smaller
 
     def _get_actions(self, picked: Dice, smaller: list[Dice]) -> list[Action]:
@@ -93,7 +95,7 @@ class ActiveRound:
         return result if isinstance(result, list) else [result] if result else []
 
     def _try_reuse(self) -> None:
-        logging.info(f"Usable reuses: {self.board.usable_reuses}, discarded dice: {len(self.discarded_dice)}")
+        logger.info(f"Usable reuses: {self.board.usable_reuses}, discarded dice: {len(self.discarded_dice)}")
         while self.board.usable_reuses > 0 and self.discarded_dice:
             if self.automatic:
                 should_use = random.choice([True, False])
@@ -101,7 +103,7 @@ class ActiveRound:
                 should_use = input('Use a reuse? (y/n): ').lower() == 'y'
 
             if not should_use:
-                logging.info("Chose not to use reuse")
+                logger.info("Chose not to use reuse")
                 break
 
             chosen_die = ReUseAction().use(
@@ -111,10 +113,10 @@ class ActiveRound:
             if chosen_die is not None:
                 self.discarded_dice.remove(chosen_die)
                 self.available_dice.append(chosen_die)
-                logging.info(f"Moved {chosen_die} from discarded to available dice")
+                logger.info(f"Moved {chosen_die} from discarded to available dice")
 
     def _try_reroll(self) -> None:
-        logging.info(f"Usable rerolls: {self.board.usable_rerolls}")
+        logger.info(f"Usable rerolls: {self.board.usable_rerolls}")
         while self.board.usable_rerolls > 0:
             if self.automatic:
                 should_use = random.choice([True, False])
@@ -122,10 +124,10 @@ class ActiveRound:
                 should_use = input('Use a reroll? (y/n): ').lower() == 'y'
 
             if not should_use:
-                logging.info("Chose not to use reroll")
+                logger.info("Chose not to use reroll")
                 break
 
-            logging.info(f"Using reroll (remaining after use: {self.board.usable_rerolls - 1})")
+            logger.info(f"Using reroll (remaining after use: {self.board.usable_rerolls - 1})")
             ReRollAction().use(self.board, self.automatic)
             self.roll_dice()
 
@@ -135,14 +137,14 @@ class ActiveRound:
 
         response = input(f'Place die {picked}? (y/n): ').lower()
         should_place = response == 'y'
-        logging.info(f"Chose to {'place' if should_place else 'skip'} die {picked}")
+        logger.info(f"Chose to {'place' if should_place else 'skip'} die {picked}")
         return should_place
 
     def _try_plus_one(self) -> None:
-        logging.info(f"Usable plus ones: {self.board.usable_plus_ones}")
+        logger.info(f"Usable plus ones: {self.board.usable_plus_ones}")
         while self.board.usable_plus_ones > 0:
             if not any(die.value is not None for die in self.dice_by_color.values()):
-                logging.info("No dice with values available for plus one")
+                logger.info("No dice with values available for plus one")
                 break
 
             if self.automatic:
@@ -151,52 +153,52 @@ class ActiveRound:
                 should_use = input('Use a plus one? (y/n): ').lower() == 'y'
 
             if not should_use:
-                logging.info("Chose not to use plus one")
+                logger.info("Chose not to use plus one")
                 break
 
-            logging.info(f"Using plus one (remaining after use: {self.board.usable_plus_ones - 1})")
+            logger.info(f"Using plus one (remaining after use: {self.board.usable_plus_ones - 1})")
             picked = PlusOneAction().use(
                 self.board, self.automatic,
                 dice_by_color=self.dice_by_color,
             )
             if picked is None:
-                logging.info("No die was picked for plus one")
+                logger.info("No die was picked for plus one")
                 break
 
             actions = self._get_actions(picked, [])
-            logging.info(f"Plus one actions: {actions}")
+            logger.info(f"Plus one actions: {actions}")
             self.action_handler.execute(actions, self.automatic)
 
     def execute(self) -> None:
         for game_round in range(1, self._NUM_ROUNDS + 1):
-            logging.info("-" * 100)
-            logging.info(f"Starting round {game_round}")
+            logger.info("-" * 100)
+            logger.info(f"Starting round {game_round}")
 
             self._try_reuse()
             self.roll_dice()
             self._try_reroll()
 
             if not self.available_dice:
-                logging.info("No available dice left, ending round")
+                logger.info("No available dice left, ending round")
                 break
 
             result = self.pick_die()
             if result is None:
-                logging.info("No dice could be picked, ending round")
+                logger.info("No dice could be picked, ending round")
                 break
 
             picked, smaller = result
             if not self._ask_to_place_die(picked):
-                logging.info(f"Declined to place die {picked}, skipping placement")
+                logger.info(f"Declined to place die {picked}, skipping placement")
                 continue
 
             actions = self._get_actions(picked, smaller)
             self.action_handler.execute(actions, self.automatic)
 
-            logging.info(f"Actions received in round {game_round}: {actions}")
+            logger.info(f"Actions received in round {game_round}: {actions}")
 
             if not self.available_dice:
-                logging.info("No available dice left, ending round")
+                logger.info("No available dice left, ending round")
                 break
 
         self._try_plus_one()
