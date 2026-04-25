@@ -9,11 +9,17 @@ logger = GameLogger(__name__)
 class ConsoleInputHandler(InputHandler):
     def choose_index(self, prompt: str, options: list[Any]) -> int:
         logger.info("Options", ", ".join(f"{i}: {opt}" for i, opt in enumerate(options)))
-        return int(input(prompt))
+        while not (index := input(prompt)).isdigit() or int(index) < 0 or int(index) >= len(options):
+            logger.error("Invalid input", "Please enter a valid number")
+        return int(index)
 
     def confirm(self, prompt: str) -> bool:
-        return input(prompt).lower() == 'y'
+        while not (answer := input(prompt).lower()) in ['y', 'n']:
+            logger.error("Invalid input", "Please enter 'y' or 'n'")
+        return answer == 'y'
 
     def choose_value(self, prompt: str, valid_values: list[str]) -> str:
         logger.info("Valid values", ", ".join(valid_values))
-        return input(prompt)
+        while not (value := input(prompt)) in valid_values:
+            logger.error("Invalid input", "Please enter a valid value")
+        return value
