@@ -1,9 +1,9 @@
 from src.actions.action_type import ActionType
+from src.actions.base_action import Action
+from src.board.board import Board
 from src.logging_config import GameLogger
 
 logger = GameLogger(__name__)
-from src.actions.base_action import Action
-from src.board.board import Board
 
 
 class ActionHandler:  # pylint: disable=too-few-public-methods
@@ -22,7 +22,10 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
             actions_received = action_to_use.use(board=self.board, automatic=automatic)
             immediate_actions_received = self._get_immediate_actions(actions_received)
             not_immediate_actions_received = self._get_not_immediate_actions(actions_received)
-            logger.info("Actions received", actions_received, f"immediate: {immediate_actions_received}, not immediate: {not_immediate_actions_received}")
+            logger.info(
+                "Actions received", actions_received,
+                f"immediate: {immediate_actions_received}, not immediate: {not_immediate_actions_received}",
+            )
 
             if len(not_used_immediate_actions) > 1:
                 not_used_immediate_actions = not_used_immediate_actions[1:]

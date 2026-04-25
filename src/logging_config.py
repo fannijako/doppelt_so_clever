@@ -40,14 +40,11 @@ class _TabularFormatter(logging.Formatter):
         return SEPARATOR.join(columns)
 
 
-class _ClassNameFilter(logging.Filter):
+class _ClassNameFilter(logging.Filter):  # pylint: disable=too-few-public-methods
     def filter(self, record: logging.LogRecord) -> bool:
-        frame = sys._getframe()
+        frame = sys._getframe()  # pylint: disable=protected-access
         while frame is not None:
-            if (
-                frame.f_code.co_filename != logging.__file__
-                and frame.f_code.co_filename != __file__
-            ):
+            if frame.f_code.co_filename not in (logging.__file__, __file__):
                 instance = frame.f_locals.get("self")
                 if instance is not None:
                     record.className = type(instance).__name__

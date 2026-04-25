@@ -1,16 +1,15 @@
 import random
 from typing import Optional
 
+from src.actions.action_type import ActionType
+from src.actions.base_action import Action
+from src.actions.immediate_actions.pink_question_mark import PinkQuestionMarkAction
+from src.actions.not_immediate_actions.not_immediate_actions import NotImmediateActions
+from src.board.board import Board
+from src.dice.dice import Dice
 from src.logging_config import GameLogger
 
 logger = GameLogger(__name__)
-
-from src.dice.dice import Dice
-from src.board.board import Board
-from src.actions.base_action import Action
-from src.actions.action_type import ActionType
-from src.actions.not_immediate_actions.not_immediate_actions import NotImmediateActions
-from src.actions.immediate_actions.pink_question_mark import PinkQuestionMarkAction
 
 
 class ReUseAction(NotImmediateActions):

@@ -1,15 +1,15 @@
 import random
 from typing import Optional
 
+from src.actions.action_map import ActionMap
+from src.actions.action_type import ActionType
+from src.actions.base_action import Action
 from src.board.boxes.grey_box import GreyBox
+from src.dice.dice import Dice
+from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
 
 logger = GameLogger(__name__)
-from src.dice.dice import Dice
-from src.dice.dice_color import DiceColor
-from src.actions.action_type import ActionType
-from src.actions.action_map import ActionMap
-from src.actions.base_action import Action
 
 
 class GreyBoardPart:
@@ -48,7 +48,11 @@ class GreyBoardPart:
         self._validate_smaller_die(dice, smaller_die)
         self._validate_color_changes(dice, smaller_die, color_to_use_white_as, color_to_use_grey_as)
         all_die = [dice] + smaller_die
-        logger.info("Grey board", " + ".join(str(die) for die in all_die), f"white as {color_to_use_white_as}, grey as {color_to_use_grey_as}")
+        logger.info(
+            "Grey board",
+            " + ".join(str(die) for die in all_die),
+            f"white as {color_to_use_white_as}, grey as {color_to_use_grey_as}",
+        )
 
         for die in all_die:
             value = die.value

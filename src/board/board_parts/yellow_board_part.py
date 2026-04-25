@@ -1,16 +1,15 @@
 import random
-
 from enum import Enum
-from src.logging_config import GameLogger
 
-logger = GameLogger(__name__)
-
-from src.actions.action_type import ActionType
 from src.actions.action_map import ActionMap
+from src.actions.action_type import ActionType
 from src.actions.base_action import Action
 from src.board.boxes.yellow_box import YellowBox
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
+from src.logging_config import GameLogger
+
+logger = GameLogger(__name__)
 
 
 class YellowBoardAction(Enum):

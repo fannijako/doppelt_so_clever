@@ -1,5 +1,6 @@
-import logging
 import argparse
+import logging
+import os
 from datetime import datetime
 
 import matplotlib.pyplot as plt
@@ -36,7 +37,6 @@ def run_simulation(rounds: int) -> list[int]:
 
 
 def plot_scores(scores: list[int], filename: str) -> None:
-    import os
     os.makedirs("monte_carlo_scores", exist_ok=True)
 
     plt.figure()
