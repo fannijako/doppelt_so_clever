@@ -48,6 +48,32 @@ def plot_scores(scores: list[int], filename: str) -> None:
     plt.xlabel("Score")
     plt.ylabel("Frequency")
     plt.title("Histogram of Scores")
+
+    category_boundaries = [140, 160, 180, 200, 220, 240, 260, 280, 300, 320]
+    for boundary in category_boundaries:
+        plt.axvline(x=boundary, color='red', linestyle='--', alpha=0.7)
+
+    categories = [
+        (0, 140, "Half as clever."),
+        (140, 160, "You can do better."),
+        (160, 180, "On the right way."),
+        (180, 200, "You should be happy."),
+        (200, 220, "You've been training!"),
+        (220, 240, "Pretty, pretty clever!"),
+        (240, 260, "People, look at this!"),
+        (260, 280, "This can't be luck!"),
+        (280, 300, "Respect!"),
+        (300, 320, "Points = IQ!"),
+        (320, 350, "Twice as clever!"),
+    ]
+
+    plt.xlim(0, 350)
+
+    ymax = plt.ylim()[1]
+    for start, end, label in categories:
+        mid = (start + end) / 2
+        plt.text(mid, ymax * 0.95, label, ha='center', va='top', rotation=90, fontsize=8, color='red')
+
     plt.savefig(filename)
 
 
