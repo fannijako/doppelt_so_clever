@@ -3,8 +3,8 @@ from typing import Optional
 from src.board.board import Board
 from src.actions.base_action import Action
 from src.actions.action_type import ActionType
-from src.actions.not_immediate_actions.not_immediate_actions import NotImmediateActions
 from src.actions.not_immediate_actions.fox_action import FoxAction
+from src.actions.not_immediate_actions.not_immediate_actions import NotImmediateActions
 
 
 class ReRollAction(NotImmediateActions):

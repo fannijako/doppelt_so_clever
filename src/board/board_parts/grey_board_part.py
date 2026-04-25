@@ -1,13 +1,13 @@
 import random
 from typing import Optional
 
-from src.actions.action_map import ActionMap
-from src.actions.action_type import ActionType
-from src.actions.base_action import Action
-from src.board.boxes.grey_box import GreyBox
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
+from src.actions.base_action import Action
+from src.actions.action_map import ActionMap
+from src.board.boxes.grey_box import GreyBox
+from src.actions.action_type import ActionType
 
 logger = GameLogger(__name__)
 

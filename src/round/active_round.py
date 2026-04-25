@@ -1,15 +1,15 @@
 import random
 from typing import Optional
 
-from src.actions.action_handler import ActionHandler
-from src.actions.base_action import Action
-from src.actions.not_immediate_actions.plus_one_action import PlusOneAction
-from src.actions.not_immediate_actions.reroll_action import ReRollAction
-from src.actions.not_immediate_actions.reuse_action import ReUseAction
-from src.board.board import Board
 from src.dice.dice import Dice
+from src.board.board import Board
 from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
+from src.actions.base_action import Action
+from src.actions.action_handler import ActionHandler
+from src.actions.not_immediate_actions.reuse_action import ReUseAction
+from src.actions.not_immediate_actions.reroll_action import ReRollAction
+from src.actions.not_immediate_actions.plus_one_action import PlusOneAction
 
 logger = GameLogger(__name__)
 

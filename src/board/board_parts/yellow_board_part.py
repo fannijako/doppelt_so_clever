@@ -1,13 +1,13 @@
 import random
 from enum import Enum
 
-from src.actions.action_map import ActionMap
-from src.actions.action_type import ActionType
-from src.actions.base_action import Action
-from src.board.boxes.yellow_box import YellowBox
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
+from src.actions.base_action import Action
+from src.actions.action_map import ActionMap
+from src.actions.action_type import ActionType
+from src.board.boxes.yellow_box import YellowBox
 
 logger = GameLogger(__name__)
 

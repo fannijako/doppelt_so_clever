@@ -1,13 +1,13 @@
 import random
 
-from src.actions.action_type import ActionType
-from src.actions.base_action import Action
-from src.actions.immediate_actions.immediate_actions import ImmediateActions
-from src.board.board import Board
-from src.board.board_parts.yellow_board_part import YellowBoardAction
 from src.dice.dice import Dice
+from src.board.board import Board
 from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
+from src.actions.base_action import Action
+from src.actions.action_type import ActionType
+from src.board.board_parts.yellow_board_part import YellowBoardAction
+from src.actions.immediate_actions.immediate_actions import ImmediateActions
 
 logger = GameLogger(__name__)
 

@@ -14,16 +14,16 @@ class ActionMap:  # pylint: disable=too-few-public-methods
     @classmethod
     def _initialize(cls):
         # pylint: disable=import-outside-toplevel
-        from src.actions.not_immediate_actions.reroll_action import ReRollAction
-        from src.actions.not_immediate_actions.reuse_action import ReUseAction
-        from src.actions.not_immediate_actions.plus_one_action import PlusOneAction
         from src.actions.not_immediate_actions.fox_action import FoxAction
-        from src.actions.immediate_actions.black_question_mark import BlackQuestionMarkAction
-        from src.actions.immediate_actions.green_question_mark import GreenQuestionMarkAction
-        from src.actions.immediate_actions.yellow_question_mark import YellowQuestionMarkAction
+        from src.actions.not_immediate_actions.reuse_action import ReUseAction
+        from src.actions.not_immediate_actions.reroll_action import ReRollAction
+        from src.actions.not_immediate_actions.plus_one_action import PlusOneAction
         from src.actions.immediate_actions.blue_question_mark import BlueQuestionMarkAction
         from src.actions.immediate_actions.grey_question_mark import GreyQuestionMarkAction
         from src.actions.immediate_actions.pink_question_mark import PinkQuestionMarkAction
+        from src.actions.immediate_actions.black_question_mark import BlackQuestionMarkAction
+        from src.actions.immediate_actions.green_question_mark import GreenQuestionMarkAction
+        from src.actions.immediate_actions.yellow_question_mark import YellowQuestionMarkAction
         cls._map = {
             ActionType.REROLL: ReRollAction,
             ActionType.REUSE: ReUseAction,

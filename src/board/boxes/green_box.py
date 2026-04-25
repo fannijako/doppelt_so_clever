@@ -1,5 +1,5 @@
-from src.actions.action_type import ActionType
 from src.logging_config import GameLogger
+from src.actions.action_type import ActionType
 
 logger = GameLogger(__name__)
 

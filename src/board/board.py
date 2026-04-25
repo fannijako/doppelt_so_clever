@@ -1,14 +1,14 @@
 import random
 
-from src.actions.base_action import Action
-from src.board.board_parts.blue_board_part import BlueBoardPart
-from src.board.board_parts.green_board_part import GreenBoardPart
-from src.board.board_parts.grey_board_part import GreyBoardPart
-from src.board.board_parts.pink_board_part import PinkBoardPart
-from src.board.board_parts.yellow_board_part import YellowBoardPart
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
+from src.actions.base_action import Action
+from src.board.board_parts.blue_board_part import BlueBoardPart
+from src.board.board_parts.grey_board_part import GreyBoardPart
+from src.board.board_parts.pink_board_part import PinkBoardPart
+from src.board.board_parts.green_board_part import GreenBoardPart
+from src.board.board_parts.yellow_board_part import YellowBoardPart
 
 logger = GameLogger(__name__)
 

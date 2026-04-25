@@ -1,7 +1,7 @@
-from src.actions.action_type import ActionType
-from src.actions.base_action import Action
 from src.board.board import Board
 from src.logging_config import GameLogger
+from src.actions.base_action import Action
+from src.actions.action_type import ActionType
 
 logger = GameLogger(__name__)
 

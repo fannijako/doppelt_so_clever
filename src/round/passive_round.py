@@ -1,11 +1,11 @@
 import random
 
-from src.actions.action_handler import ActionHandler
-from src.actions.base_action import Action
-from src.board.board import Board
 from src.dice.dice import Dice
+from src.board.board import Board
 from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
+from src.actions.base_action import Action
+from src.actions.action_handler import ActionHandler
 
 logger = GameLogger(__name__)
 
