@@ -25,10 +25,10 @@ run:
 	python main.py
 
 run-auto:
-	python main.py -a
+	python main.py --mode automatic
 
 run-monte-carlo:
-	python monte_carlo.py -r 1000
+	python monte_carlo.py -r 1000 --mode automatic
 
 clean:
 	rm -rf .venv

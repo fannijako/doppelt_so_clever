@@ -3,7 +3,8 @@ import argparse
 from src.game import Game
 from src.logging_config import setup_logging, GameLogger
 from src.input_handler.heuristics.always_accept import AlwaysAcceptInputHandler
-from src.input_handler import InputHandler, AutomaticInputHandler, ConsoleInputHandler
+from src.input_handler import InputHandler, AutomaticInputHandler, ConsoleInputHandler, ModelInputHandler
+from model.model import DoppeltSoCleverModel
 
 logger = GameLogger(__name__)
 
@@ -19,17 +20,28 @@ def main() -> None:
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging")
-    parser.add_argument("-a", "--automatic", action="store_true", help="Enable automatic play")
-    parser.add_argument("--always-accept", action="store_true", help="Use always-accept heuristic for automatic play")
+    parser.add_argument(
+        "--mode",
+        choices=["console", "automatic", "always-accept", "model"],
+        default="console",
+        help="Input mode: console (default), automatic, always-accept, or model"
+    )
     return parser.parse_args()
 
 
 def get_action_handler(arguments: argparse.Namespace) -> InputHandler:
-    if not arguments.automatic:
-        return ConsoleInputHandler()
-    if arguments.always_accept:
-        return AlwaysAcceptInputHandler()
-    return AutomaticInputHandler()
+    # pylint: disable=unnecessary-lambda
+    handlers = {
+        "console": lambda: ConsoleInputHandler(),
+        "always-accept": lambda: AlwaysAcceptInputHandler(),
+        "model": lambda: ModelInputHandler(DoppeltSoCleverModel()),
+        "automatic": lambda: AutomaticInputHandler(),
+    }
+
+    handler_factory = handlers.get(arguments.mode)
+    if handler_factory is None:
+        raise ValueError(f"Unknown mode: {arguments.mode}")
+    return handler_factory()
 
 
 if __name__ == "__main__":
