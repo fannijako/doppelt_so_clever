@@ -1,10 +1,10 @@
 import pytest
 
-from src.board.board_parts.green_board_part import GreenBoardPart
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
-from src.actions.action_type import ActionType
 from src.actions.action_map import ActionMap
+from src.actions.action_type import ActionType
+from src.board.board_parts.green_board_part import GreenBoardPart
 
 
 def test_add_dice_return_action_on_first_box():

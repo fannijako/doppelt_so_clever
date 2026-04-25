@@ -1,13 +1,15 @@
 import random
-import logging
 
 from src.dice.dice import Dice
 from src.board.board import Board
 from src.dice.dice_color import DiceColor
+from src.logging_config import GameLogger
 from src.actions.base_action import Action
 from src.actions.action_type import ActionType
 from src.board.board_parts.yellow_board_part import YellowBoardAction
 from src.actions.immediate_actions.immediate_actions import ImmediateActions
+
+logger = GameLogger(__name__)
 
 
 class YellowQuestionMarkAction(ImmediateActions):
@@ -43,7 +45,7 @@ class YellowQuestionMarkAction(ImmediateActions):
         if automatic:
             return random.choice(possible_placements)
 
-        logging.info(f"Possible placements: {possible_placements}")
+        logger.info("Placements", possible_placements)
 
         index = int(input("Select a placement: "))
         return possible_placements[index]

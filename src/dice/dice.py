@@ -1,12 +1,14 @@
 import random
-import logging
 
 from src.dice.dice_color import DiceColor
+from src.logging_config import GameLogger
+
+logger = GameLogger(__name__)
 
 
 class Dice:
     def __init__(self, color: DiceColor) -> None:
-        logging.debug(f"Initializing a dice with {color}")
+        logger.debug("Init dice", color)
         self.color = color
         self.value = None
 
@@ -17,7 +19,7 @@ class Dice:
 
     def roll(self) -> None:
         self.value = random.randint(1, 6)
-        logging.debug(f"{self.color.value} dice rolled: {self.value}")
+        logger.debug("Dice rolled", f"{self.color.value}: {self.value}")
 
     def __str__(self) -> str:
         if self.value is None:

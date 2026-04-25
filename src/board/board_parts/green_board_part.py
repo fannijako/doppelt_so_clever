@@ -1,16 +1,17 @@
-import logging
-
-from src.actions.action_type import ActionType
-from src.actions.action_map import ActionMap
-from src.actions.base_action import Action
-from src.board.boxes.green_box import GreenBox
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
+from src.logging_config import GameLogger
+from src.actions.base_action import Action
+from src.actions.action_map import ActionMap
+from src.board.boxes.green_box import GreenBox
+from src.actions.action_type import ActionType
+
+logger = GameLogger(__name__)
 
 
 class GreenBoardPart:
     def __init__(self) -> None:
-        logging.debug("Initializing a green board part")
+        logger.debug("Init", "green board part")
         self.boxes: list[GreenBox] = [
             GreenBox(2, ActionType.NONE, 0),
             GreenBox(2, ActionType.REROLL, 1),
@@ -28,17 +29,17 @@ class GreenBoardPart:
 
     def add_dice(self, dice: Dice) -> Action:
         self._validate_dice(dice)
-        logging.info(f'Adding dice {str(dice)} to green board part')
+        logger.info("Green board", dice, "adding")
         index_of_next_empty_field = self.index_of_next_empty_field()
         box = self.boxes[index_of_next_empty_field]
         box.add_dice_value(dice.value)
-        logging.info(f'Added dice {str(dice)} to green box {index_of_next_empty_field}: {box.value_used}')
+        logger.info("Green box", f"{dice} at {index_of_next_empty_field}: {box.value_used}", "added")
         return ActionMap.get(box.action)
 
     def index_of_next_empty_field(self) -> int:
         empty_boxes = list(filter(lambda box: box.value_used is None, self.boxes))
         if not empty_boxes:
-            logging.warning("No free green box available to add dice")
+            logger.warning("Green board", "no free box")
             return 12
         return min(empty_boxes, key=lambda box: box.index).index
 
@@ -49,12 +50,12 @@ class GreenBoardPart:
     def _validate_dice(dice: Dice) -> None:
         if dice.color not in [DiceColor.GREEN, DiceColor.WHITE]:
             message = "Attempted to add a dice of a different color to green board part"
-            logging.warning(message)
+            logger.warning("Validation", message)
             raise ValueError(message)
 
         if dice.value is None:
             message = "Attempted to add an unrolled dice to green board part"
-            logging.warning(message)
+            logger.warning("Validation", message)
             raise ValueError(message)
 
     def __str__(self) -> str:

@@ -1,11 +1,11 @@
 # pylint: disable=protected-access
 import pytest
 
-from src.board.board_parts.grey_board_part import GreyBoardPart
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
-from src.actions.action_type import ActionType
 from src.actions.action_map import ActionMap
+from src.actions.action_type import ActionType
+from src.board.board_parts.grey_board_part import GreyBoardPart
 
 
 def test_board_init_available_actions():

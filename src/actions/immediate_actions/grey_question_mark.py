@@ -1,12 +1,14 @@
 import random
-import logging
 
 from src.dice.dice import Dice
 from src.board.board import Board
 from src.dice.dice_color import DiceColor
+from src.logging_config import GameLogger
 from src.actions.base_action import Action
 from src.actions.action_type import ActionType
 from src.actions.immediate_actions.immediate_actions import ImmediateActions
+
+logger = GameLogger(__name__)
 
 
 class GreyQuestionMarkAction(ImmediateActions):
@@ -33,6 +35,6 @@ class GreyQuestionMarkAction(ImmediateActions):
         if automatic:
             return random.choice(possible_combinations)
 
-        logging.info(f"Possible combinations: {possible_combinations}")
+        logger.info("Combinations", possible_combinations)
         index = int(input("Enter index: "))
         return possible_combinations[index]

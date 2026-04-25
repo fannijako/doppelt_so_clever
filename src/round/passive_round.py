@@ -1,11 +1,13 @@
-import logging
 import random
 
 from src.dice.dice import Dice
-from src.dice.dice_color import DiceColor
 from src.board.board import Board
+from src.dice.dice_color import DiceColor
+from src.logging_config import GameLogger
 from src.actions.base_action import Action
 from src.actions.action_handler import ActionHandler
+
+logger = GameLogger(__name__)
 
 
 class PassiveRound:  # pylint: disable=too-few-public-methods
@@ -24,29 +26,28 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
         }
 
     def execute(self) -> None:
-        logging.info("-" * 100)
-        logging.info("Starting passive player turn")
+        logger.info("Passive turn", "starting")
 
         all_dice = list(self.dice_by_color.values())
         for die in all_dice:
             die.roll()
-        logging.info(f"Passive turn rolled dice: {', '.join(str(die) for die in all_dice)}")
+        logger.info("Rolled dice", ", ".join(str(die) for die in all_dice))
 
         eligible_dice = self._get_lowest_n_dice(all_dice, 3)
-        logging.info(f"Eligible dice (3 lowest): {', '.join(str(die) for die in eligible_dice)}")
+        logger.info("Eligible dice", ", ".join(str(die) for die in eligible_dice), "3 lowest")
 
         if not eligible_dice:
-            logging.info("No eligible dice for passive turn")
+            logger.info("Eligible dice", "none")
             return
 
         if self.automatic:
             picked = random.choice(eligible_dice)
         else:
-            logging.info(f"Pick one: {', '.join(f'{i}: {die}' for i, die in enumerate(eligible_dice))}")
+            logger.info("Pick one", ", ".join(f"{i}: {die}" for i, die in enumerate(eligible_dice)))
             index = int(input('Pick a die index: '))
             picked = eligible_dice[index]
 
-        logging.info(f"Passive turn picked die: {picked}")
+        logger.info("Picked die", picked)
         actions = self._get_actions(picked)
         self.action_handler.execute(actions, self.automatic)
 

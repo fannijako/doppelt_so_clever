@@ -1,14 +1,13 @@
 import random
 
-from src.actions.action_type import ActionType
-from src.actions.base_action import Action
 from src.board.board import Board
-
+from src.actions.base_action import Action
+from src.actions.action_type import ActionType
 from src.actions.immediate_actions.immediate_actions import ImmediateActions
 from src.actions.immediate_actions.blue_question_mark import BlueQuestionMarkAction
-from src.actions.immediate_actions.green_question_mark import GreenQuestionMarkAction
 from src.actions.immediate_actions.grey_question_mark import GreyQuestionMarkAction
 from src.actions.immediate_actions.pink_question_mark import PinkQuestionMarkAction
+from src.actions.immediate_actions.green_question_mark import GreenQuestionMarkAction
 from src.actions.immediate_actions.yellow_question_mark import YellowQuestionMarkAction
 
 

@@ -1,17 +1,19 @@
-import logging
 from typing import Optional
 
-from src.actions.action_type import ActionType
-from src.actions.action_map import ActionMap
-from src.actions.base_action import Action
-from src.board.boxes.blue_box import BlueBox
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
+from src.logging_config import GameLogger
+from src.actions.base_action import Action
+from src.actions.action_map import ActionMap
+from src.board.boxes.blue_box import BlueBox
+from src.actions.action_type import ActionType
+
+logger = GameLogger(__name__)
 
 
 class BlueBoardPart:
     def __init__(self) -> None:
-        logging.debug("Initializing a blue board part")
+        logger.debug("Init", "blue board part")
         self.boxes: list[BlueBox] = [
             BlueBox(12, ActionType.NONE),
             BlueBox(12, ActionType.REUSE),
@@ -35,21 +37,21 @@ class BlueBoardPart:
 
     def add_dice(self, blue_dice: Dice, white_dice: Dice) -> Optional[Action]:
         self._validate_dice(blue_dice, white_dice)
-        logging.info(f'Adding dice {str(blue_dice)} to blue board part with {str(white_dice)}')
+        logger.info("Blue board", f"{blue_dice} + {white_dice}", "adding")
 
         for index, current_blue_box in enumerate(self.boxes):
             if current_blue_box.value_used is None:
                 current_blue_box.add_dice_value(blue_dice.value, white_dice.value)
 
                 if current_blue_box.value_used is None:
-                    logging.info(f'Dice sum exceeds limit on blue box {index}, skipping placement')
+                    logger.info("Blue box", index, "sum exceeds limit")
                     return None
 
-                logging.info(f'Added dice {str(blue_dice)} to blue box {index}')
+                logger.info("Blue box", f"{blue_dice} at {index}", "added")
 
                 for following_box in self.boxes[index + 1:]:
                     following_box.maximum_value_limit = current_blue_box.value_used
-                logging.info(f'Lowered following boxes upper limits to {current_blue_box.value_used}')
+                logger.info("Blue limits", current_blue_box.value_used, "lowered")
 
                 return ActionMap.get(current_blue_box.action)
 
@@ -59,12 +61,12 @@ class BlueBoardPart:
     def _validate_dice(blue_dice: Dice, white_dice: Dice) -> None:
         if blue_dice.color != DiceColor.BLUE or white_dice.color != DiceColor.WHITE:
             message = "Attempted to add a dice of a different color to blue board part"
-            logging.warning(message)
+            logger.warning("Validation", message)
             raise ValueError(message)
 
         if blue_dice.value is None or white_dice.value is None:
             message = "Attempted to add an unrolled dice to blue board part"
-            logging.warning(message)
+            logger.warning("Validation", message)
             raise ValueError(message)
 
     def __str__(self) -> str:
