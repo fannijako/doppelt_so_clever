@@ -1,8 +1,9 @@
-import logging
 import random
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from src.logging_config import GameLogger
+
+logger = GameLogger(__name__)
 
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
@@ -42,11 +43,11 @@ class PlusOneAction(NotImmediateActions):
             if automatic:
                 chosen_die = random.choice(usable_dice)
             else:
-                logger.info(f"Available dice: {', '.join(str(die) for die in usable_dice)}")
+                logger.info("Available dice", ", ".join(str(die) for die in usable_dice))
                 color = input('Pick a die color to reuse: ')
                 chosen_die = dice_by_color[DiceColor(color)]
 
-            logger.info(f"Plus one used with die: {chosen_die}")
+            logger.info("Plus one used", chosen_die)
             return chosen_die
 
         return None

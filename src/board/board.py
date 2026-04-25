@@ -1,9 +1,9 @@
-import logging
 import random
 
 from src.dice.dice import Dice
+from src.logging_config import GameLogger
 
-logger = logging.getLogger(__name__)
+logger = GameLogger(__name__)
 from src.dice.dice_color import DiceColor
 from src.actions.base_action import Action
 from src.board.board_parts.blue_board_part import BlueBoardPart
@@ -70,5 +70,5 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
             )
         ]
         result = sum(part_values) + self.foxes * min(part_values)
-        logger.info(f"Board evaluated to {result}")
+        logger.info("Score", result)
         return result

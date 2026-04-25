@@ -1,6 +1,6 @@
-import logging
+from src.logging_config import GameLogger
 
-logger = logging.getLogger(__name__)
+logger = GameLogger(__name__)
 
 
 class YellowBox:
@@ -10,7 +10,7 @@ class YellowBox:
         row_position: int,
         column_position: int,
     ) -> None:
-        logger.debug("Initializing a yellow box")
+        logger.debug("Init", "yellow box")
         self._validate_input(value, row_position, column_position)
         self.value = value
         self.row_position = row_position
@@ -37,17 +37,17 @@ class YellowBox:
     def _validate_input(value: int, row_position: int, column_position: int) -> None:
         if not 1 <= value <= 6:
             message = "value must be between 1 and 6"
-            logger.error(message)
+            logger.error("Validation", message)
             raise ValueError(message)
 
         if not 0 <= row_position <= 4:
             message = "row_position must be between 0 and 4"
-            logger.error(message)
+            logger.error("Validation", message)
             raise ValueError(message)
 
         if not 0 <= column_position <= 3:
             message = "column_position must be between 0 and 3"
-            logger.error(message)
+            logger.error("Validation", message)
             raise ValueError(message)
 
-        logger.debug("Valid input")
+        logger.debug("Validation", "valid input")

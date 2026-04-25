@@ -1,16 +1,15 @@
-import logging
 import argparse
 
 from src.game import Game
-from src.logging_config import setup_logging
+from src.logging_config import setup_logging, GameLogger
 
-logger = logging.getLogger(__name__)
+logger = GameLogger(__name__)
 
 
 def main() -> None:
     arguments = parse_arguments()
     setup_logging(verbose=arguments.verbose)
-    logger.info(f"args: {arguments}")
+    logger.info("Args", arguments)
     game = Game(automatic=arguments.automatic)
     game.play()
 

@@ -1,10 +1,10 @@
-import logging
 import random
 from typing import Optional
 
 from src.board.boxes.grey_box import GreyBox
+from src.logging_config import GameLogger
 
-logger = logging.getLogger(__name__)
+logger = GameLogger(__name__)
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 from src.actions.action_type import ActionType
@@ -16,7 +16,7 @@ class GreyBoardPart:
     _SUBSTITUTABLE_COLORS = [DiceColor.YELLOW, DiceColor.BLUE, DiceColor.PINK, DiceColor.GREEN]
 
     def __init__(self):
-        logger.debug("Initializing a grey board part")
+        logger.debug("Init", "grey board part")
         self.boxes = [
             GreyBox(color=color, number=number)
             for color in [
@@ -48,18 +48,14 @@ class GreyBoardPart:
         self._validate_smaller_die(dice, smaller_die)
         self._validate_color_changes(dice, smaller_die, color_to_use_white_as, color_to_use_grey_as)
         all_die = [dice] + smaller_die
-        logger.info(
-            f'Adding dice {" + ".join([str(die) for die in all_die])} to grey board part.'
-            f'White die will be used as: {color_to_use_white_as}. '
-            f'Grey die will be used as: {color_to_use_grey_as}.'
-        )
+        logger.info("Grey board", " + ".join(str(die) for die in all_die), f"white as {color_to_use_white_as}, grey as {color_to_use_grey_as}")
 
         for die in all_die:
             value = die.value
             color = self._get_color_to_use_as(die, color_to_use_white_as, color_to_use_grey_as)
             box_to_cross = [box for box in self.boxes if box.color == color and box.number == value and not box.is_crossed]
             if not box_to_cross:
-                logger.info(f"No box to cross for die {die.color} | {die.value}")
+                logger.info("Grey box", f"{die.color} | {die.value}", "no box to cross")
                 continue
             box_to_cross[0].cross_box(color, die.value)
 
@@ -134,40 +130,40 @@ class GreyBoardPart:
         die_colors = [die.color for die in smaller_die] + [dice.color]
         if DiceColor.WHITE in die_colors and not color_to_use_white_as:
             message = "Attempted to add a white dice to grey board part without specifying a color to use white as"
-            logger.warning(message)
+            logger.warning("Validation", message)
             raise ValueError(message)
 
         if DiceColor.GREY in die_colors and not color_to_use_grey_as:
             message = "Attempted to add a grey dice to grey board part without specifying a color to use grey as"
-            logger.warning(message)
+            logger.warning("Validation", message)
             raise ValueError(message)
 
     def _validate_dice(self, dice: Dice) -> None:
         if dice.color not in [DiceColor.GREY, DiceColor.WHITE]:
             message = "Attempted to add a dice of a different color to grey board part"
-            logger.warning(message)
+            logger.warning("Validation", message)
             raise ValueError(message)
 
         if dice.value is None:
             message = "Attempted to add an unrolled dice to grey board part"
-            logger.warning(message)
+            logger.warning("Validation", message)
             raise ValueError(message)
 
     def _validate_smaller_die(self, dice: Dice, smaller_die: list[Dice]) -> None:
         for smaller_dice in smaller_die:
             if smaller_dice.value is None:
                 message = "Attempted to add an unrolled dice to grey board part"
-                logger.warning(message)
+                logger.warning("Validation", message)
                 raise ValueError(message)
 
             if smaller_dice.color == dice.color:
                 message = "Attempted to add a dice of the same color to grey board part"
-                logger.warning(message)
+                logger.warning("Validation", message)
                 raise ValueError(message)
 
             if smaller_dice.value >= dice.value:
                 message = "Attempted to add a dice with greater or equal value to grey board part"
-                logger.warning(message)
+                logger.warning("Validation", message)
                 raise ValueError(message)
 
     def __str__(self) -> str:
