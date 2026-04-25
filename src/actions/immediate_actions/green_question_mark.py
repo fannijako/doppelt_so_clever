@@ -10,6 +10,7 @@ from src.actions.immediate_actions.immediate_actions import ImmediateActions
 
 if TYPE_CHECKING:
     from src.board.board import Board
+    from src.input_handler import InputHandler
 
 
 class GreenQuestionMarkAction(ImmediateActions):  # pylint: disable=too-few-public-methods
@@ -18,7 +19,7 @@ class GreenQuestionMarkAction(ImmediateActions):  # pylint: disable=too-few-publ
             action_type=ActionType.GREEN_QUESTION_MARK
         )
 
-    def use(self, board: Board, automatic: bool) -> list[Action]:
+    def use(self, board: Board, input_handler: InputHandler) -> list[Action]:
         green_dice = Dice(DiceColor.GREEN)
         green_dice.set_value(6 if board.green_board_part.sign_of_next_empty_field() == 1 else 1)
         action = board.green_board_part.add_dice(green_dice)

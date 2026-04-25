@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import random
+from typing import TYPE_CHECKING
 
 from src.dice.dice import Dice
 from src.board.board import Board
@@ -6,6 +9,9 @@ from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
 from src.actions.base_action import Action
 from src.actions.action_handler import ActionHandler
+
+if TYPE_CHECKING:
+    from src.input_handler import InputHandler
 
 logger = GameLogger(__name__)
 
@@ -15,11 +21,11 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
         self,
         board: Board,
         action_handler: ActionHandler,
-        automatic: bool = True,
+        input_handler: InputHandler,
     ):
         self.board = board
         self.action_handler = action_handler
-        self.automatic = automatic
+        self.input_handler = input_handler
 
         self.dice_by_color: dict[DiceColor, Dice] = {
             color: Dice(color) for color in DiceColor
@@ -40,16 +46,12 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
             logger.info("Eligible dice", "none")
             return
 
-        if self.automatic:
-            picked = random.choice(eligible_dice)
-        else:
-            logger.info("Pick one", ", ".join(f"{i}: {die}" for i, die in enumerate(eligible_dice)))
-            index = int(input('Pick a die index: '))
-            picked = eligible_dice[index]
+        index = self.input_handler.choose_index('Pick a die index: ', eligible_dice)
+        picked = eligible_dice[index]
 
         logger.info("Picked die", picked)
         actions = self._get_actions(picked)
-        self.action_handler.execute(actions, self.automatic)
+        self.action_handler.execute(actions, self.input_handler)
 
     def _get_actions(self, picked: Dice) -> list[Action]:
         dispatch = {
@@ -58,9 +60,9 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
             ),
             DiceColor.PINK: lambda: self.board.pink_board_part.add_dice(picked),
             DiceColor.GREEN: lambda: self.board.green_board_part.add_dice(picked),
-            DiceColor.GREY: lambda: self.board.grey_board_part.place_dice(picked, self.automatic),
-            DiceColor.YELLOW: lambda: self.board.yellow_board_part.place_dice(picked, self.automatic),
-            DiceColor.WHITE: lambda: self.board.place_white_dice(picked, self.automatic, self.dice_by_color),
+            DiceColor.GREY: lambda: self.board.grey_board_part.place_dice(picked, self.input_handler),
+            DiceColor.YELLOW: lambda: self.board.yellow_board_part.place_dice(picked, self.input_handler),
+            DiceColor.WHITE: lambda: self.board.place_white_dice(picked, self.input_handler, self.dice_by_color),
         }
         handler = dispatch.get(picked.color)
         if not handler:

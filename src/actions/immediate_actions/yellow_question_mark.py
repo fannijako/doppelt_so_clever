@@ -1,13 +1,18 @@
-import random
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from src.dice.dice import Dice
-from src.board.board import Board
 from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
 from src.actions.base_action import Action
 from src.actions.action_type import ActionType
 from src.board.board_parts.yellow_board_part import YellowBoardAction
 from src.actions.immediate_actions.immediate_actions import ImmediateActions
+
+if TYPE_CHECKING:
+    from src.board.board import Board
+    from src.input_handler import InputHandler
 
 logger = GameLogger(__name__)
 
@@ -18,7 +23,7 @@ class YellowQuestionMarkAction(ImmediateActions):
             action_type=ActionType.YELLOW_QUESTION_MARK,
         )
 
-    def use(self, board: Board, automatic: bool) -> list[Action]:
+    def use(self, board: Board, input_handler: InputHandler) -> list[Action]:
         yellow_dice = Dice(DiceColor.YELLOW)
         possible_placements = board.yellow_board_part.all_possible_dice_placements(yellow_dice)
         (
@@ -26,7 +31,7 @@ class YellowQuestionMarkAction(ImmediateActions):
             selected_row,
             selected_column,
             selected_action
-        ) = self._pick_placement(possible_placements, automatic)
+        ) = self._pick_placement(possible_placements, input_handler)
 
         yellow_dice.set_value(selected_value)
 
@@ -40,12 +45,7 @@ class YellowQuestionMarkAction(ImmediateActions):
     def _pick_placement(
         self,
         possible_placements: list[tuple[int, int, int, YellowBoardAction]],
-        automatic: bool
+        input_handler: InputHandler,
     ) -> tuple[int, int, int, YellowBoardAction]:
-        if automatic:
-            return random.choice(possible_placements)
-
-        logger.info("Placements", possible_placements)
-
-        index = int(input("Select a placement: "))
+        index = input_handler.choose_index("Select a placement: ", possible_placements)
         return possible_placements[index]

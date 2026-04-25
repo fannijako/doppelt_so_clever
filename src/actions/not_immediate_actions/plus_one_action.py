@@ -1,14 +1,18 @@
-import random
-from typing import Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 
 from src.dice.dice import Dice
-from src.board.board import Board
 from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
 from src.actions.base_action import Action
 from src.actions.action_type import ActionType
 from src.actions.immediate_actions.grey_question_mark import GreyQuestionMarkAction
 from src.actions.not_immediate_actions.not_immediate_actions import NotImmediateActions
+
+if TYPE_CHECKING:
+    from src.board.board import Board
+    from src.input_handler import InputHandler
 
 logger = GameLogger(__name__)
 
@@ -27,7 +31,7 @@ class PlusOneAction(NotImmediateActions):
     def use(
         self,
         board: Board,
-        automatic: bool,
+        input_handler: InputHandler,
         dice_by_color: dict[DiceColor, Dice] = None,
     ) -> Optional[Dice]:
         if board.usable_plus_ones == 0:
@@ -39,12 +43,11 @@ class PlusOneAction(NotImmediateActions):
             if not usable_dice:
                 return None
 
-            if automatic:
-                chosen_die = random.choice(usable_dice)
-            else:
-                logger.info("Available dice", ", ".join(str(die) for die in usable_dice))
-                color = input('Pick a die color to reuse: ')
-                chosen_die = dice_by_color[DiceColor(color)]
+            color = input_handler.choose_value(
+                'Pick a die color to reuse: ',
+                [str(die.color.value) for die in usable_dice],
+            )
+            chosen_die = dice_by_color[DiceColor(color)]
 
             logger.info("Plus one used", chosen_die)
             return chosen_die
