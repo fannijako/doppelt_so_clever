@@ -78,14 +78,14 @@ class YellowBoardPart:
             ),
         ]
 
-        self._available_columns_for_action = {
+        self.available_columns_for_action = {
             0: ActionType.REROLL,
             1: ActionType.PLUS_ONE,
             2: ActionType.GREY_QUESTION_MARK,
             3: ActionType.FOX,
         }
 
-        self._available_rows_for_action = {
+        self.available_rows_for_action = {
             0: ActionType.BLUE_QUESTION_MARK,
             1: ActionType.REUSE,
             2: ActionType.YELLOW_QUESTION_MARK,
@@ -206,10 +206,10 @@ class YellowBoardPart:
                 if box.row_position == row_position
             ]
             is_row_eligible_for_action = len(circled_boxes_in_row) == sum(circled_boxes_in_row)
-            is_action_already_used = row_position not in self._available_rows_for_action
+            is_action_already_used = row_position not in self.available_rows_for_action
             if is_row_eligible_for_action and not is_action_already_used:
-                actions.append(ActionMap.get(self._available_rows_for_action[row_position]))
-                self._available_rows_for_action.pop(row_position)
+                actions.append(ActionMap.get(self.available_rows_for_action[row_position]))
+                self.available_rows_for_action.pop(row_position)
 
         return actions
 
@@ -221,10 +221,10 @@ class YellowBoardPart:
                 if box.column_position == column_position
             ]
             is_column_eligible_for_action = len(circled_boxes_in_column) == sum(circled_boxes_in_column)
-            is_action_already_used = column_position not in self._available_columns_for_action
+            is_action_already_used = column_position not in self.available_columns_for_action
             if is_column_eligible_for_action and not is_action_already_used:
-                actions.append(ActionMap.get(self._available_columns_for_action[column_position]))
-                self._available_columns_for_action.pop(column_position)
+                actions.append(ActionMap.get(self.available_columns_for_action[column_position]))
+                self.available_columns_for_action.pop(column_position)
 
         return actions
 

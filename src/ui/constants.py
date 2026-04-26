@@ -28,4 +28,32 @@ DICE_COLORS = {
     "pink":   (230, 90, 150),
 }
 
+ACTION_LABELS = {
+    "none": "",
+    "reroll": "R",
+    "reuse": "U",
+    "plus_one": "+1",
+    "fox": "F",
+    "black_question_mark": "?",
+    "blue_question_mark": "?",
+    "green_question_mark": "?",
+    "yellow_question_mark": "?",
+    "grey_question_mark": "?",
+    "pink_question_mark": "?",
+}
+
+ACTION_LABEL_COLORS = {
+    "none": (90, 90, 100),
+    "reroll": (160, 170, 220),
+    "reuse": (140, 210, 150),
+    "plus_one": (255, 220, 100),
+    "fox": (230, 150, 60),
+    "black_question_mark": (200, 200, 200),
+    "blue_question_mark": (80, 140, 230),
+    "green_question_mark": (70, 190, 90),
+    "yellow_question_mark": (220, 200, 60),
+    "grey_question_mark": (160, 160, 170),
+    "pink_question_mark": (220, 100, 150),
+}
+
 FRAMES_PER_SECOND = 30

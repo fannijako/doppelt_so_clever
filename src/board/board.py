@@ -63,18 +63,30 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
         result = dispatch[play_as]()
         return result if isinstance(result, list) else [result] if result else []
 
+    _YELLOW_ROW_ACTIONS = {
+        0: "blue_question_mark", 1: "reuse", 2: "yellow_question_mark",
+        3: "green_question_mark", 4: "pink_question_mark",
+    }
+    _YELLOW_COL_ACTIONS = {
+        0: "reroll", 1: "plus_one", 2: "grey_question_mark", 3: "fox",
+    }
+    _GREY_COL_ACTIONS = {
+        1: "plus_one", 2: "yellow_question_mark", 3: "fox",
+        4: "blue_question_mark", 5: "green_question_mark", 6: "pink_question_mark",
+    }
+
     def to_dict(self) -> dict:
         return {
             "blue": [
-                {"value_used": box.value_used, "max_limit": box.maximum_value_limit}
+                {"value_used": box.value_used, "max_limit": box.maximum_value_limit, "action": box.action.value}
                 for box in self.blue_board_part.boxes
             ],
             "green": [
-                {"value_used": box.value_used, "multiplier": box.value_multiplier}
+                {"value_used": box.value_used, "multiplier": box.value_multiplier, "action": box.action.value}
                 for box in self.green_board_part.boxes
             ],
             "pink": [
-                {"value_used": box.value_used, "filter_limit": box.action_filter_limit}
+                {"value_used": box.value_used, "filter_limit": box.action_filter_limit, "action": box.action.value}
                 for box in self.pink_board_part.boxes
             ],
             "yellow": [
@@ -87,6 +99,20 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
                 }
                 for box in self.yellow_board_part.boxes
             ],
+            "yellow_row_actions": {
+                row: {
+                    "action": action,
+                    "available": row in self.yellow_board_part.available_rows_for_action,
+                }
+                for row, action in self._YELLOW_ROW_ACTIONS.items()
+            },
+            "yellow_col_actions": {
+                col: {
+                    "action": action,
+                    "available": col in self.yellow_board_part.available_columns_for_action,
+                }
+                for col, action in self._YELLOW_COL_ACTIONS.items()
+            },
             "grey": [
                 {
                     "color": box.color.value,
@@ -95,6 +121,13 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
                 }
                 for box in self.grey_board_part.boxes
             ],
+            "grey_col_actions": {
+                num: {
+                    "action": action,
+                    "available": num in self.grey_board_part.available_columns_for_action,
+                }
+                for num, action in self._GREY_COL_ACTIONS.items()
+            },
             "foxes": self.foxes,
             "rerolls": {"gained": self.gained_rerolls, "usable": self.usable_rerolls},
             "reuses": {"gained": self.gained_reuses, "usable": self.usable_reuses},

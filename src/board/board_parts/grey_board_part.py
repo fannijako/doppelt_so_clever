@@ -31,7 +31,7 @@ class GreyBoardPart:
             ]
             for number in range(1, 7)
         ]
-        self._available_columns_for_action = {
+        self.available_columns_for_action = {
             1: ActionType.PLUS_ONE,
             2: ActionType.YELLOW_QUESTION_MARK,
             3: ActionType.FOX,
@@ -110,9 +110,9 @@ class GreyBoardPart:
 
         for value in range(1, 7):
             boxes_with_value = [box for box in self.boxes if box.number == value and box.is_crossed]
-            if len(boxes_with_value) == 4 and value in self._available_columns_for_action:
-                actions_received.append(ActionMap.get(self._available_columns_for_action[value]))
-                self._available_columns_for_action.pop(value)
+            if len(boxes_with_value) == 4 and value in self.available_columns_for_action:
+                actions_received.append(ActionMap.get(self.available_columns_for_action[value]))
+                self.available_columns_for_action.pop(value)
 
         return actions_received
 
