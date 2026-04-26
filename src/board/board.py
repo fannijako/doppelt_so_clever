@@ -63,6 +63,44 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
         result = dispatch[play_as]()
         return result if isinstance(result, list) else [result] if result else []
 
+    def to_dict(self) -> dict:
+        return {
+            "blue": [
+                {"value_used": box.value_used, "max_limit": box.maximum_value_limit}
+                for box in self.blue_board_part.boxes
+            ],
+            "green": [
+                {"value_used": box.value_used, "multiplier": box.value_multiplier}
+                for box in self.green_board_part.boxes
+            ],
+            "pink": [
+                {"value_used": box.value_used, "filter_limit": box.action_filter_limit}
+                for box in self.pink_board_part.boxes
+            ],
+            "yellow": [
+                {
+                    "value": box.value,
+                    "row": box.row_position,
+                    "col": box.column_position,
+                    "circled": box.is_circled,
+                    "crossed": box.is_crossed,
+                }
+                for box in self.yellow_board_part.boxes
+            ],
+            "grey": [
+                {
+                    "color": box.color.value,
+                    "number": box.number,
+                    "crossed": box.is_crossed,
+                }
+                for box in self.grey_board_part.boxes
+            ],
+            "foxes": self.foxes,
+            "rerolls": {"gained": self.gained_rerolls, "usable": self.usable_rerolls},
+            "reuses": {"gained": self.gained_reuses, "usable": self.usable_reuses},
+            "plus_ones": {"gained": self.gained_plus_ones, "usable": self.usable_plus_ones},
+        }
+
     def evaluate(self) -> int:
         part_values = [
             board_part.evaluate()

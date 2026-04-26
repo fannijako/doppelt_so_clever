@@ -21,6 +21,9 @@ class Dice:
         self.value = random.randint(1, 6)
         logger.debug("Dice rolled", f"{self.color.value}: {self.value}")
 
+    def __repr__(self) -> str:
+        return self.__str__()
+
     def __str__(self) -> str:
         if self.value is None:
             return f"{self.color.value}: Unrolled"

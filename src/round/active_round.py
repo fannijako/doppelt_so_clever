@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional, TYPE_CHECKING
 
 from src.dice.dice import Dice
 from src.board.board import Board
 from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
 from src.actions.base_action import Action
+from src.game.game_observer import GameObserver
+from src.actions.action_source import ActionSource
 from src.actions.action_handler import ActionHandler
 from src.actions.not_immediate_actions.reuse_action import ReUseAction
 from src.actions.not_immediate_actions.reroll_action import ReRollAction
@@ -18,7 +20,7 @@ if TYPE_CHECKING:
 logger = GameLogger(__name__)
 
 
-class ActiveRound:
+class ActiveRound:  # pylint: disable=too-many-instance-attributes
     _NUM_ROUNDS = 3
 
     def __init__(
@@ -26,10 +28,12 @@ class ActiveRound:
         board: Board,
         action_handler: ActionHandler,
         input_handler: InputHandler,
+        observer: GameObserver,
     ):
         self.board = board
         self.input_handler = input_handler
         self.action_handler = action_handler
+        self.observer = observer
 
         self.dice_by_color: dict[DiceColor, Dice] = {
             color: Dice(color) for color in DiceColor
@@ -42,6 +46,7 @@ class ActiveRound:
         for die in self.available_dice:
             die.roll()
         self._log_state()
+        self.observer.on_dice_rolled(list(self.available_dice))
 
     def _log_state(self) -> None:
         logger.info("Available", ", ".join(str(die) for die in self.available_dice))
@@ -71,8 +76,8 @@ class ActiveRound:
         self.picked_dice.append(picked)
         self.discarded_dice.extend(smaller)
 
-        logger.info("Picked die", picked)
         self._log_state()
+        self.observer.on_die_picked(picked, smaller, list(self.available_dice))
         return picked, smaller
 
     def _get_actions(self, picked: Dice, smaller: list[Dice]) -> list[Action]:
@@ -147,6 +152,8 @@ class ActiveRound:
             actions = self._get_actions(picked, [])
             logger.info("Plus one actions", actions)
             self.action_handler.execute(actions, self.input_handler)
+            self.observer.on_action_executed(ActionSource.PLUS_ONE, actions)
+            self.observer.on_board_updated()
 
     def execute(self) -> None:
         for game_round in range(1, self._NUM_ROUNDS + 1):
@@ -175,6 +182,8 @@ class ActiveRound:
 
             actions = self._get_actions(picked, smaller)
             self.action_handler.execute(actions, self.input_handler)
+            self.observer.on_action_executed(ActionSource.PICK, actions)
+            self.observer.on_board_updated()
 
             logger.info("Actions received", actions)
 
