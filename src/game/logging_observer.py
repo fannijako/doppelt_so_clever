@@ -34,4 +34,4 @@ class LoggingObserver(GameObserver):
         logger.info("Game ended", f"score={score}")
 
     def on_action_executed(self, source: ActionSource, actions: list[Action]) -> None:
-        logger.info("Action executed", source, actions)
+        logger.info("Action executed", source, str(actions))

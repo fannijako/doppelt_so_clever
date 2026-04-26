@@ -10,7 +10,12 @@ from src.game.composite_observer import CompositeObserver
 from src.logging_config import setup_logging, GameLogger
 from src.input_handler.pygame_input_handler import PygameInputHandler
 from src.input_handler.heuristics.always_accept import AlwaysAcceptInputHandler
-from src.input_handler import InputHandler, AutomaticInputHandler, ConsoleInputHandler, ModelInputHandler
+from src.input_handler import (
+    InputHandler,
+    AutomaticInputHandler,
+    ConsoleInputHandler,
+    ModelInputHandler,
+)
 
 from model.model import DoppeltSoCleverModel
 
@@ -31,7 +36,10 @@ def main() -> None:
         action_handler=ActionHandler(board=board),
     )
 
-    game.play()
+    if arguments.mode == "interactive":
+        _find_pygame_ui(observer).run_with_game(game)
+    else:
+        game.play()
 
 
 def parse_arguments() -> argparse.Namespace:
