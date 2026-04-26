@@ -1,24 +1,27 @@
 from src.game.game import Game
 from src.board.board import Board
-from src.ui.pygame_ui import PygameUI
 from src.logging_config import GameLogger
-from src.input_handler.pygame_input_handler import PygameInputHandler
+from src.game.game_observer import GameObserver
+from src.input_handler.base_input_handler import InputHandler
 
 logger = GameLogger(__name__)
 
 
 class PygameGame(Game):  # pylint: disable=too-few-public-methods
-    def __init__(self):
-        board = Board()
-        self.ui = PygameUI(board)
+    def __init__(
+        self,
+        board: Board,
+        input_handler: InputHandler,
+        observer: GameObserver,
+    ):
         super().__init__(
-            input_handler=PygameInputHandler(),
+            input_handler=input_handler,
             board=board,
-            observer=self.ui,
+            observer=observer,
         )
 
     def play(self) -> int:
         try:
             return super().play()
         finally:
-            self.ui.close()
+            self.observer.close()

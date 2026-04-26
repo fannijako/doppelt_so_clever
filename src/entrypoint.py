@@ -1,10 +1,15 @@
 import argparse
 
 from src.game.game import Game
+from src.board.board import Board
+from src.ui.pygame_ui import PygameUI
 from src.game.pygame_game import PygameGame
+from src.game.logging_observer import LoggingObserver
 from src.logging_config import setup_logging, GameLogger
+from src.input_handler.pygame_input_handler import PygameInputHandler
 from src.input_handler.heuristics.always_accept import AlwaysAcceptInputHandler
 from src.input_handler import InputHandler, AutomaticInputHandler, ConsoleInputHandler, ModelInputHandler
+
 from model.model import DoppeltSoCleverModel
 
 logger = GameLogger(__name__)
@@ -14,7 +19,22 @@ def main() -> None:
     arguments = parse_arguments()
     setup_logging(verbose=arguments.verbose)
     logger.info("Args", arguments)
-    game = PygameGame() if arguments.mode == 'interactive' else Game(input_handler=get_action_handler(arguments))
+
+    board = Board()
+
+    if arguments.mode == 'interactive':
+        game = PygameGame(
+            board=board,
+            observer=PygameUI(board),
+            input_handler=PygameInputHandler(),
+        )
+    else:
+        game = Game(
+            input_handler=get_action_handler(arguments),
+            board=board,
+            observer=LoggingObserver(),
+        )
+
     game.play()
 
 

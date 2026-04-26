@@ -24,3 +24,6 @@ class GameObserver:
 
     def on_game_ended(self, score: int) -> None:
         pass
+
+    def close(self) -> None:
+        pass

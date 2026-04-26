@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from src.board.board import Board
 from src.logging_config import GameLogger
 from src.round.active_round import ActiveRound
-from src.round.passive_round import PassiveRound
 from src.game.game_observer import GameObserver
+from src.round.passive_round import PassiveRound
 from src.actions.action_handler import ActionHandler
-from src.game.logging_observer import LoggingObserver
 from src.actions.not_immediate_actions.reuse_action import ReUseAction
 from src.actions.not_immediate_actions.reroll_action import ReRollAction
 from src.actions.not_immediate_actions.plus_one_action import PlusOneAction
@@ -34,13 +33,13 @@ class Game:  # pylint: disable=too-few-public-methods
     def __init__(
         self,
         input_handler: InputHandler,
-        board: Optional[Board] = None,
-        observer: Optional[GameObserver] = None,
+        board: Board,
+        observer: GameObserver,
     ):
         self.input_handler = input_handler
-        self.board = board or Board()
+        self.board = board
         self.action_handler = ActionHandler(board=self.board)
-        self.observer = observer or LoggingObserver()
+        self.observer = observer
 
     def play(self) -> int:
         for round_number in range(1, self._NUMBER_OF_ROUNDS + 1):

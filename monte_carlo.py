@@ -6,7 +6,9 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 
 from src.game.game import Game
+from src.board.board import Board
 from src.logging_config import setup_logging
+from src.game.logging_observer import LoggingObserver
 from src.input_handler import InputHandler, AutomaticInputHandler, ConsoleInputHandler, ModelInputHandler
 from src.input_handler.heuristics.always_accept import AlwaysAcceptInputHandler
 from model.model import DoppeltSoCleverModel
@@ -31,7 +33,11 @@ def main() -> None:
 def run_simulation(rounds: int, input_handler: InputHandler) -> list[int]:
     scores = []
     for _ in range(rounds):
-        game = Game(input_handler=input_handler)
+        game = Game(
+            input_handler=input_handler,
+            board=Board(),
+            observer=LoggingObserver(),
+        )
         score = game.play()
         scores.append(score)
 
