@@ -6,7 +6,6 @@
 - [ ] **Type the serialization contract** — `Board.to_dict()` returns plain `dict`; the renderer consumes `dict`. A key typo only fails at runtime. Use `TypedDict` or small dataclasses for the serialized shapes.
 - [ ] **Pass `PygameUI` explicitly instead of `_find_pygame_ui`** — `_find_pygame_ui()` walks the observer tree and returns `None` for non-interactive modes. If the composite is wrapped differently it silently breaks. Pass the UI reference directly.
 - [ ] **Fix fragile `id()` dice comparison** — `Renderer._render_dice_section` mixes `__eq__`-based `in` with `id()` identity checks. If `Dice` objects are ever copied this breaks. Rely on a single consistent comparison.
-- [ ] **Extract layout magic numbers** — Padding (8, 22, 24), box gaps (3, 4), pill sizes (22), etc. are scattered as literals in `renderer.py`. Move them to `constants.py`.
 - [ ] **Handle quit during `wait_for_input`** — If the user quits while the game thread is blocked, `_input_result` stays `None` and is returned as `int`, crashing downstream. Return a sentinel or raise an exception.
 - [ ] **Add tests for new code** — `Board.to_dict()` serialization is highly testable. `Renderer` can be smoke-tested by verifying it doesn't crash given a `RenderSnapshot`.
 
