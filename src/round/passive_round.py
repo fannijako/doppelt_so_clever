@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from src.dice.dice import Dice
 from src.board.board import Board
@@ -23,12 +23,12 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
         board: Board,
         action_handler: ActionHandler,
         input_handler: InputHandler,
-        observer: Optional[GameObserver] = None,
+        observer: GameObserver,
     ):
         self.board = board
         self.action_handler = action_handler
         self.input_handler = input_handler
-        self.observer = observer or GameObserver()
+        self.observer = observer
 
         self.dice_by_color: dict[DiceColor, Dice] = {
             color: Dice(color) for color in DiceColor

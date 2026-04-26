@@ -27,12 +27,12 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
         board: Board,
         action_handler: ActionHandler,
         input_handler: InputHandler,
-        observer: Optional[GameObserver] = None,
+        observer: GameObserver,
     ):
         self.board = board
         self.input_handler = input_handler
         self.action_handler = action_handler
-        self.observer = observer or GameObserver()
+        self.observer = observer
 
         self.dice_by_color: dict[DiceColor, Dice] = {
             color: Dice(color) for color in DiceColor
