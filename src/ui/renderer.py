@@ -133,28 +133,34 @@ class Renderer:  # pylint: disable=too-few-public-methods
                 "row_actions": board_data["yellow_row_actions"],
                 "col_actions": board_data["yellow_col_actions"],
             }),
-            ("BLUE",   self._render_blue_panel,   board_data["blue"]),
-            ("GREEN",  self._render_green_panel,  board_data["green"]),
-            ("PINK",   self._render_pink_panel,   board_data["pink"]),
-            ("GREY",   self._render_grey_panel,   {
+            (None, self._render_combined_panel, {
+                "green": board_data["green"],
+                "blue": board_data["blue"],
+                "pink": board_data["pink"],
+            }),
+            ("GREY", self._render_grey_panel, {
                 "boxes": board_data["grey"],
                 "col_actions": board_data["grey_col_actions"],
             }),
         ]
 
         for index, (name, draw_function, data) in enumerate(panels):
-            column = index % 3
-            row = index // 3
-            panel_x = 10 + column * (panel_width + 15)
-            panel_y = vertical_offset + row * (panel_height + 15)
+            panel_x = 10 + index * (panel_width + 15)
+            panel_y = vertical_offset
             panel_rect = pygame.Rect(panel_x, panel_y, panel_width, panel_height)
             pygame.draw.rect(self._screen, COLORS["panel"], panel_rect, border_radius=6)
-            self._draw_text(name, (panel_x + 8, panel_y + 4), COLORS["dimmed"], self._font_small)
+            if name:
+                self._draw_text(name, (panel_x + 8, panel_y + 4), COLORS["dimmed"], self._font_small)
             draw_function(data, panel_rect)
 
+        second_row_y = vertical_offset + (panel_height + 15)
+
+        won_actions_width = 2 * panel_width + 15
+        won_actions_rect = pygame.Rect(10, second_row_y, won_actions_width, panel_height)
+        self._render_won_actions_panel(snapshot.won_actions, won_actions_rect)
+
         dice_panel_x = 10 + 2 * (panel_width + 15)
-        dice_panel_y = vertical_offset + (panel_height + 15)
-        dice_panel_rect = pygame.Rect(dice_panel_x, dice_panel_y, panel_width, panel_height)
+        dice_panel_rect = pygame.Rect(dice_panel_x, second_row_y, panel_width, panel_height)
         self._render_dice_panel(snapshot, dice_panel_rect)
 
     def _render_status_bar(self, board_data: dict, screen_width: int, vertical_offset: int) -> int:
@@ -256,7 +262,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
         grid: dict[tuple[int, int], dict] = {}
         for box in data["boxes"]:
             grid[(box["row"], box["col"])] = box
-        box_size = min((panel.w - 60) // 4, (panel.h - 50) // 5, 32)
+        box_size = min((panel.w - 60) // 4, (panel.h - 50) // 5)
         grid_width = 4 * (box_size + 4)
         origin_x = panel.x + (panel.w - grid_width - 40) // 2
         origin_y = panel.y + 22
@@ -326,6 +332,19 @@ class Renderer:  # pylint: disable=too-few-public-methods
             return COLORS["circled"]
         return COLORS["yellow"]
 
+    def _render_combined_panel(self, data: dict, panel: pygame.Rect) -> None:
+        sections = [
+            ("GREEN", self._render_green_panel, data["green"]),
+            ("BLUE", self._render_blue_panel, data["blue"]),
+            ("PINK", self._render_pink_panel, data["pink"]),
+        ]
+        section_height = panel.h // len(sections)
+        for i, (name, render_fn, section_data) in enumerate(sections):
+            sub_y = panel.y + i * section_height
+            sub_rect = pygame.Rect(panel.x, sub_y, panel.w, section_height)
+            self._draw_text(name, (sub_rect.x + 8, sub_y + 4), COLORS["dimmed"], self._font_small)
+            render_fn(section_data, sub_rect)
+
     def _render_blue_panel(self, data: list[dict], panel: pygame.Rect) -> None:
         count = len(data)
         box_width = min((panel.w - 20) // count, 30)
@@ -393,7 +412,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
             rows_by_color[box["color"]].append(box)
         col_actions = data["col_actions"]
 
-        box_size = min((panel.w - 20) // 6, (panel.h - 50) // 4, 26)
+        box_size = min((panel.w - 20) // 6, (panel.h - 50) // 4)
         origin_x = panel.x + 8
         origin_y = panel.y + 22
 
@@ -409,6 +428,48 @@ class Renderer:  # pylint: disable=too-few-public-methods
                 continue
             action_x = origin_x + (number - 1) * (box_size + 3) + box_size // 2
             self._render_positional_action(action_info, action_x, action_y, center_x=True)
+
+    def _render_won_actions_panel(self, won_actions: list[dict], panel: pygame.Rect) -> None:
+        pygame.draw.rect(self._screen, COLORS["panel"], panel, border_radius=6)
+        self._draw_text("WON ACTIONS", (panel.x + 8, panel.y + 4), COLORS["dimmed"], self._font_small)
+
+        if not won_actions:
+            self._draw_text(
+                "No actions won yet",
+                (panel.x + panel.w // 2, panel.y + panel.h // 2 - 8),
+                COLORS["dimmed"], self._font_small, center_x=True,
+            )
+            return
+
+        pill_height = 22
+        pill_gap = 4
+        x_padding = 8
+        y_start = panel.y + 22
+        x_cursor = panel.x + x_padding
+        y_cursor = y_start
+        max_x = panel.x + panel.w - x_padding
+
+        for entry in won_actions:
+            action = entry["action"]
+            label = ACTION_LABELS.get(action, action)
+            if not label:
+                continue
+            color = ACTION_LABEL_COLORS.get(action, COLORS["dimmed"])
+            text_surface = self._font_small.render(label, True, color)
+            pill_width = text_surface.get_width() + 12
+
+            if x_cursor + pill_width > max_x:
+                x_cursor = panel.x + x_padding
+                y_cursor += pill_height + pill_gap
+                if y_cursor + pill_height > panel.y + panel.h - 4:
+                    break
+
+            pill_rect = pygame.Rect(x_cursor, y_cursor, pill_width, pill_height)
+            bg = tuple(max(c // 4, 20) for c in color)
+            pygame.draw.rect(self._screen, bg, pill_rect, border_radius=4)
+            pygame.draw.rect(self._screen, color, pill_rect, width=1, border_radius=4)
+            self._screen.blit(text_surface, (x_cursor + 6, y_cursor + 3))
+            x_cursor += pill_width + pill_gap
 
     def _render_grey_cell(
         self, box: dict, color_name: str,

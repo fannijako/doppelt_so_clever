@@ -18,3 +18,4 @@ class RenderSnapshot:  # pylint: disable=too-many-instance-attributes
     is_waiting: bool
     score: int | None
     is_game_over: bool
+    won_actions: list[dict]

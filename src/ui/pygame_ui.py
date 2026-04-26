@@ -35,6 +35,7 @@ class PygameUI(GameObserver):
         self._subround: int = 0
         self._score: int | None = None
         self._game_over = False
+        self._won_actions: list[dict] = []
 
         self._lock = threading.Lock()
         self._input_event = threading.Event()
@@ -108,7 +109,12 @@ class PygameUI(GameObserver):
             self._game_over = True
 
     def on_action_executed(self, source: ActionSource, actions: list[Action]) -> None:
-        pass
+        with self._lock:
+            for action in actions:
+                self._won_actions.append({
+                    "action": action.action_type.value,
+                    "source": source.value,
+                })
 
     def wait_for_input(self, prompt: str, options: list[Any]) -> int:
         logger.info("UI waiting for input", prompt, f"options={options}")
@@ -197,6 +203,7 @@ class PygameUI(GameObserver):
                 is_waiting=self._waiting,
                 score=self._score,
                 is_game_over=self._game_over,
+                won_actions=list(self._won_actions),
             )
 
     def _render(self) -> None:
