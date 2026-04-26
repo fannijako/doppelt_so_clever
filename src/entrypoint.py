@@ -4,6 +4,7 @@ from src.game.game import Game
 from src.board.board import Board
 from src.ui.pygame_ui import PygameUI
 from src.actions.action_handler import ActionHandler
+from src.game.game_observer import GameObserver
 from src.game.logging_observer import LoggingObserver
 from src.logging_config import setup_logging, GameLogger
 from src.input_handler.pygame_input_handler import PygameInputHandler
@@ -21,21 +22,12 @@ def main() -> None:
     logger.info("Args", arguments)
 
     board = Board()
-
-    if arguments.mode == 'interactive':
-        game = Game(
-            board=board,
-            observer=PygameUI(board),
-            input_handler=PygameInputHandler(),
-            action_handler=ActionHandler(board=board),
-        )
-    else:
-        game = Game(
-            input_handler=get_action_handler(arguments),
-            board=board,
-            observer=LoggingObserver(),
-            action_handler=ActionHandler(board=board),
-        )
+    game = Game(
+        board=board,
+        observer=get_observer(arguments, board),
+        input_handler=get_action_handler(arguments),
+        action_handler=ActionHandler(board=board),
+    )
 
     game.play()
 
@@ -52,6 +44,22 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def get_observer(arguments: argparse.Namespace, board: Board) -> GameObserver:
+    # pylint: disable=unnecessary-lambda
+    observers = {
+        "interactive": lambda: PygameUI(board),
+        "console": lambda: LoggingObserver(),
+        "always-accept": lambda: LoggingObserver(),
+        "model": lambda: LoggingObserver(),
+        "automatic": lambda: LoggingObserver(),
+    }
+
+    observer_factory = observers.get(arguments.mode)
+    if observer_factory is None:
+        raise ValueError(f"Unknown mode: {arguments.mode}")
+    return observer_factory()
+
+
 def get_action_handler(arguments: argparse.Namespace) -> InputHandler:
     # pylint: disable=unnecessary-lambda
     handlers = {
@@ -59,6 +67,7 @@ def get_action_handler(arguments: argparse.Namespace) -> InputHandler:
         "always-accept": lambda: AlwaysAcceptInputHandler(),
         "model": lambda: ModelInputHandler(DoppeltSoCleverModel()),
         "automatic": lambda: AutomaticInputHandler(),
+        "interactive": lambda: PygameInputHandler(),
     }
 
     handler_factory = handlers.get(arguments.mode)
