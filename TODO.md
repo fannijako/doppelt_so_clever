@@ -1,13 +1,14 @@
 # TODO — Future Development
 
-## UI (Pygame Interactive Mode)
+### Issues & Suggestions
 
-- [ ] **Create a display surface and render loop** — `PygameUI._render()` currently only calls `pygame.event.pump()`. Build actual drawing logic for the board, dice, and prompts.
-- [ ] **Handle Pygame events** — Process `QUIT`, `MOUSEBUTTONDOWN`, `KEYDOWN`, etc. so the user can interact with the window.
-- [ ] **Wire clicks to `submit_input()`** — `PygameUI.wait_for_input()` blocks until `submit_input()` is called, but nothing calls it yet. Map UI clicks/keypresses to option indices and call `submit_input(index)`.
-- [ ] **Run game logic on a background thread** — Pygame's event loop must run on the main thread (especially on macOS). Move `Game.play()` to a background thread and keep the Pygame loop on main.
-- [ ] **Add thread safety to `PygameUI`** — `current_dice`, `available_dice`, and `board` are mutated from the game thread and will be read from the render thread. Guard shared state with a lock.
-- [ ] **Use `Board.to_dict()` for rendering** — Read board state through the structured snapshot rather than reaching into board part internals.
+- [ ] **Break up `Renderer` (496 lines)** — `_render_blue_panel`, `_render_green_panel`, and `_render_pink_panel` are nearly identical. Extract a shared `_render_box_row()` helper or per-section `PanelRenderer` classes.
+- [ ] **Type the serialization contract** — `Board.to_dict()` returns plain `dict`; the renderer consumes `dict`. A key typo only fails at runtime. Use `TypedDict` or small dataclasses for the serialized shapes.
+- [ ] **Pass `PygameUI` explicitly instead of `_find_pygame_ui`** — `_find_pygame_ui()` walks the observer tree and returns `None` for non-interactive modes. If the composite is wrapped differently it silently breaks. Pass the UI reference directly.
+- [ ] **Fix fragile `id()` dice comparison** — `Renderer._render_dice_section` mixes `__eq__`-based `in` with `id()` identity checks. If `Dice` objects are ever copied this breaks. Rely on a single consistent comparison.
+- [ ] **Extract layout magic numbers** — Padding (8, 22, 24), box gaps (3, 4), pill sizes (22), etc. are scattered as literals in `renderer.py`. Move them to `constants.py`.
+- [ ] **Handle quit during `wait_for_input`** — If the user quits while the game thread is blocked, `_input_result` stays `None` and is returned as `int`, crashing downstream. Return a sentinel or raise an exception.
+- [ ] **Add tests for new code** — `Board.to_dict()` serialization is highly testable. `Renderer` can be smoke-tested by verifying it doesn't crash given a `RenderSnapshot`.
 
 ## Reinforcement Learning
 

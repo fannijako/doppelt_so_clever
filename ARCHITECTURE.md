@@ -15,7 +15,10 @@ src/
 │   ├── logging_observer.py    # Logging-only observer
 │   └── composite_observer.py  # Multicasts to multiple observers
 ├── ui/
-│   └── pygame_ui.py       # Pygame observer + rendering (interactive mode)
+│   ├── pygame_ui.py       # Pygame observer, threading, input bridging
+│   ├── renderer.py        # Pure rendering logic (board, dice, prompts)
+│   ├── render_snapshot.py # Immutable dataclass snapshot of game state
+│   └── constants.py       # Colors, dice colors, action labels, FPS
 ├── input_handler/
 │   ├── base_input_handler.py      # InputHandler ABC
 │   ├── consol_input_handler.py    # Console (stdin) input
@@ -53,10 +56,12 @@ src/
 
 | Class | File | Responsibility | Dependencies |
 |-------|------|----------------|--------------|
-| `GameObserver` (ABC) | `src/game/game_observer.py` | Abstract interface for game event listeners: round start/end, dice rolled, die picked, board updated, action executed, game ended | `Dice` (type-check only) |
+| `GameObserver` (ABC) | `src/game/game_observer.py` | Abstract interface for game event listeners: round start/end, active/passive round started, subround started, dice rolled, die picked, board updated, action executed, game ended | `Dice` (type-check only) |
 | `LoggingObserver` | `src/game/logging_observer.py` | Logs every game event via `GameLogger` | `GameObserver`, `GameLogger` |
 | `CompositeObserver` | `src/game/composite_observer.py` | Multicasts every event to a list of child `GameObserver`s | `GameObserver` |
-| `PygameUI` | `src/ui/pygame_ui.py` | Pygame-based observer; tracks dice/board state for rendering; provides `wait_for_input()` / `submit_input()` for synchronous input from the UI thread | `GameObserver`, `Board`, `pygame` |
+| `PygameUI` | `src/ui/pygame_ui.py` | Pygame-based observer; tracks dice/board state for rendering; provides `wait_for_input()` / `submit_input()` for synchronous input from the UI thread; runs game logic on a background thread via `run_with_game()` | `GameObserver`, `Board`, `Renderer`, `RenderSnapshot`, `pygame` |
+| `Renderer` | `src/ui/renderer.py` | Stateless rendering class; draws board panels (yellow, blue, green, pink, grey), dice, status bar, buttons, and won-actions from a `RenderSnapshot` | `RenderSnapshot`, `constants`, `pygame` |
+| `RenderSnapshot` | `src/ui/render_snapshot.py` | Immutable `@dataclass` holding a complete copy of game state for one frame (board dict, dice lists, round info, prompt/options, score) | — |
 
 ### Input Handlers
 
