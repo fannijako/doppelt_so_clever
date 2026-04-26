@@ -1,6 +1,7 @@
 import argparse
 
-from src.game import Game
+from src.game.game import Game
+from src.game.pygame_game import PygameGame
 from src.logging_config import setup_logging, GameLogger
 from src.input_handler.heuristics.always_accept import AlwaysAcceptInputHandler
 from src.input_handler import InputHandler, AutomaticInputHandler, ConsoleInputHandler, ModelInputHandler
@@ -13,7 +14,7 @@ def main() -> None:
     arguments = parse_arguments()
     setup_logging(verbose=arguments.verbose)
     logger.info("Args", arguments)
-    game = Game(input_handler=get_action_handler(arguments))
+    game = PygameGame() if arguments.mode == 'interactive' else Game(input_handler=get_action_handler(arguments))
     game.play()
 
 
@@ -22,9 +23,9 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging")
     parser.add_argument(
         "--mode",
-        choices=["console", "automatic", "always-accept", "model"],
+        choices=["console", "automatic", "always-accept", "model", "interactive"],
         default="console",
-        help="Input mode: console (default), automatic, always-accept, or model"
+        help="Input mode: console (default), automatic, always-accept, model, or interactive"
     )
     return parser.parse_args()
 

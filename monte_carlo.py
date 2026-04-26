@@ -5,7 +5,7 @@ from datetime import datetime
 
 import matplotlib.pyplot as plt
 
-from src.game import Game
+from src.game.game import Game
 from src.logging_config import setup_logging
 from src.input_handler import InputHandler, AutomaticInputHandler, ConsoleInputHandler, ModelInputHandler
 from src.input_handler.heuristics.always_accept import AlwaysAcceptInputHandler

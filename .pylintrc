@@ -6,3 +6,4 @@ max-line-length=127
 
 [MASTER]
 ignored-modules=setuptools
+extension-pkg-allow-list=pygame
