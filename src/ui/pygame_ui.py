@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import threading
+from typing import Any, TYPE_CHECKING
 
 import pygame
 
@@ -17,6 +18,11 @@ logger = GameLogger(__name__)
 class PygameUI(GameObserver):
     def __init__(self, board: Board):
         self.board = board
+        self.current_dice: list[Dice] = []
+        self.available_dice: list[Dice] = []
+
+        self._input_event = threading.Event()
+        self._input_result: Any = None
 
         pygame.init()
         pygame.display.set_allow_screensaver(True)
@@ -31,10 +37,13 @@ class PygameUI(GameObserver):
         self._render()
 
     def on_dice_rolled(self, dice: list[Dice]) -> None:
+        self.current_dice = list(dice)
+        self.available_dice = list(dice)
         logger.info("UI dice rolled", ", ".join(str(d) for d in dice))
         self._render()
 
-    def on_die_picked(self, die: Dice, discarded: list[Dice]) -> None:
+    def on_die_picked(self, die: Dice, discarded: list[Dice], available: list[Dice]) -> None:
+        self.available_dice = list(available)
         logger.info("UI die picked", die)
         self._render()
 
@@ -45,8 +54,25 @@ class PygameUI(GameObserver):
         logger.info("UI game ended", f"score={score}")
         self._render()
 
+    def on_action_executed(self, action_description: str) -> None:
+        logger.info("UI action executed", action_description)
+        self._render()
+
+    def wait_for_input(self, prompt: str, options: list[Any]) -> int:
+        logger.info("UI waiting for input", prompt, f"options={options}")
+        self._input_result = None
+        self._input_event.clear()
+        self._render()
+        self._input_event.wait()
+        return self._input_result  # type: ignore[return-value]
+
+    def submit_input(self, result: Any) -> None:
+        self._input_result = result
+        self._input_event.set()
+
     def close(self) -> None:
         logger.info("PygameUI closed")
+        self._input_event.set()
         pygame.quit()
 
     def _render(self) -> None:

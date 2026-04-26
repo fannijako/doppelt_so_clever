@@ -21,11 +21,14 @@ class LoggingObserver(GameObserver):
     def on_dice_rolled(self, dice: list[Dice]) -> None:
         logger.info("Dice rolled", ", ".join(str(d) for d in dice))
 
-    def on_die_picked(self, die: Dice, discarded: list[Dice]) -> None:
-        logger.info("Die picked", die, f"discarded: {discarded}")
+    def on_die_picked(self, die: Dice, discarded: list[Dice], available: list[Dice]) -> None:
+        logger.info("Die picked", die, f"discarded: {discarded} | available: {available}")
 
     def on_board_updated(self) -> None:
         logger.info("Board updated")
 
     def on_game_ended(self, score: int) -> None:
         logger.info("Game ended", f"score={score}")
+
+    def on_action_executed(self, action_description: str) -> None:
+        logger.info("Action executed", action_description)

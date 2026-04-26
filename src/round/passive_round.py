@@ -52,9 +52,10 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
         index = self.input_handler.choose_index('Pick a die index: ', eligible_dice)
         picked = eligible_dice[index]
 
-        self.observer.on_die_picked(picked, [])
+        self.observer.on_die_picked(picked, [], [])
         actions = self._get_actions(picked)
         self.action_handler.execute(actions, self.input_handler)
+        self.observer.on_action_executed(f"passive_pick: {actions}")
         self.observer.on_board_updated()
 
     def _get_actions(self, picked: Dice) -> list[Action]:

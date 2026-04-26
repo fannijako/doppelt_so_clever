@@ -21,7 +21,7 @@ class GameObserver(ABC):
         pass
 
     @abstractmethod
-    def on_die_picked(self, die: Dice, discarded: list[Dice]) -> None:
+    def on_die_picked(self, die: Dice, discarded: list[Dice], available: list[Dice]) -> None:
         pass
 
     @abstractmethod
@@ -30,6 +30,10 @@ class GameObserver(ABC):
 
     @abstractmethod
     def on_game_ended(self, score: int) -> None:
+        pass
+
+    @abstractmethod
+    def on_action_executed(self, action_description: str) -> None:
         pass
 
     def close(self) -> None:

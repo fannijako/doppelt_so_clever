@@ -76,7 +76,7 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
         self.discarded_dice.extend(smaller)
 
         self._log_state()
-        self.observer.on_die_picked(picked, smaller)
+        self.observer.on_die_picked(picked, smaller, list(self.available_dice))
         return picked, smaller
 
     def _get_actions(self, picked: Dice, smaller: list[Dice]) -> list[Action]:
@@ -151,6 +151,7 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
             actions = self._get_actions(picked, [])
             logger.info("Plus one actions", actions)
             self.action_handler.execute(actions, self.input_handler)
+            self.observer.on_action_executed(f"plus_one: {actions}")
             self.observer.on_board_updated()
 
     def execute(self) -> None:
@@ -180,6 +181,7 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
 
             actions = self._get_actions(picked, smaller)
             self.action_handler.execute(actions, self.input_handler)
+            self.observer.on_action_executed(f"pick: {actions}")
             self.observer.on_board_updated()
 
             logger.info("Actions received", actions)

@@ -9,8 +9,19 @@ This project is a simulation of the board game **Doppelt so clever** (Twice as C
 ```
 src/
 ├── entrypoint.py          # CLI entry point
-├── monte_carlo.py         # Monte Carlo simulation
-├── game.py                # Game orchestrator
+├── game/
+│   ├── game.py            # Game orchestrator
+│   ├── game_observer.py   # Observer ABC for game events
+│   ├── logging_observer.py    # Logging-only observer
+│   └── composite_observer.py  # Multicasts to multiple observers
+├── ui/
+│   └── pygame_ui.py       # Pygame observer + rendering (interactive mode)
+├── input_handler/
+│   ├── base_input_handler.py      # InputHandler ABC
+│   ├── consol_input_handler.py    # Console (stdin) input
+│   ├── automatic_input_handler.py # Random/automatic input
+│   ├── pygame_input_handler.py    # Delegates input to PygameUI
+│   └── heuristics/                # Heuristic-based handlers
 ├── dice/                  # Dice and color definitions
 ├── round/                 # Active and passive round logic
 ├── board/
@@ -34,16 +45,35 @@ src/
 
 | Class | File | Responsibility | Dependencies |
 |-------|------|----------------|--------------|
-| *(module)* `entrypoint` | `src/entrypoint.py` | Parses CLI args (`-v`, `-a`), sets up logging, starts a `Game` | `Game` |
-| `Game` | `src/game.py` | Runs 6 active rounds, each followed by a passive round; grants round-specific bonus actions; triggers final scoring | `Board`, `ActionHandler`, `ActiveRound`, `PassiveRound`, `ReRollAction`, `ReUseAction`, `PlusOneAction`, `BlackQuestionMarkAction` |
-| *(module)* `monte_carlo` | `src/monte_carlo.py` | Runs Monte Carlo simulations with configurable rounds | `Game` |
+| *(module)* `entrypoint` | `src/entrypoint.py` | Parses CLI args (`-v`, `--mode`), builds observer + input handler, starts a `Game` | `Game`, `CompositeObserver`, `LoggingObserver`, `PygameUI`, `PygameInputHandler` |
+| `Game` | `src/game/game.py` | Runs 6 active rounds, each followed by a passive round; grants round-specific bonus actions; triggers final scoring; notifies `GameObserver` on lifecycle events | `Board`, `ActionHandler`, `GameObserver`, `ActiveRound`, `PassiveRound`, `ReRollAction`, `ReUseAction`, `PlusOneAction`, `BlackQuestionMarkAction` |
+| *(module)* `monte_carlo` | `monte_carlo.py` | Runs Monte Carlo simulations with configurable rounds | `Game`, `LoggingObserver` |
+
+### Observers
+
+| Class | File | Responsibility | Dependencies |
+|-------|------|----------------|--------------|
+| `GameObserver` (ABC) | `src/game/game_observer.py` | Abstract interface for game event listeners: round start/end, dice rolled, die picked, board updated, action executed, game ended | `Dice` (type-check only) |
+| `LoggingObserver` | `src/game/logging_observer.py` | Logs every game event via `GameLogger` | `GameObserver`, `GameLogger` |
+| `CompositeObserver` | `src/game/composite_observer.py` | Multicasts every event to a list of child `GameObserver`s | `GameObserver` |
+| `PygameUI` | `src/ui/pygame_ui.py` | Pygame-based observer; tracks dice/board state for rendering; provides `wait_for_input()` / `submit_input()` for synchronous input from the UI thread | `GameObserver`, `Board`, `pygame` |
+
+### Input Handlers
+
+| Class | File | Responsibility | Dependencies |
+|-------|------|----------------|--------------|
+| `InputHandler` (ABC) | `src/input_handler/base_input_handler.py` | Abstract interface: `choose_index()`, `confirm()`, `choose_value()` | — |
+| `ConsoleInputHandler` | `src/input_handler/consol_input_handler.py` | Reads from stdin | `InputHandler` |
+| `AutomaticInputHandler` | `src/input_handler/automatic_input_handler.py` | Returns random valid choices | `InputHandler` |
+| `PygameInputHandler` | `src/input_handler/pygame_input_handler.py` | Delegates all input to `PygameUI.wait_for_input()` — blocks until the UI submits a result | `InputHandler`, `PygameUI` |
+| `ModelInputHandler` | `src/input_handler/model/model_input_handler.py` | Uses a trained model for decisions | `InputHandler` |
 
 ### Rounds
 
 | Class | File | Responsibility | Dependencies |
 |-------|------|----------------|--------------|
-| `ActiveRound` | `src/round/active_round.py` | Executes 3 pick-turns per active round: rolls dice, lets player pick a color, discards lower dice, dispatches placement to the board, and optionally uses reroll/reuse/plus-one actions between turns | `Board`, `ActionHandler`, `Dice`, `DiceColor`, `Action`, `ReRollAction`, `ReUseAction`, `PlusOneAction` |
-| `PassiveRound` | `src/round/passive_round.py` | Rolls all dice, selects from the 3 lowest, dispatches placement to the board | `Board`, `ActionHandler`, `Dice`, `DiceColor`, `Action` |
+| `ActiveRound` | `src/round/active_round.py` | Executes 3 pick-turns per active round: rolls dice, lets player pick a color, discards lower dice, dispatches placement to the board, and optionally uses reroll/reuse/plus-one actions between turns; notifies observer on dice rolled, die picked, board updated, action executed | `Board`, `ActionHandler`, `GameObserver`, `Dice`, `DiceColor`, `Action`, `ReRollAction`, `ReUseAction`, `PlusOneAction` |
+| `PassiveRound` | `src/round/passive_round.py` | Rolls all dice, selects from the 3 lowest, dispatches placement to the board; notifies observer on dice rolled, die picked, board updated, action executed | `Board`, `ActionHandler`, `GameObserver`, `Dice`, `DiceColor`, `Action` |
 
 ### Dice
 
@@ -121,6 +151,15 @@ Each box is a data model for a single cell on a board part.
 
 ```
 main.py → entrypoint → Game
+                          ├── GameObserver (ABC)
+                          │     ├── LoggingObserver
+                          │     ├── CompositeObserver → [GameObserver...]
+                          │     └── PygameUI ← PygameInputHandler
+                          ├── InputHandler (ABC)
+                          │     ├── ConsoleInputHandler
+                          │     ├── AutomaticInputHandler
+                          │     ├── PygameInputHandler → PygameUI
+                          │     └── ModelInputHandler
                           ├── Board
                           │     ├── BlueBoardPart  → BlueBox
                           │     ├── GreenBoardPart → GreenBox
@@ -135,8 +174,8 @@ main.py → entrypoint → Game
                           │                          ├── ReUseAction
                           │                          ├── PlusOneAction
                           │                          └── FoxAction
-                          ├── ActiveRound
-                          └── PassiveRound
+                          ├── ActiveRound ──→ GameObserver
+                          └── PassiveRound ──→ GameObserver
 ```
 
-Both `ActiveRound` and `PassiveRound` depend on `Board`, `ActionHandler`, `Dice`, and `DiceColor`. Board parts depend on their respective box classes, `ActionMap`, `Dice`, and `DiceColor`.
+Both `ActiveRound` and `PassiveRound` depend on `Board`, `ActionHandler`, `GameObserver`, `Dice`, and `DiceColor`. Board parts depend on their respective box classes, `ActionMap`, `Dice`, and `DiceColor`.

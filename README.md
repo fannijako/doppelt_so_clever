@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A Python simulation of **Doppelt so clever** (*Twice as Clever*), the popular roll-and-write dice game. The game can be played interactively via the command line or run in fully automatic mode with randomized decisions.
+A Python simulation of **Doppelt so clever** (*Twice as Clever*), the popular roll-and-write dice game. The game can be played interactively via the command line, through a Pygame UI, or run in fully automatic mode with randomized decisions.
 
 ### Game Mechanics
 
@@ -20,8 +20,19 @@ A Python simulation of **Doppelt so clever** (*Twice as Clever*), the popular ro
 ```
 src/
 ├── entrypoint.py        # CLI argument parsing and logging setup
-├── monte_carlo.py       # Monte Carlo simulation
-├── game.py              # Main game loop (6 active rounds)
+├── game/
+│   ├── game.py          # Main game loop (6 active rounds)
+│   ├── game_observer.py # Observer ABC for game events
+│   ├── logging_observer.py    # Logging-only observer
+│   └── composite_observer.py  # Multicasts to multiple observers
+├── ui/
+│   └── pygame_ui.py     # Pygame observer + rendering (interactive mode)
+├── input_handler/
+│   ├── base_input_handler.py      # InputHandler ABC
+│   ├── consol_input_handler.py    # Console (stdin) input
+│   ├── automatic_input_handler.py # Random/automatic input
+│   ├── pygame_input_handler.py    # Delegates input to PygameUI
+│   └── heuristics/                # Heuristic-based handlers
 ├── board/
 │   ├── board.py         # Board with 5 colored parts and scoring
 │   ├── board_parts/     # Blue, pink, green, yellow, grey board sections
@@ -35,7 +46,8 @@ src/
 │   ├── immediate_actions/       # Actions resolved immediately
 │   └── not_immediate_actions/   # Reroll, reuse, plus-one (saved for later)
 └── round/
-    └── active_round.py  # Round execution, dice picking, and action resolution
+    ├── active_round.py  # Active round: dice picking, action resolution
+    └── passive_round.py # Passive round: pick from lowest 3 dice
 ```
 
 ## Requirements
@@ -60,9 +72,14 @@ make build
 make build-test
 ```
 
+4. Install interactive (Pygame) dependencies:
+```bash
+make build-interactive
+```
+
 ## Usage
 
-Run the game in **interactive mode** (prompts for dice choices):
+Run the game in **console mode** (prompts for dice choices via stdin):
 ```bash
 make run
 ```
@@ -72,14 +89,28 @@ Run the game in **automatic mode** (random decisions):
 make run-auto
 ```
 
+Run the game in **interactive mode** (Pygame UI):
+```bash
+make run-interactive
+```
+
 Run the **Monte Carlo simulation**:
 ```bash
 make run-monte-carlo
 ```
 
+All modes can be selected via the `--mode` flag:
+```bash
+python main.py --mode console          # default, stdin prompts
+python main.py --mode automatic         # random decisions
+python main.py --mode always-accept     # heuristic: always accept
+python main.py --mode model             # trained model
+python main.py --mode interactive       # Pygame UI
+```
+
 Enable verbose logging with the `-v` flag:
 ```bash
-python main.py -a -v
+python main.py --mode automatic -v
 ```
 
 ## Development

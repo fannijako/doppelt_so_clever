@@ -74,3 +74,4 @@ class Game:  # pylint: disable=too-few-public-methods
                 new_action = action.save(board=self.board)
                 if new_action:
                     self.action_handler.execute([new_action], input_handler=self.input_handler)
+            self.observer.on_action_executed(f"round_start: {action.action_type.value}")
