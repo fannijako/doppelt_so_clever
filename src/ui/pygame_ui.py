@@ -28,7 +28,11 @@ class PygameUI(GameObserver):
         self.board = board
         self.current_dice: list[Dice] = []
         self.available_dice: list[Dice] = []
+        self._picked_dice: list[Dice] = []
+        self._discarded_dice: list[Dice] = []
         self._round_number: int = 0
+        self._is_active_round: bool = True
+        self._subround: int = 0
         self._score: int | None = None
         self._game_over = False
 
@@ -66,6 +70,24 @@ class PygameUI(GameObserver):
     def on_round_completed(self, round_number: int) -> None:
         pass
 
+    def on_active_round_started(self) -> None:
+        with self._lock:
+            self._is_active_round = True
+            self._subround = 0
+            self._picked_dice = []
+            self._discarded_dice = []
+
+    def on_passive_round_started(self) -> None:
+        with self._lock:
+            self._is_active_round = False
+            self._subround = 0
+            self._picked_dice = []
+            self._discarded_dice = []
+
+    def on_subround_started(self, subround: int) -> None:
+        with self._lock:
+            self._subround = subround
+
     def on_dice_rolled(self, dice: list[Dice]) -> None:
         with self._lock:
             self.current_dice = list(dice)
@@ -74,6 +96,8 @@ class PygameUI(GameObserver):
     def on_die_picked(self, die: Dice, discarded: list[Dice], available: list[Dice]) -> None:
         with self._lock:
             self.available_dice = list(available)
+            self._picked_dice.append(die)
+            self._discarded_dice.extend(discarded)
 
     def on_board_updated(self) -> None:
         pass
@@ -163,7 +187,11 @@ class PygameUI(GameObserver):
                 board_data=self.board.to_dict(),
                 dice=list(self.current_dice),
                 available_dice=list(self.available_dice),
+                picked_dice=list(self._picked_dice),
+                discarded_dice=list(self._discarded_dice),
                 round_number=self._round_number,
+                is_active_round=self._is_active_round,
+                subround=self._subround,
                 prompt=self._prompt,
                 options=list(self._options),
                 is_waiting=self._waiting,

@@ -26,6 +26,18 @@ class CompositeObserver(GameObserver):
         for observer in self._observers:
             observer.on_round_completed(round_number)
 
+    def on_active_round_started(self) -> None:
+        for observer in self._observers:
+            observer.on_active_round_started()
+
+    def on_passive_round_started(self) -> None:
+        for observer in self._observers:
+            observer.on_passive_round_started()
+
+    def on_subround_started(self, subround: int) -> None:
+        for observer in self._observers:
+            observer.on_subround_started(subround)
+
     def on_dice_rolled(self, dice: list[Dice]) -> None:
         for observer in self._observers:
             observer.on_dice_rolled(dice)

@@ -27,12 +27,13 @@ class Renderer:  # pylint: disable=too-few-public-methods
         self._screen.fill(COLORS["background"])
         screen_width, screen_height = self._screen.get_size()
 
-        vertical_offset = self._render_title(snapshot.round_number, screen_width, vertical_offset=10)
-        vertical_offset = self._render_dice_row(snapshot.dice, snapshot.available_dice, screen_width, vertical_offset)
-        vertical_offset += 10
+        vertical_offset = self._render_title(
+            snapshot.round_number, snapshot.is_active_round, snapshot.subround,
+            screen_width, vertical_offset=10,
+        )
 
         panel_width, panel_height = self._calculate_panel_dimensions(screen_width, screen_height, vertical_offset)
-        self._render_board_panels(snapshot.board_data, vertical_offset, panel_width, panel_height)
+        self._render_board_panels(snapshot, vertical_offset, panel_width, panel_height)
 
         status_vertical_offset = vertical_offset + 2 * (panel_height + 15) + 5
         status_vertical_offset = self._render_status_bar(snapshot.board_data, screen_width, status_vertical_offset)
@@ -52,25 +53,56 @@ class Renderer:  # pylint: disable=too-few-public-methods
         pygame.display.flip()
         return button_rects
 
-    def _render_title(self, round_number: int, screen_width: int, vertical_offset: int) -> int:
-        title = f"Doppelt So Clever  —  Round {round_number}"
+    def _render_title(
+        self, round_number: int, is_active_round: bool, subround: int,
+        screen_width: int, vertical_offset: int,
+    ) -> int:
+        round_type = "Active" if is_active_round else "Passive"
+        title = f"Doppelt So Clever  —  Round {round_number}  [{round_type}"
+        if is_active_round and subround > 0:
+            title += f" #{subround}"
+        title += "]"
         self._draw_text(title, (screen_width // 2, vertical_offset), COLORS["text"], self._font_large, center_x=True)
         return vertical_offset + 40
 
-    def _render_dice_row(self, dice: list, available_dice: list, screen_width: int, vertical_offset: int) -> int:
+    def _render_dice_panel(self, snapshot: RenderSnapshot, panel: pygame.Rect) -> None:
+        pygame.draw.rect(self._screen, COLORS["panel"], panel, border_radius=6)
+        self._draw_text("DICE", (panel.x + 8, panel.y + 4), COLORS["dimmed"], self._font_small)
+        y_offset = panel.y + 22
+        y_offset = self._render_dice_section(
+            "Remaining", snapshot.dice, snapshot.available_dice,
+            panel.x, panel.w, y_offset, dim_unavailable=True,
+        )
+        if snapshot.picked_dice:
+            y_offset = self._render_dice_section(
+                "Chosen", snapshot.picked_dice, snapshot.picked_dice,
+                panel.x, panel.w, y_offset, dim_unavailable=False,
+            )
+        if snapshot.discarded_dice:
+            self._render_dice_section(
+                "Discarded", snapshot.discarded_dice, [],
+                panel.x, panel.w, y_offset, dim_unavailable=True,
+            )
+
+    def _render_dice_section(
+        self, label: str, dice: list, highlighted_dice: list,
+        area_x: int, area_width: int, vertical_offset: int, *, dim_unavailable: bool,
+    ) -> int:
         if not dice:
             return vertical_offset
-        die_size = 52
-        gap = 14
+        self._draw_text(label, (area_x + 8, vertical_offset + 2), COLORS["dimmed"], self._font_small)
+        die_size = 38
+        gap = 6
         total_width = len(dice) * die_size + (len(dice) - 1) * gap
-        start_x = (screen_width - total_width) // 2
-        available_ids = set(id(die) for die in available_dice)
+        start_x = area_x + (area_width - total_width) // 2
+        highlighted_ids = set(id(die) for die in highlighted_dice)
 
         for index, die in enumerate(dice):
             die_x = start_x + index * (die_size + gap)
-            self._render_single_die(die, die_x, vertical_offset, die_size, die in available_dice or id(die) in available_ids)
+            is_highlighted = die in highlighted_dice or id(die) in highlighted_ids
+            self._render_single_die(die, die_x, vertical_offset, die_size, is_highlighted or not dim_unavailable)
 
-        return vertical_offset + die_size + 6
+        return vertical_offset + die_size + 4
 
     def _render_single_die(self, die: Any, x_position: int, y_position: int, size: int, is_available: bool) -> None:
         color_name = die.color.value if die.color else "white"
@@ -91,7 +123,10 @@ class Renderer:  # pylint: disable=too-few-public-methods
         panel_height = max(panel_height, 80)
         return panel_width, panel_height
 
-    def _render_board_panels(self, board_data: dict, vertical_offset: int, panel_width: int, panel_height: int) -> None:
+    def _render_board_panels(
+        self, snapshot: RenderSnapshot, vertical_offset: int, panel_width: int, panel_height: int,
+    ) -> None:
+        board_data = snapshot.board_data
         panels = [
             ("YELLOW", self._render_yellow_panel, {
                 "boxes": board_data["yellow"],
@@ -116,6 +151,11 @@ class Renderer:  # pylint: disable=too-few-public-methods
             pygame.draw.rect(self._screen, COLORS["panel"], panel_rect, border_radius=6)
             self._draw_text(name, (panel_x + 8, panel_y + 4), COLORS["dimmed"], self._font_small)
             draw_function(data, panel_rect)
+
+        dice_panel_x = 10 + 2 * (panel_width + 15)
+        dice_panel_y = vertical_offset + (panel_height + 15)
+        dice_panel_rect = pygame.Rect(dice_panel_x, dice_panel_y, panel_width, panel_height)
+        self._render_dice_panel(snapshot, dice_panel_rect)
 
     def _render_status_bar(self, board_data: dict, screen_width: int, vertical_offset: int) -> int:
         segments = [

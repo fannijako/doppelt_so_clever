@@ -20,6 +20,18 @@ class GameObserver(ABC):
         pass
 
     @abstractmethod
+    def on_active_round_started(self) -> None:
+        pass
+
+    @abstractmethod
+    def on_passive_round_started(self) -> None:
+        pass
+
+    @abstractmethod
+    def on_subround_started(self, subround: int) -> None:
+        pass
+
+    @abstractmethod
     def on_dice_rolled(self, dice: list[Dice]) -> None:
         pass
 

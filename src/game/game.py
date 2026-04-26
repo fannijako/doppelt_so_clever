@@ -56,10 +56,12 @@ class Game:  # pylint: disable=too-few-public-methods
     def _play_round(self, round_number: int) -> None:
         self.observer.on_round_started(round_number)
         self._round_starting_action(round_number)
+        self.observer.on_active_round_started()
         ActiveRound(self.board, self.action_handler, input_handler=self.input_handler, observer=self.observer).execute()
         logger.info("Round", round_number, "completed")
 
         logger.info("Passive round", round_number, "started")
+        self.observer.on_passive_round_started()
         PassiveRound(self.board, self.action_handler, input_handler=self.input_handler, observer=self.observer).execute()
         logger.info("Passive round", round_number, "completed")
         self.observer.on_round_completed(round_number)
