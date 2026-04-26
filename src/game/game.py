@@ -35,10 +35,11 @@ class Game:  # pylint: disable=too-few-public-methods
         input_handler: InputHandler,
         board: Board,
         observer: GameObserver,
+        action_handler: ActionHandler,
     ):
         self.input_handler = input_handler
         self.board = board
-        self.action_handler = ActionHandler(board=self.board)
+        self.action_handler = action_handler
         self.observer = observer
 
     def play(self) -> int:
