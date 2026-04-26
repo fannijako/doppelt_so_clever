@@ -8,6 +8,7 @@ from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
 from src.actions.base_action import Action
 from src.game.game_observer import GameObserver
+from src.actions.action_source import ActionSource
 from src.actions.action_handler import ActionHandler
 from src.actions.not_immediate_actions.reuse_action import ReUseAction
 from src.actions.not_immediate_actions.reroll_action import ReRollAction
@@ -151,7 +152,7 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
             actions = self._get_actions(picked, [])
             logger.info("Plus one actions", actions)
             self.action_handler.execute(actions, self.input_handler)
-            self.observer.on_action_executed(f"plus_one: {actions}")
+            self.observer.on_action_executed(ActionSource.PLUS_ONE, actions)
             self.observer.on_board_updated()
 
     def execute(self) -> None:
@@ -181,7 +182,7 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
 
             actions = self._get_actions(picked, smaller)
             self.action_handler.execute(actions, self.input_handler)
-            self.observer.on_action_executed(f"pick: {actions}")
+            self.observer.on_action_executed(ActionSource.PICK, actions)
             self.observer.on_board_updated()
 
             logger.info("Actions received", actions)

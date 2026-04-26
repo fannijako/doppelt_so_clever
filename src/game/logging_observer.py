@@ -5,8 +5,11 @@ from typing import TYPE_CHECKING
 from src.logging_config import GameLogger
 from src.game.game_observer import GameObserver
 
+from src.actions.action_source import ActionSource
+
 if TYPE_CHECKING:
     from src.dice.dice import Dice
+    from src.actions.base_action import Action
 
 logger = GameLogger(__name__)
 
@@ -30,5 +33,5 @@ class LoggingObserver(GameObserver):
     def on_game_ended(self, score: int) -> None:
         logger.info("Game ended", f"score={score}")
 
-    def on_action_executed(self, action_description: str) -> None:
-        logger.info("Action executed", action_description)
+    def on_action_executed(self, source: ActionSource, actions: list[Action]) -> None:
+        logger.info("Action executed", source, actions)

@@ -9,6 +9,7 @@ from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
 from src.actions.base_action import Action
 from src.game.game_observer import GameObserver
+from src.actions.action_source import ActionSource
 from src.actions.action_handler import ActionHandler
 
 if TYPE_CHECKING:
@@ -55,7 +56,7 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
         self.observer.on_die_picked(picked, [], [])
         actions = self._get_actions(picked)
         self.action_handler.execute(actions, self.input_handler)
-        self.observer.on_action_executed(f"passive_pick: {actions}")
+        self.observer.on_action_executed(ActionSource.PASSIVE_PICK, actions)
         self.observer.on_board_updated()
 
     def _get_actions(self, picked: Dice) -> list[Action]:

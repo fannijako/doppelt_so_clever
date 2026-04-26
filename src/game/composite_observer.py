@@ -4,8 +4,11 @@ from typing import TYPE_CHECKING
 
 from src.game.game_observer import GameObserver
 
+from src.actions.action_source import ActionSource
+
 if TYPE_CHECKING:
     from src.dice.dice import Dice
+    from src.actions.base_action import Action
 
 
 class CompositeObserver(GameObserver):
@@ -39,9 +42,15 @@ class CompositeObserver(GameObserver):
         for observer in self._observers:
             observer.on_game_ended(score)
 
-    def on_action_executed(self, action_description: str) -> None:
+    def on_action_executed(self, source: ActionSource, actions: list[Action]) -> None:
         for observer in self._observers:
-            observer.on_action_executed(action_description)
+            observer.on_action_executed(source, actions)
+
+    def find_by_type(self, observer_type: type[GameObserver]) -> GameObserver | None:
+        for observer in self._observers:
+            if isinstance(observer, observer_type):
+                return observer
+        return None
 
     def close(self) -> None:
         for observer in self._observers:

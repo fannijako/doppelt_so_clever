@@ -3,8 +3,8 @@ import argparse
 from src.game.game import Game
 from src.board.board import Board
 from src.ui.pygame_ui import PygameUI
-from src.actions.action_handler import ActionHandler
 from src.game.game_observer import GameObserver
+from src.actions.action_handler import ActionHandler
 from src.game.logging_observer import LoggingObserver
 from src.game.composite_observer import CompositeObserver
 from src.logging_config import setup_logging, GameLogger
@@ -78,9 +78,7 @@ def _find_pygame_ui(observer: GameObserver) -> PygameUI | None:
     if isinstance(observer, PygameUI):
         return observer
     if isinstance(observer, CompositeObserver):
-        for obs in observer._observers:  # pylint: disable=protected-access
-            if isinstance(obs, PygameUI):
-                return obs
+        return observer.find_by_type(PygameUI)  # type: ignore[return-value]
     return None
 
 

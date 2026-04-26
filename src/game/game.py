@@ -6,6 +6,7 @@ from src.board.board import Board
 from src.logging_config import GameLogger
 from src.round.active_round import ActiveRound
 from src.game.game_observer import GameObserver
+from src.actions.action_source import ActionSource
 from src.round.passive_round import PassiveRound
 from src.actions.action_handler import ActionHandler
 from src.actions.not_immediate_actions.reuse_action import ReUseAction
@@ -74,4 +75,4 @@ class Game:  # pylint: disable=too-few-public-methods
                 new_action = action.save(board=self.board)
                 if new_action:
                     self.action_handler.execute([new_action], input_handler=self.input_handler)
-            self.observer.on_action_executed(f"round_start: {action.action_type.value}")
+            self.observer.on_action_executed(ActionSource.ROUND_START, [action])

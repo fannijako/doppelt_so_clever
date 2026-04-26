@@ -3,8 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from abc import ABC, abstractmethod
 
+from src.actions.action_source import ActionSource
+
 if TYPE_CHECKING:
     from src.dice.dice import Dice
+    from src.actions.base_action import Action
 
 
 class GameObserver(ABC):
@@ -33,7 +36,7 @@ class GameObserver(ABC):
         pass
 
     @abstractmethod
-    def on_action_executed(self, action_description: str) -> None:
+    def on_action_executed(self, source: ActionSource, actions: list[Action]) -> None:
         pass
 
     def close(self) -> None:
