@@ -3,7 +3,6 @@
 ### Issues & Suggestions
 
 - [ ] **Break up `Renderer` (496 lines)** — `_render_blue_panel`, `_render_green_panel`, and `_render_pink_panel` are nearly identical. Extract a shared `_render_box_row()` helper or per-section `PanelRenderer` classes.
-- [ ] **Type the serialization contract** — `Board.to_dict()` returns plain `dict`; the renderer consumes `dict`. A key typo only fails at runtime. Use `TypedDict` or small dataclasses for the serialized shapes.
 - [ ] **Pass `PygameUI` explicitly instead of `_find_pygame_ui`** — `_find_pygame_ui()` walks the observer tree and returns `None` for non-interactive modes. If the composite is wrapped differently it silently breaks. Pass the UI reference directly.
 - [ ] **Fix fragile `id()` dice comparison** — `Renderer._render_dice_section` mixes `__eq__`-based `in` with `id()` identity checks. If `Dice` objects are ever copied this breaks. Rely on a single consistent comparison.
 - [ ] **Handle quit during `wait_for_input`** — If the user quits while the game thread is blocked, `_input_result` stays `None` and is returned as `int`, crashing downstream. Return a sentinel or raise an exception.

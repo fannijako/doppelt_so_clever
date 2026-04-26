@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.board.board_types import BoardDict
+
 
 @dataclass
 class RenderSnapshot:  # pylint: disable=too-many-instance-attributes
-    board_data: dict
+    board_data: BoardDict
     dice: list
     available_dice: list
     picked_dice: list

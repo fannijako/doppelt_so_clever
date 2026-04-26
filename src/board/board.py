@@ -11,6 +11,7 @@ from src.board.board_parts.grey_board_part import GreyBoardPart
 from src.board.board_parts.pink_board_part import PinkBoardPart
 from src.board.board_parts.green_board_part import GreenBoardPart
 from src.board.board_parts.yellow_board_part import YellowBoardPart
+from src.board.board_types import BoardDict
 
 if TYPE_CHECKING:
     from src.input_handler import InputHandler
@@ -75,7 +76,7 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
         4: "blue_question_mark", 5: "green_question_mark", 6: "pink_question_mark",
     }
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> BoardDict:
         return {
             "blue": [
                 {"value_used": box.value_used, "max_limit": box.maximum_value_limit, "action": box.action.value}

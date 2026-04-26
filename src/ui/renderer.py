@@ -5,6 +5,10 @@ from typing import Any
 
 import pygame
 
+from src.board.board_types import (
+    BoardDict, BlueBoxDict, GreenBoxDict, PinkBoxDict,
+    YellowBoxDict, GreyBoxDict, PositionalActionDict,
+)
 from src.ui.constants import (
     COLORS, DICE_COLORS, ACTION_LABELS, ACTION_LABEL_COLORS,
     TITLE_TOP_MARGIN, TITLE_SECTION_HEIGHT, PANEL_LEFT_MARGIN, PANEL_GAP,
@@ -203,7 +207,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
         dice_panel_rect = pygame.Rect(dice_panel_x, second_row_y, panel_width, panel_height)
         self._render_dice_panel(snapshot, dice_panel_rect)
 
-    def _render_status_bar(self, board_data: dict, screen_width: int, vertical_offset: int) -> int:
+    def _render_status_bar(self, board_data: BoardDict, screen_width: int, vertical_offset: int) -> int:
         segments = [
             (f"Foxes ({ACTION_LABELS['fox']}): {board_data['foxes']}", ACTION_LABEL_COLORS["fox"]),
             (f"Rerolls ({ACTION_LABELS['reroll']}): {board_data['rerolls']['usable']}/{board_data['rerolls']['gained']}",
@@ -296,7 +300,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
         self._draw_text(label, (center_x, y_position), color, self._font_small, center_x=True)
 
     def _render_yellow_panel(self, data: dict, panel: pygame.Rect) -> None:
-        grid: dict[tuple[int, int], dict] = {}
+        grid: dict[tuple[int, int], YellowBoxDict] = {}
         for box in data["boxes"]:
             grid[(box["row"], box["col"])] = box
         box_size = min(
@@ -337,7 +341,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
             self._render_positional_action(action_info, action_x, action_y, center_x=True)
 
     def _render_positional_action(
-        self, action_info: dict, x_position: int, y_position: int, *, center_x: bool,
+        self, action_info: PositionalActionDict, x_position: int, y_position: int, *, center_x: bool,
     ) -> None:
         label = ACTION_LABELS.get(action_info["action"], "")
         if not label:
@@ -348,7 +352,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
         self._draw_text(label, (x_position, y_position), color, self._font_small, center_x=center_x)
 
     def _render_yellow_cell(
-        self, grid: dict[tuple[int, int], dict], row: int, column: int,
+        self, grid: dict[tuple[int, int], YellowBoxDict], row: int, column: int,
         origin_x: int, origin_y: int, box_size: int,
     ) -> None:
         box_x = origin_x + column * (box_size + YELLOW_GRID_GAP)
@@ -371,7 +375,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
         )
 
     @staticmethod
-    def _get_yellow_box_color(box: dict) -> tuple:
+    def _get_yellow_box_color(box: YellowBoxDict) -> tuple:
         if box["crossed"]:
             return COLORS["crossed"]
         if box["circled"]:
@@ -396,7 +400,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
             )
             render_fn(section_data, sub_rect)
 
-    def _render_blue_panel(self, data: list[dict], panel: pygame.Rect) -> None:
+    def _render_blue_panel(self, data: list[BlueBoxDict], panel: pygame.Rect) -> None:
         count = len(data)
         box_width = min((panel.w - BOX_ROW_MARGIN) // count, BOX_ROW_MAX_SIZE)
         origin_x = panel.x + PANEL_PADDING_X
@@ -417,7 +421,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
             )
             self._render_action_label(box["action"], box_x + box_width // 2, origin_y + box_width + BOX_ROW_ACTION_OFFSET_Y)
 
-    def _render_green_panel(self, data: list[dict], panel: pygame.Rect) -> None:
+    def _render_green_panel(self, data: list[GreenBoxDict], panel: pygame.Rect) -> None:
         count = len(data)
         box_width = min((panel.w - BOX_ROW_MARGIN) // count, BOX_ROW_MAX_SIZE)
         origin_x = panel.x + PANEL_PADDING_X
@@ -439,13 +443,13 @@ class Renderer:  # pylint: disable=too-few-public-methods
             self._render_action_label(box["action"], box_x + box_width // 2, origin_y + box_width + BOX_ROW_ACTION_OFFSET_Y)
 
     @staticmethod
-    def _get_green_box_label(box: dict, index: int) -> str:
+    def _get_green_box_label(box: GreenBoxDict, index: int) -> str:
         if box["value_used"] is not None:
             return str(box["value_used"])
         sign = "+" if index % 2 == 0 else "-"
         return f"{sign}{box['multiplier']}x"
 
-    def _render_pink_panel(self, data: list[dict], panel: pygame.Rect) -> None:
+    def _render_pink_panel(self, data: list[PinkBoxDict], panel: pygame.Rect) -> None:
         count = len(data)
         box_width = min((panel.w - BOX_ROW_MARGIN) // count, BOX_ROW_MAX_SIZE)
         origin_x = panel.x + PANEL_PADDING_X
@@ -467,7 +471,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
             self._render_action_label(box["action"], box_x + box_width // 2, origin_y + box_width + BOX_ROW_ACTION_OFFSET_Y)
 
     @staticmethod
-    def _get_pink_box_label(box: dict) -> str:
+    def _get_pink_box_label(box: PinkBoxDict) -> str:
         if box["value_used"] is not None:
             return str(box["value_used"])
         if box["filter_limit"]:
@@ -476,7 +480,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
 
     def _render_grey_panel(self, data: dict, panel: pygame.Rect) -> None:
         color_names = ["yellow", "blue", "green", "pink"]
-        rows_by_color: dict[str, list[dict]] = {color: [] for color in color_names}
+        rows_by_color: dict[str, list[GreyBoxDict]] = {color: [] for color in color_names}
         for box in data["boxes"]:
             rows_by_color[box["color"]].append(box)
         col_actions = data["col_actions"]
@@ -543,7 +547,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
             x_cursor += pill_width + PILL_GAP
 
     def _render_grey_cell(
-        self, box: dict, color_name: str,
+        self, box: GreyBoxDict, color_name: str,
         origin_x: int, origin_y: int, row_index: int, column_index: int, box_size: int,
     ) -> None:
         box_x = origin_x + column_index * (box_size + GREY_BOX_GAP)
