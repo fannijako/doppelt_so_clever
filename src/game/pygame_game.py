@@ -1,6 +1,3 @@
-import pygame
-
-
 from src.game.game import Game
 from src.ui.pygame_ui import PygameUI
 from src.logging_config import GameLogger
@@ -16,17 +13,6 @@ class PygameGame(Game):  # pylint: disable=too-few-public-methods
 
     def play(self) -> int:
         try:
-            waiting = True
-            while waiting:
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        waiting = False
-                    if event.type == pygame.KEYDOWN:
-                        waiting = False
-                self.ui.refresh()
-
-            logger.info("PygameGame ended")
-            return self.board.evaluate()
-
+            return super().play()
         finally:
             self.ui.close()
