@@ -3,7 +3,6 @@ import argparse
 from src.game.game import Game
 from src.board.board import Board
 from src.ui.pygame_ui import PygameUI
-from src.game.pygame_game import PygameGame
 from src.actions.action_handler import ActionHandler
 from src.game.logging_observer import LoggingObserver
 from src.logging_config import setup_logging, GameLogger
@@ -24,7 +23,7 @@ def main() -> None:
     board = Board()
 
     if arguments.mode == 'interactive':
-        game = PygameGame(
+        game = Game(
             board=board,
             observer=PygameUI(board),
             input_handler=PygameInputHandler(),

@@ -43,11 +43,14 @@ class Game:  # pylint: disable=too-few-public-methods
         self.observer = observer
 
     def play(self) -> int:
-        for round_number in range(1, self._NUMBER_OF_ROUNDS + 1):
-            self._play_round(round_number=round_number)
-        score = self.board.evaluate()
-        self.observer.on_game_ended(score)
-        return score
+        try:
+            for round_number in range(1, self._NUMBER_OF_ROUNDS + 1):
+                self._play_round(round_number=round_number)
+            score = self.board.evaluate()
+            self.observer.on_game_ended(score)
+            return score
+        finally:
+            self.observer.close()
 
     def _play_round(self, round_number: int) -> None:
         self.observer.on_round_started(round_number)
