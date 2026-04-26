@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from src.board.board import Board
 from src.logging_config import GameLogger
 from src.round.active_round import ActiveRound
 from src.round.passive_round import PassiveRound
+from src.game.game_observer import GameObserver
 from src.actions.action_handler import ActionHandler
+from src.game.logging_observer import LoggingObserver
 from src.actions.not_immediate_actions.reuse_action import ReUseAction
 from src.actions.not_immediate_actions.reroll_action import ReRollAction
 from src.actions.not_immediate_actions.plus_one_action import PlusOneAction
@@ -29,25 +31,34 @@ class Game:  # pylint: disable=too-few-public-methods
         None,
     ]
 
-    def __init__(self, input_handler: InputHandler):
+    def __init__(
+        self,
+        input_handler: InputHandler,
+        board: Optional[Board] = None,
+        observer: Optional[GameObserver] = None,
+    ):
         self.input_handler = input_handler
-        self.board = Board()
+        self.board = board or Board()
         self.action_handler = ActionHandler(board=self.board)
+        self.observer = observer or LoggingObserver()
 
     def play(self) -> int:
         for round_number in range(1, self._NUMBER_OF_ROUNDS + 1):
             self._play_round(round_number=round_number)
-        return self.board.evaluate()
+        score = self.board.evaluate()
+        self.observer.on_game_ended(score)
+        return score
 
     def _play_round(self, round_number: int) -> None:
-        logger.info("Round", round_number, "started")
+        self.observer.on_round_started(round_number)
         self._round_starting_action(round_number)
-        ActiveRound(self.board, self.action_handler, input_handler=self.input_handler).execute()
+        ActiveRound(self.board, self.action_handler, input_handler=self.input_handler, observer=self.observer).execute()
         logger.info("Round", round_number, "completed")
 
         logger.info("Passive round", round_number, "started")
-        PassiveRound(self.board, self.action_handler, input_handler=self.input_handler).execute()
+        PassiveRound(self.board, self.action_handler, input_handler=self.input_handler, observer=self.observer).execute()
         logger.info("Passive round", round_number, "completed")
+        self.observer.on_round_completed(round_number)
 
     def _round_starting_action(self, round_number: int) -> None:
         action = self._ROUND_ACTIONS[round_number - 1]

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from src.dice.dice import Dice
 from src.board.board import Board
 from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
 from src.actions.base_action import Action
+from src.game.game_observer import GameObserver
 from src.actions.action_handler import ActionHandler
 
 if TYPE_CHECKING:
@@ -22,10 +23,12 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
         board: Board,
         action_handler: ActionHandler,
         input_handler: InputHandler,
+        observer: Optional[GameObserver] = None,
     ):
         self.board = board
         self.action_handler = action_handler
         self.input_handler = input_handler
+        self.observer = observer or GameObserver()
 
         self.dice_by_color: dict[DiceColor, Dice] = {
             color: Dice(color) for color in DiceColor
@@ -37,7 +40,7 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
         all_dice = list(self.dice_by_color.values())
         for die in all_dice:
             die.roll()
-        logger.info("Rolled dice", ", ".join(str(die) for die in all_dice))
+        self.observer.on_dice_rolled(all_dice)
 
         eligible_dice = self._get_lowest_n_dice(all_dice, 3)
         logger.info("Eligible dice", ", ".join(str(die) for die in eligible_dice), "3 lowest")
@@ -49,9 +52,10 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
         index = self.input_handler.choose_index('Pick a die index: ', eligible_dice)
         picked = eligible_dice[index]
 
-        logger.info("Picked die", picked)
+        self.observer.on_die_picked(picked, [])
         actions = self._get_actions(picked)
         self.action_handler.execute(actions, self.input_handler)
+        self.observer.on_board_updated()
 
     def _get_actions(self, picked: Dice) -> list[Action]:
         dispatch = {
