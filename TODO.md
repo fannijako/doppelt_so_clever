@@ -7,7 +7,6 @@
 1. **Visual overflow** on the buttons in case of long texts, e.g. yellow action list or grey question mark
 1. **Not all actions received**
 1. **Fox number not updated** but given in the action list
-1. **Score** updated per subround
 1. **Scoring instructions** are not added visually
 1. **Placement decisions** are on the board and not with buttons
 1. **Dice selection** is on the dice, not with buttons

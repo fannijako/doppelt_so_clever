@@ -61,7 +61,12 @@ class Renderer:  # pylint: disable=too-few-public-methods
         self._render_board_panels(snapshot, vertical_offset, panel_width, panel_height)
 
         status_vertical_offset = vertical_offset + 2 * (panel_height + PANEL_GAP) + STATUS_BAR_TOP_MARGIN
-        status_vertical_offset = self._render_status_bar(snapshot.board_data, screen_width, status_vertical_offset)
+        status_vertical_offset = self._render_status_bar(
+            snapshot.board_data,
+            snapshot.score,
+            screen_width,
+            status_vertical_offset,
+        )
 
         if snapshot.is_game_over and snapshot.score is not None:
             status_vertical_offset = self._render_game_over_banner(snapshot.score, screen_width, status_vertical_offset)
@@ -205,8 +210,9 @@ class Renderer:  # pylint: disable=too-few-public-methods
         dice_panel_rect = pygame.Rect(dice_panel_x, second_row_y, panel_width, panel_height)
         self._render_dice_panel(snapshot, dice_panel_rect)
 
-    def _render_status_bar(self, board_data: BoardDict, screen_width: int, vertical_offset: int) -> int:
+    def _render_status_bar(self, board_data: BoardDict, score: int | None, screen_width: int, vertical_offset: int) -> int:
         segments = [
+            (f"Score: {score if score is not None else '-'}", COLORS["score"]),
             (f"Foxes ({ACTION_LABELS['fox']}): {board_data['foxes']}", ACTION_LABEL_COLORS["fox"]),
             (f"Rerolls ({ACTION_LABELS['reroll']}): {board_data['rerolls']['usable']}/{board_data['rerolls']['gained']}",
              ACTION_LABEL_COLORS["reroll"]),

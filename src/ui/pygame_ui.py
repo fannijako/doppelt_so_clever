@@ -68,6 +68,7 @@ class PygameUI(GameObserver):
     def on_round_started(self, round_number: int) -> None:
         with self._lock:
             self._round_number = round_number
+            self._score = self.board.evaluate()
 
     def on_round_completed(self, round_number: int) -> None:
         pass
@@ -102,7 +103,8 @@ class PygameUI(GameObserver):
             self._discarded_dice.extend(discarded)
 
     def on_board_updated(self) -> None:
-        pass
+        with self._lock:
+            self._score = self.board.evaluate()
 
     def on_game_ended(self, score: int) -> None:
         with self._lock:
