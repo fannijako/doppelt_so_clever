@@ -58,12 +58,6 @@ class CompositeObserver(GameObserver):
         for observer in self._observers:
             observer.on_action_executed(source, actions)
 
-    def find_by_type(self, observer_type: type[GameObserver]) -> GameObserver | None:
-        for observer in self._observers:
-            if isinstance(observer, observer_type):
-                return observer
-        return None
-
     def close(self) -> None:
         for observer in self._observers:
             observer.close()

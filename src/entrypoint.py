@@ -1,4 +1,5 @@
 import argparse
+from typing import Optional
 
 from src.game.game import Game
 from src.board.board import Board
@@ -28,16 +29,16 @@ def main() -> None:
     logger.info("Args", arguments)
 
     board = Board()
-    observer = build_observer(arguments, board)
+    observer, pygame_ui = build_observer(arguments, board)
     game = Game(
         board=board,
         observer=observer,
-        input_handler=get_input_handler(arguments, observer),
+        input_handler=get_input_handler(arguments, pygame_ui),
         action_handler=ActionHandler(board=board),
     )
 
     if arguments.mode == "interactive":
-        _find_pygame_ui(observer).run_with_game(game)
+        pygame_ui.run_with_game(game)
     else:
         game.play()
 
@@ -54,20 +55,21 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def build_observer(arguments: argparse.Namespace, board: Board) -> GameObserver:
+def build_observer(arguments: argparse.Namespace, board: Board) -> tuple[GameObserver, Optional[PygameUI]]:
     observers: list[GameObserver] = [LoggingObserver()]
+    pygame_ui: Optional[PygameUI] = None
 
     if arguments.mode == "interactive":
-        observers.append(PygameUI(board))
+        pygame_ui = PygameUI(board)
+        observers.append(pygame_ui)
 
     if len(observers) == 1:
-        return observers[0]
-    return CompositeObserver(observers)
+        return observers[0], pygame_ui
+    return CompositeObserver(observers), pygame_ui
 
 
-def get_input_handler(arguments: argparse.Namespace, observer: GameObserver) -> InputHandler:
+def get_input_handler(arguments: argparse.Namespace, pygame_ui: Optional[PygameUI]) -> InputHandler:
     # pylint: disable=unnecessary-lambda
-    pygame_ui = _find_pygame_ui(observer)
     handlers = {
         "console": lambda: ConsoleInputHandler(),
         "always-accept": lambda: AlwaysAcceptInputHandler(),
@@ -80,14 +82,6 @@ def get_input_handler(arguments: argparse.Namespace, observer: GameObserver) -> 
     if handler_factory is None:
         raise ValueError(f"Unknown mode: {arguments.mode}")
     return handler_factory()
-
-
-def _find_pygame_ui(observer: GameObserver) -> PygameUI | None:
-    if isinstance(observer, PygameUI):
-        return observer
-    if isinstance(observer, CompositeObserver):
-        return observer.find_by_type(PygameUI)  # type: ignore[return-value]
-    return None
 
 
 if __name__ == "__main__":

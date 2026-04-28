@@ -2,11 +2,20 @@
 
 ### Issues & Suggestions
 
-- [ ] **Break up `Renderer` (496 lines)** — `_render_blue_panel`, `_render_green_panel`, and `_render_pink_panel` are nearly identical. Extract a shared `_render_box_row()` helper or per-section `PanelRenderer` classes.
-- [ ] **Pass `PygameUI` explicitly instead of `_find_pygame_ui`** — `_find_pygame_ui()` walks the observer tree and returns `None` for non-interactive modes. If the composite is wrapped differently it silently breaks. Pass the UI reference directly.
-- [ ] **Fix fragile `id()` dice comparison** — `Renderer._render_dice_section` mixes `__eq__`-based `in` with `id()` identity checks. If `Dice` objects are ever copied this breaks. Rely on a single consistent comparison.
-- [ ] **Handle quit during `wait_for_input`** — If the user quits while the game thread is blocked, `_input_result` stays `None` and is returned as `int`, crashing downstream. Return a sentinel or raise an exception.
-- [ ] **Add tests for new code** — `Board.to_dict()` serialization is highly testable. `Renderer` can be smoke-tested by verifying it doesn't crash given a `RenderSnapshot`.
+1. **Break up `Renderer` (496 lines)** — `_render_blue_panel`, `_render_green_panel`, and `_render_pink_panel` are nearly identical. Extract a shared `_render_box_row()` helper or per-section `PanelRenderer` classes.
+1. **Fix fragile `id()` dice comparison** — `Renderer._render_dice_section` mixes `__eq__`-based `in` with `id()` identity checks. If `Dice` objects are ever copied this breaks. Rely on a single consistent comparison.
+1. **Handle quit during `wait_for_input`** — If the user quits while the game thread is blocked, `_input_result` stays `None` and is returned as `int`, crashing downstream. Return a sentinel or raise an exception.
+1. **Add tests for new code** — `Board.to_dict()` serialization is highly testable. `Renderer` can be smoke-tested by verifying it doesn't crash given a `RenderSnapshot`.
+1. **Visual overflow** on the buttons in case of long texts, e.g. yellow action list or grey question mark
+1. **Not all actions received**
+1. **Fox number not updated** but given in the action list
+1. **Score** updated per subround
+1. **Scoring instructions** are not added visually
+1. **Placement decisions** are on the board and not with buttons
+1. **Dice selection** is on the dice, not with buttons
+1. **Popup** for action received
+1. **Final chategorisation** of the score vs the rulebook description
+1. **General overview** of implementation vs rules
 
 ## Reinforcement Learning
 
