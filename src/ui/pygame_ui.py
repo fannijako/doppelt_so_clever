@@ -10,7 +10,11 @@ import pygame
 from src.board.board import Board
 from src.ui.renderer import Renderer
 from src.logging_config import GameLogger
-from src.ui.constants import FRAMES_PER_SECOND, POPUP_DURATION_SECONDS, POPUP_FADE_SECONDS
+from src.ui.constants import (
+    FRAMES_PER_SECOND,
+    POPUP_DURATION_SECONDS,
+    POPUP_FADE_SECONDS,
+)
 from src.game.game_observer import GameObserver
 from src.ui.render_snapshot import RenderSnapshot
 from src.actions.action_source import ActionSource
