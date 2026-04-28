@@ -29,11 +29,12 @@ from src.ui.constants import (
     PILL_TEXT_OFFSET_X, PILL_TEXT_OFFSET_Y, PILL_BOTTOM_MARGIN,
     WON_ACTIONS_EMPTY_OFFSET_Y, BUTTON_HEIGHT, BUTTON_GAP, BUTTON_MAX_WIDTH,
     BUTTON_AREA_MARGIN, BUTTON_TEXT_OFFSET_Y, STATUS_BAR_HEIGHT,
-    PROMPT_TEXT_HEIGHT, GAME_OVER_BANNER_HEIGHT,
+    PROMPT_TEXT_HEIGHT, GAME_OVER_BANNER_HEIGHT, SCORE_RATING_HEIGHT,
     POPUP_WIDTH, POPUP_HEIGHT, POPUP_GAP, POPUP_MARGIN_RIGHT,
     POPUP_MARGIN_TOP, POPUP_BORDER_RADIUS, POPUP_TEXT_OFFSET_X,
     POPUP_TEXT_OFFSET_Y, POPUP_ACTION_NAMES, POPUP_SOURCE_NAMES,
 )
+from src.game.score_rating import get_score_rating
 from src.ui.render_snapshot import RenderSnapshot
 
 
@@ -243,6 +244,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
         return vertical_offset + STATUS_BAR_HEIGHT
 
     def _render_game_over_banner(self, score: int, screen_width: int, vertical_offset: int) -> int:
+        rating = get_score_rating(score)
         self._draw_text(
             f"GAME OVER  —  Score: {score}",
             (screen_width // 2, vertical_offset),
@@ -250,7 +252,15 @@ class Renderer:  # pylint: disable=too-few-public-methods
             self._font_large,
             center_x=True,
         )
-        return vertical_offset + GAME_OVER_BANNER_HEIGHT
+        if rating:
+            self._draw_text(
+                rating,
+                (screen_width // 2, vertical_offset + GAME_OVER_BANNER_HEIGHT),
+                COLORS["prompt"],
+                self._font_regular,
+                center_x=True,
+            )
+        return vertical_offset + GAME_OVER_BANNER_HEIGHT + SCORE_RATING_HEIGHT
 
     def _render_prompt_with_buttons(
         self, prompt: str, options: list, screen_width: int, vertical_offset: int,
