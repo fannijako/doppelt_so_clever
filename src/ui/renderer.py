@@ -128,11 +128,9 @@ class Renderer:  # pylint: disable=too-few-public-methods
         )
         total_width = len(dice) * DIE_SIZE + (len(dice) - 1) * DIE_GAP
         start_x = area_x + (area_width - total_width) // 2
-        highlighted_ids = set(id(die) for die in highlighted_dice)
-
         for index, die in enumerate(dice):
             die_x = start_x + index * (DIE_SIZE + DIE_GAP)
-            is_highlighted = die in highlighted_dice or id(die) in highlighted_ids
+            is_highlighted = any(die is h for h in highlighted_dice)
             self._render_single_die(die, die_x, vertical_offset, DIE_SIZE, is_highlighted or not dim_unavailable)
 
         return vertical_offset + DIE_SIZE + DIE_SECTION_BOTTOM_PADDING

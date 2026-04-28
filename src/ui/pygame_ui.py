@@ -13,6 +13,7 @@ from src.ui.constants import FRAMES_PER_SECOND
 from src.game.game_observer import GameObserver
 from src.ui.render_snapshot import RenderSnapshot
 from src.actions.action_source import ActionSource
+from src.ui.user_quit_exception import UserQuitException
 
 if TYPE_CHECKING:
     from src.dice.dice import Dice
@@ -128,7 +129,9 @@ class PygameUI(GameObserver):
         self._input_event.wait()
         with self._lock:
             self._waiting = False
-        return self._input_result  # type: ignore[return-value]
+        if self._input_result is None:
+            raise UserQuitException("User quit while waiting for input")
+        return self._input_result
 
     def submit_input(self, result: Any) -> None:
         self._input_result = result

@@ -3,8 +3,6 @@
 ### Issues & Suggestions
 
 1. **Break up `Renderer` (496 lines)** — `_render_blue_panel`, `_render_green_panel`, and `_render_pink_panel` are nearly identical. Extract a shared `_render_box_row()` helper or per-section `PanelRenderer` classes.
-1. **Fix fragile `id()` dice comparison** — `Renderer._render_dice_section` mixes `__eq__`-based `in` with `id()` identity checks. If `Dice` objects are ever copied this breaks. Rely on a single consistent comparison.
-1. **Handle quit during `wait_for_input`** — If the user quits while the game thread is blocked, `_input_result` stays `None` and is returned as `int`, crashing downstream. Return a sentinel or raise an exception.
 1. **Add tests for new code** — `Board.to_dict()` serialization is highly testable. `Renderer` can be smoke-tested by verifying it doesn't crash given a `RenderSnapshot`.
 1. **Visual overflow** on the buttons in case of long texts, e.g. yellow action list or grey question mark
 1. **Not all actions received**
