@@ -30,6 +30,9 @@ from src.ui.constants import (
     WON_ACTIONS_EMPTY_OFFSET_Y, BUTTON_HEIGHT, BUTTON_GAP, BUTTON_MAX_WIDTH,
     BUTTON_AREA_MARGIN, BUTTON_TEXT_OFFSET_Y, STATUS_BAR_HEIGHT,
     PROMPT_TEXT_HEIGHT, GAME_OVER_BANNER_HEIGHT,
+    POPUP_WIDTH, POPUP_HEIGHT, POPUP_GAP, POPUP_MARGIN_RIGHT,
+    POPUP_MARGIN_TOP, POPUP_BORDER_RADIUS, POPUP_TEXT_OFFSET_X,
+    POPUP_TEXT_OFFSET_Y, POPUP_ACTION_NAMES, POPUP_SOURCE_NAMES,
 )
 from src.ui.render_snapshot import RenderSnapshot
 
@@ -79,6 +82,9 @@ class Renderer:  # pylint: disable=too-few-public-methods
                 screen_width,
                 status_vertical_offset,
             )
+
+        if snapshot.popup_notifications:
+            self._render_popups(snapshot.popup_notifications, screen_width)
 
         pygame.display.flip()
         return button_rects
@@ -549,6 +555,46 @@ class Renderer:  # pylint: disable=too-few-public-methods
             pygame.draw.rect(self._screen, color, pill_rect, width=1, border_radius=PILL_BORDER_RADIUS)
             self._screen.blit(text_surface, (x_cursor + PILL_TEXT_OFFSET_X, y_cursor + PILL_TEXT_OFFSET_Y))
             x_cursor += pill_width + PILL_GAP
+
+    def _render_popups(self, popups: list[dict], screen_width: int) -> None:
+        x_position = screen_width - POPUP_WIDTH - POPUP_MARGIN_RIGHT
+        y_position = POPUP_MARGIN_TOP
+
+        for popup in popups:
+            alpha = popup["alpha"]
+            action = popup["action"]
+            source = popup["source"]
+            action_name = POPUP_ACTION_NAMES.get(action, action)
+            source_name = POPUP_SOURCE_NAMES.get(source, source)
+            color = ACTION_LABEL_COLORS.get(action, COLORS["dimmed"])
+
+            bg_base = (70, 70, 90)
+            bg = tuple(
+                int(bg_base[i] * alpha + COLORS["background"][i] * (1 - alpha))
+                for i in range(3)
+            )
+            border_color = tuple(
+                int(c * alpha + COLORS["background"][i] * (1 - alpha))
+                for i, c in enumerate(color)
+            )
+            text_color = tuple(
+                int(240 * alpha + COLORS["background"][i] * (1 - alpha))
+                for i in range(3)
+            )
+
+            popup_rect = pygame.Rect(x_position, y_position, POPUP_WIDTH, POPUP_HEIGHT)
+            pygame.draw.rect(self._screen, bg, popup_rect, border_radius=POPUP_BORDER_RADIUS)
+            pygame.draw.rect(self._screen, border_color, popup_rect, width=2, border_radius=POPUP_BORDER_RADIUS)
+
+            text = f"Won {action_name}  ({source_name})"
+            self._draw_text(
+                text,
+                (x_position + POPUP_TEXT_OFFSET_X, y_position + POPUP_TEXT_OFFSET_Y),
+                text_color,
+                self._font_regular,
+            )
+
+            y_position += POPUP_HEIGHT + POPUP_GAP
 
     def _render_grey_cell(
         self, box: GreyBoxDict, color_name: str,

@@ -126,3 +126,35 @@ BUTTON_TEXT_OFFSET_Y = 6
 STATUS_BAR_HEIGHT = 28
 PROMPT_TEXT_HEIGHT = 28
 GAME_OVER_BANNER_HEIGHT = 36
+
+POPUP_DURATION_SECONDS = 2.5
+POPUP_FADE_SECONDS = 0.5
+POPUP_WIDTH = 320
+POPUP_HEIGHT = 40
+POPUP_GAP = 8
+POPUP_MARGIN_RIGHT = 20
+POPUP_MARGIN_TOP = 60
+POPUP_BORDER_RADIUS = 8
+POPUP_TEXT_OFFSET_X = 12
+POPUP_TEXT_OFFSET_Y = 10
+
+POPUP_ACTION_NAMES = {
+    "none": "",
+    "reroll": "Reroll",
+    "reuse": "Reuse",
+    "plus_one": "+1",
+    "fox": "Fox",
+    "black_question_mark": "? (any)",
+    "blue_question_mark": "? (blue)",
+    "green_question_mark": "? (green)",
+    "yellow_question_mark": "? (yellow)",
+    "grey_question_mark": "? (grey)",
+    "pink_question_mark": "? (pink)",
+}
+
+POPUP_SOURCE_NAMES = {
+    "round_start": "Round Start",
+    "pick": "Pick",
+    "plus_one": "+1",
+    "passive_pick": "Passive Pick",
+}

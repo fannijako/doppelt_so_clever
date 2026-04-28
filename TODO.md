@@ -10,7 +10,6 @@
 1. **Scoring instructions** are not added visually
 1. **Placement decisions** are on the board and not with buttons
 1. **Dice selection** is on the dice, not with buttons
-1. **Popup** for action received
 1. **Final chategorisation** of the score vs the rulebook description
 1. **General overview** of implementation vs rules
 

@@ -1,6 +1,7 @@
 # pylint: disable=too-many-instance-attributes
 from __future__ import annotations
 
+import time
 import threading
 from typing import Any, TYPE_CHECKING
 
@@ -9,7 +10,7 @@ import pygame
 from src.board.board import Board
 from src.ui.renderer import Renderer
 from src.logging_config import GameLogger
-from src.ui.constants import FRAMES_PER_SECOND
+from src.ui.constants import FRAMES_PER_SECOND, POPUP_DURATION_SECONDS, POPUP_FADE_SECONDS
 from src.game.game_observer import GameObserver
 from src.ui.render_snapshot import RenderSnapshot
 from src.actions.action_source import ActionSource
@@ -37,6 +38,7 @@ class PygameUI(GameObserver):
         self._score: int | None = None
         self._game_over = False
         self._won_actions: list[dict] = []
+        self._popups: list[dict] = []
 
         self._lock = threading.Lock()
         self._input_event = threading.Event()
@@ -112,11 +114,17 @@ class PygameUI(GameObserver):
             self._game_over = True
 
     def on_action_executed(self, source: ActionSource, actions: list[Action]) -> None:
+        now = time.monotonic()
         with self._lock:
             for action in actions:
                 self._won_actions.append({
                     "action": action.action_type.value,
                     "source": source.value,
+                })
+                self._popups.append({
+                    "action": action.action_type.value,
+                    "source": source.value,
+                    "created_at": now,
                 })
 
     def wait_for_input(self, prompt: str, options: list[Any]) -> int:
@@ -209,7 +217,27 @@ class PygameUI(GameObserver):
                 score=self._score,
                 is_game_over=self._game_over,
                 won_actions=list(self._won_actions),
+                popup_notifications=self._build_popup_notifications(),
             )
+
+    def _build_popup_notifications(self) -> list[dict]:
+        now = time.monotonic()
+        total = POPUP_DURATION_SECONDS + POPUP_FADE_SECONDS
+        active: list[dict] = []
+        remaining: list[dict] = []
+        for popup in self._popups:
+            age = now - popup["created_at"]
+            if age > total:
+                continue
+            remaining.append(popup)
+            alpha = 1.0 if age < POPUP_DURATION_SECONDS else 1.0 - (age - POPUP_DURATION_SECONDS) / POPUP_FADE_SECONDS
+            active.append({
+                "action": popup["action"],
+                "source": popup["source"],
+                "alpha": max(0.0, min(1.0, alpha)),
+            })
+        self._popups = remaining
+        return active
 
     def _render(self) -> None:
         if self._renderer is None:

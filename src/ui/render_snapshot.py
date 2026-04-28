@@ -21,3 +21,4 @@ class RenderSnapshot:  # pylint: disable=too-many-instance-attributes
     score: int | None
     is_game_over: bool
     won_actions: list[dict]
+    popup_notifications: list[dict]
