@@ -158,6 +158,7 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
     def execute(self) -> None:
         for game_round in range(1, self._NUM_ROUNDS + 1):
             logger.info("Subround", game_round, "started")
+            self.observer.on_subround_started(game_round)
 
             self._try_reuse()
             self.roll_dice()

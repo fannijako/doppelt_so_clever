@@ -8,12 +8,14 @@ import matplotlib.pyplot as plt
 from src.game.game import Game
 from src.board.board import Board
 from src.logging_config import setup_logging
+from src.game.score_rating import SCORE_CATEGORIES
 from src.actions.action_handler import ActionHandler
 from src.game.logging_observer import LoggingObserver
 from src.input_handler.heuristics.always_accept import AlwaysAcceptInputHandler
 from src.input_handler import InputHandler, AutomaticInputHandler, ConsoleInputHandler, ModelInputHandler
 
 from model.model import DoppeltSoCleverModel
+
 
 logger = logging.getLogger(__name__)
 
@@ -59,29 +61,17 @@ def plot_scores(scores: list[int], filename: str) -> None:
     plt.ylabel("Frequency")
     plt.title("Histogram of Scores")
 
-    category_boundaries = [140, 160, 180, 200, 220, 240, 260, 280, 300, 320]
+    category_boundaries = sorted({lower for lower, _, _ in SCORE_CATEGORIES if lower > 0})
     for boundary in category_boundaries:
         plt.axvline(x=boundary, color='red', linestyle='--', alpha=0.7)
 
-    categories = [
-        (0, 140, "Half as clever."),
-        (140, 160, "You can do better."),
-        (160, 180, "On the right way."),
-        (180, 200, "You should be happy."),
-        (200, 220, "You've been training!"),
-        (220, 240, "Pretty, pretty clever!"),
-        (240, 260, "People, look at this!"),
-        (260, 280, "This can't be luck!"),
-        (280, 300, "Respect!"),
-        (300, 320, "Points = IQ!"),
-        (320, 350, "Twice as clever!"),
-    ]
-
-    plt.xlim(0, 350)
+    max_score = 350
+    plt.xlim(0, max_score)
 
     ymax = plt.ylim()[1]
-    for start, end, label in categories:
-        mid = (start + end) / 2
+    for lower, upper, label in SCORE_CATEGORIES:
+        end = upper if upper is not None else max_score
+        mid = (lower + end) / 2
         plt.text(mid, ymax * 0.95, label, ha='center', va='top', rotation=90, fontsize=8, color='red')
 
     plt.savefig(filename)

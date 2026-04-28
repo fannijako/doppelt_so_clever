@@ -1,13 +1,16 @@
 # TODO — Future Development
 
-## UI (Pygame Interactive Mode)
+### Issues & Suggestions
 
-- [ ] **Create a display surface and render loop** — `PygameUI._render()` currently only calls `pygame.event.pump()`. Build actual drawing logic for the board, dice, and prompts.
-- [ ] **Handle Pygame events** — Process `QUIT`, `MOUSEBUTTONDOWN`, `KEYDOWN`, etc. so the user can interact with the window.
-- [ ] **Wire clicks to `submit_input()`** — `PygameUI.wait_for_input()` blocks until `submit_input()` is called, but nothing calls it yet. Map UI clicks/keypresses to option indices and call `submit_input(index)`.
-- [ ] **Run game logic on a background thread** — Pygame's event loop must run on the main thread (especially on macOS). Move `Game.play()` to a background thread and keep the Pygame loop on main.
-- [ ] **Add thread safety to `PygameUI`** — `current_dice`, `available_dice`, and `board` are mutated from the game thread and will be read from the render thread. Guard shared state with a lock.
-- [ ] **Use `Board.to_dict()` for rendering** — Read board state through the structured snapshot rather than reaching into board part internals.
+1. **Break up `Renderer` (496 lines)** — `_render_blue_panel`, `_render_green_panel`, and `_render_pink_panel` are nearly identical. Extract a shared `_render_box_row()` helper or per-section `PanelRenderer` classes.
+1. **Add tests for new code** — `Board.to_dict()` serialization is highly testable. `Renderer` can be smoke-tested by verifying it doesn't crash given a `RenderSnapshot`.
+1. **Visual overflow** on the buttons in case of long texts, e.g. yellow action list or grey question mark
+1. **Not all actions received**
+1. **Fox number not updated** but given in the action list
+1. **Scoring instructions** are not added visually
+1. **Placement decisions** are on the board and not with buttons
+1. **Dice selection** is on the dice, not with buttons
+1. **General overview** of implementation vs rules
 
 ## Reinforcement Learning
 

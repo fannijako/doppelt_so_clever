@@ -10,7 +10,7 @@ from src.board.board_parts.grey_board_part import GreyBoardPart
 
 def test_board_init_available_actions():
     grey_board_part = GreyBoardPart()
-    assert len(grey_board_part._available_columns_for_action) == 6
+    assert len(grey_board_part.available_columns_for_action) == 6
 
 
 def test_board_init_boxes():

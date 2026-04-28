@@ -9,6 +9,7 @@ from src.game.game_observer import GameObserver
 from src.actions.action_source import ActionSource
 from src.round.passive_round import PassiveRound
 from src.actions.action_handler import ActionHandler
+from src.ui.user_quit_exception import UserQuitException
 from src.actions.not_immediate_actions.reuse_action import ReUseAction
 from src.actions.not_immediate_actions.reroll_action import ReRollAction
 from src.actions.not_immediate_actions.plus_one_action import PlusOneAction
@@ -50,16 +51,21 @@ class Game:  # pylint: disable=too-few-public-methods
             score = self.board.evaluate()
             self.observer.on_game_ended(score)
             return score
+        except UserQuitException:
+            logger.info("Game quit by user")
+            return -1
         finally:
             self.observer.close()
 
     def _play_round(self, round_number: int) -> None:
         self.observer.on_round_started(round_number)
         self._round_starting_action(round_number)
+        self.observer.on_active_round_started()
         ActiveRound(self.board, self.action_handler, input_handler=self.input_handler, observer=self.observer).execute()
         logger.info("Round", round_number, "completed")
 
         logger.info("Passive round", round_number, "started")
+        self.observer.on_passive_round_started()
         PassiveRound(self.board, self.action_handler, input_handler=self.input_handler, observer=self.observer).execute()
         logger.info("Passive round", round_number, "completed")
         self.observer.on_round_completed(round_number)

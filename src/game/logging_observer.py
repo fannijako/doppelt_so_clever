@@ -21,6 +21,15 @@ class LoggingObserver(GameObserver):
     def on_round_completed(self, round_number: int) -> None:
         logger.info("Round completed", round_number)
 
+    def on_active_round_started(self) -> None:
+        logger.info("Active round", "started")
+
+    def on_passive_round_started(self) -> None:
+        logger.info("Passive round", "started")
+
+    def on_subround_started(self, subround: int) -> None:
+        logger.info("Subround started", subround)
+
     def on_dice_rolled(self, dice: list[Dice]) -> None:
         logger.info("Dice rolled", ", ".join(str(d) for d in dice))
 
@@ -34,4 +43,4 @@ class LoggingObserver(GameObserver):
         logger.info("Game ended", f"score={score}")
 
     def on_action_executed(self, source: ActionSource, actions: list[Action]) -> None:
-        logger.info("Action executed", source, actions)
+        logger.info("Action executed", source, str(actions))
