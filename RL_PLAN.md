@@ -156,11 +156,11 @@ for iteration in range(num_iterations):
 ## 6 — Implementation Phases
 
 ### Phase 1: State & action infrastructure
-- [ ] Implement `Board.to_tensor()` — flat numeric vector from `to_dict()`.
+- [x] Implement `Board.to_tensor()` — flat numeric vector from `to_dict()`.
 - [ ] Create `RLObserver(GameObserver)` — tracks round context, dice, board snapshots.
 - [ ] Create `RLInputHandler(InputHandler)` — queries policy, records transitions.
 - [ ] Add `torch` and `numpy` to `setup.py` extras (`rl` extra).
-- [ ] Unit-test `to_tensor()` output shape and value ranges.
+- [x] Unit-test `to_tensor()` output shape and value ranges.
 
 ### Phase 2: Policy network & PPO core
 - [ ] Implement `PolicyNetwork(nn.Module)` with shared trunk, policy head, value head.

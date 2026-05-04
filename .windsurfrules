@@ -1,0 +1,4 @@
+- Do not add docstrings or comments to generated code
+- Do not use file-level pylint disables — fix the underlying issue instead (e.g., move fixtures to conftest.py to avoid redefined-outer-name)
+- Keep methods small — split large methods into smaller private helpers
+- Tests should have only one assert per test method

@@ -91,7 +91,7 @@ src/
 
 | Class | File | Responsibility | Dependencies |
 |-------|------|----------------|--------------|
-| `Board` | `src/board/board.py` | Aggregates all 5 colored board parts; tracks foxes, rerolls, reuses, plus-ones; handles white-dice substitution; computes final score via `evaluate()` | `BlueBoardPart`, `PinkBoardPart`, `GreenBoardPart`, `YellowBoardPart`, `GreyBoardPart`, `Dice`, `DiceColor`, `Action` |
+| `Board` | `src/board/board.py` | Aggregates all 5 colored board parts; tracks foxes, rerolls, reuses, plus-ones; handles white-dice substitution; computes final score via `evaluate()`; serialises state via `to_dict()` and `to_tensor()` (372-float vector normalised to [0, 1] for RL) | `BlueBoardPart`, `PinkBoardPart`, `GreenBoardPart`, `YellowBoardPart`, `GreyBoardPart`, `Dice`, `DiceColor`, `Action` |
 
 ### Board Parts
 

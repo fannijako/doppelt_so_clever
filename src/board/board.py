@@ -34,6 +34,7 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
         self.gained_reuses = 0
         self.usable_reuses = 0
 
+    _COLOR_INDEX = {c.value: i for i, c in enumerate(DiceColor)}
     _SUBSTITUTABLE_COLORS = [DiceColor.BLUE, DiceColor.GREEN, DiceColor.PINK, DiceColor.YELLOW]
     _WHITE_SUBSTITUTABLE_COLORS = [*_SUBSTITUTABLE_COLORS, DiceColor.GREY]
 
@@ -134,6 +135,74 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
             "reuses": {"gained": self.gained_reuses, "usable": self.usable_reuses},
             "plus_ones": {"gained": self.gained_plus_ones, "usable": self.usable_plus_ones},
         }
+
+    STATE_SIZE = 372
+
+    def to_tensor(self) -> list[float]:
+        d = self.to_dict()
+        return (
+            self._filled_section_tensor(d["blue"], "value_used", 12.0, "max_limit", 12.0)
+            + self._filled_section_tensor(d["green"], "value_used", 36.0, "multiplier", 6.0)
+            + self._filled_section_tensor(d["pink"], "value_used", 6.0, "filter_limit", 6.0)
+            + self._yellow_tensor(d)
+            + self._grey_tensor(d)
+            + self._action_flags_tensor(d)
+            + self._resources_tensor(d)
+        )
+
+    @staticmethod
+    def _filled_section_tensor(
+        boxes: list[dict], value_key: str, value_max: float, attr_key: str, attr_max: float
+    ) -> list[float]:
+        t: list[float] = []
+        for box in boxes:
+            t.append((box[value_key] or 0) / value_max)
+            t.append((box[attr_key] or 0) / attr_max)
+            t.append(1.0 if box[value_key] is not None else 0.0)
+        return t
+
+    @staticmethod
+    def _yellow_tensor(d: BoardDict) -> list[float]:
+        t: list[float] = []
+        for box in d["yellow"]:
+            t.append(box["value"] / 6.0)
+            t.append(box["row"] / 4.0)
+            t.append(box["col"] / 3.0)
+            t.append(1.0 if box["circled"] else 0.0)
+            t.append(1.0 if box["crossed"] else 0.0)
+        return t
+
+    def _grey_tensor(self, d: BoardDict) -> list[float]:
+        t: list[float] = []
+        for box in d["grey"]:
+            one_hot = [0.0] * len(DiceColor)
+            one_hot[self._COLOR_INDEX[box["color"]]] = 1.0
+            t.extend(one_hot)
+            t.append(box["number"] / 6.0)
+            t.append(1.0 if box["crossed"] else 0.0)
+        return t
+
+    def _action_flags_tensor(self, d: BoardDict) -> list[float]:
+        t: list[float] = []
+        for row in sorted(self._YELLOW_ROW_ACTIONS.keys()):
+            t.append(1.0 if d["yellow_row_actions"][row]["available"] else 0.0)
+        for col in sorted(self._YELLOW_COL_ACTIONS.keys()):
+            t.append(1.0 if d["yellow_col_actions"][col]["available"] else 0.0)
+        for num in sorted(self._GREY_COL_ACTIONS.keys()):
+            t.append(1.0 if d["grey_col_actions"][num]["available"] else 0.0)
+        return t
+
+    @staticmethod
+    def _resources_tensor(d: BoardDict) -> list[float]:
+        return [
+            d["foxes"] / 6.0,
+            d["rerolls"]["gained"] / 6.0,
+            d["rerolls"]["usable"] / 6.0,
+            d["reuses"]["gained"] / 6.0,
+            d["reuses"]["usable"] / 6.0,
+            d["plus_ones"]["gained"] / 6.0,
+            d["plus_ones"]["usable"] / 6.0,
+        ]
 
     def evaluate(self) -> int:
         part_values = [
