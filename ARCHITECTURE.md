@@ -43,6 +43,7 @@ model/
 ├── policy_network.py      # PolicyNetwork (nn.Module): shared trunk + policy/value heads
 ├── trajectory_buffer.py   # Transition, Trajectory, GAE computation, batch building
 └── ppo.py                 # PPOTrainer, PPOConfig, clipped surrogate loss
+train_rl.py                # RL training entrypoint (PPO training loop, checkpointing, TensorBoard)
 ```
 
 ---
@@ -56,6 +57,7 @@ model/
 | *(module)* `entrypoint` | `src/entrypoint.py` | Parses CLI args (`-v`, `--mode`), builds observer + input handler, starts a `Game` | `Game`, `CompositeObserver`, `LoggingObserver`, `PygameUI`, `PygameInputHandler` |
 | `Game` | `src/game/game.py` | Runs 6 active rounds, each followed by a passive round; grants round-specific bonus actions; triggers final scoring; notifies `GameObserver` on lifecycle events | `Board`, `ActionHandler`, `GameObserver`, `ActiveRound`, `PassiveRound`, `ReRollAction`, `ReUseAction`, `PlusOneAction`, `BlackQuestionMarkAction` |
 | *(module)* `monte_carlo` | `monte_carlo.py` | Runs Monte Carlo simulations with configurable rounds | `Game`, `LoggingObserver` |
+| *(module)* `train_rl` | `train_rl.py` | PPO training loop: collects episode batches via `RLInputHandler`, builds trajectory batches, runs PPO updates, logs to TensorBoard, saves periodic checkpoints | `Game`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `PPOTrainer`, `TrajectoryBatch` |
 
 ### Observers
 
@@ -79,7 +81,7 @@ model/
 | `AutomaticInputHandler` | `src/input_handler/automatic_input_handler.py` | Returns random valid choices | `InputHandler` |
 | `PygameInputHandler` | `src/input_handler/pygame_input_handler.py` | Delegates all input to `PygameUI.wait_for_input()` — blocks until the UI submits a result | `InputHandler`, `PygameUI` |
 | `ModelInputHandler` | `src/input_handler/model/model_input_handler.py` | Uses a trained model for decisions | `InputHandler` |
-| `RLInputHandler` | `src/input_handler/model/rl_input_handler.py` | Queries a `Policy` for actions; builds action masks; records `Transition`s (state, action, log_prob, value) during training; skips recording in eval mode | `InputHandler`, `RLObserver`, `Policy` (protocol) |
+| `RLInputHandler` | `src/input_handler/model/rl_input_handler.py` | Queries a `Policy` for actions; builds action masks; records `Transition`s (state, action, log_prob, value, action_mask) during training; skips recording in eval mode | `InputHandler`, `RLObserver`, `Policy` (protocol) |
 
 ### RL Model
 
@@ -91,6 +93,8 @@ model/
 | `TrajectoryBatch` | `model/trajectory_buffer.py` | Flat tensors (states, actions, log_probs, values, action_masks, advantages, returns) for a batch of trajectories | `torch` |
 | `PPOConfig` | `model/ppo.py` | Dataclass holding PPO hyperparameters: learning rate, clip epsilon, epochs per batch, entropy/value coefficients, max grad norm, minibatch size | — |
 | `PPOTrainer` | `model/ppo.py` | Runs PPO updates: minibatch splitting, clipped surrogate loss, value loss, entropy bonus, gradient clipping | `PolicyNetwork`, `TrajectoryBatch`, `PPOConfig` |
+| `TrainingConfig` | `train_rl.py` | Dataclass holding training loop parameters: iterations, batch size, checkpoint interval/dir, log dir, resume path, and nested `PPOConfig` | `PPOConfig` |
+| `IterationMetrics` | `train_rl.py` | Dataclass bundling per-iteration stats: iteration number, global episode count, scores, elapsed time | — |
 
 ### Rounds
 
@@ -210,6 +214,9 @@ model/
 │     └── stores transitions recorded by RLInputHandler
 └── PPOTrainer
       └── updates PolicyNetwork using TrajectoryBatch
+
+train_rl.py ─→ Game, RLObserver, RLInputHandler, PolicyNetwork, PPOTrainer
+              └── training loop: collect episodes → build batch → PPO update → log & checkpoint
 ```
 
 Both `ActiveRound` and `PassiveRound` depend on `Board`, `ActionHandler`, `GameObserver`, `Dice`, and `DiceColor`. Board parts depend on their respective box classes, `ActionMap`, `Dice`, and `DiceColor`.

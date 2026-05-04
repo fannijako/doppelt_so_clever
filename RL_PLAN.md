@@ -170,12 +170,12 @@ for iteration in range(num_iterations):
 - [x] Unit-test PPO update with dummy data.
 
 ### Phase 3: Training script
-- [ ] Create `train_rl.py` (top-level, like `monte_carlo.py`).
-- [ ] Wire up the training loop: run N episodes → collect trajectories → PPO update.
-- [ ] Add logging: mean/max/min score per batch, loss components, entropy.
-- [ ] Add periodic model checkpointing (save to `model/checkpoints/`).
-- [ ] Add TensorBoard or Weights & Biases integration for monitoring.
-- [ ] Add `Makefile` target: `make train-rl`.
+- [x] Create `train_rl.py` (top-level, like `monte_carlo.py`).
+- [x] Wire up the training loop: run N episodes → collect trajectories → PPO update.
+- [x] Add logging: mean/max/min score per batch, loss components, entropy.
+- [x] Add periodic model checkpointing (save to `model/checkpoints/`).
+- [x] Add TensorBoard or Weights & Biases integration for monitoring.
+- [x] Add `Makefile` target: `make train-rl`.
 
 ### Phase 4: Evaluation & baselines
 - [ ] Run baseline Monte Carlo with `AutomaticInputHandler` (random) — establish lower bound.

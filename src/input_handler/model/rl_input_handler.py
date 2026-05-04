@@ -13,6 +13,7 @@ class Transition:
     action: int
     log_prob: float
     value: float
+    action_mask: list[bool]
 
 
 class Policy(Protocol):  # pylint: disable=too-few-public-methods
@@ -50,7 +51,10 @@ class RLInputHandler(InputHandler):
         action, log_prob, value = self._policy(state, mask)
         if self._training:
             self._trajectory.append(
-                Transition(state=state, action=action, log_prob=log_prob, value=value)
+                Transition(
+                    state=state, action=action, log_prob=log_prob,
+                    value=value, action_mask=mask,
+                )
             )
         return action
 
