@@ -13,6 +13,7 @@ src/
 │   ├── game.py            # Game orchestrator
 │   ├── game_observer.py   # Observer ABC for game events
 │   ├── logging_observer.py    # Logging-only observer
+│   ├── rl_observer.py        # RL context tracker (round, dice, phase)
 │   └── composite_observer.py  # Multicasts to multiple observers
 ├── ui/
 │   ├── pygame_ui.py       # Pygame observer, threading, input bridging
@@ -59,6 +60,8 @@ src/
 | `GameObserver` (ABC) | `src/game/game_observer.py` | Abstract interface for game event listeners: round start/end, active/passive round started, subround started, dice rolled, die picked, board updated, action executed, game ended | `Dice` (type-check only) |
 | `LoggingObserver` | `src/game/logging_observer.py` | Logs every game event via `GameLogger` | `GameObserver`, `GameLogger` |
 | `CompositeObserver` | `src/game/composite_observer.py` | Multicasts every event to a list of child `GameObserver`s | `GameObserver` |
+| `RLObserver` | `src/game/rl_observer.py` | Tracks round number, subround, active/passive phase, dice values and availability; exposes `get_context_tensor()` (19 floats) and `get_state()` (board tensor + context); stores terminal score | `GameObserver`, `Board`, `DiceColor`, `DecisionType` |
+| `DecisionType` | `src/game/rl_observer.py` | Enum of decision types presented to the agent: `CHOOSE_INDEX`, `CONFIRM`, `CHOOSE_VALUE` | — |
 | `PygameUI` | `src/ui/pygame_ui.py` | Pygame-based observer; tracks dice/board state for rendering; provides `wait_for_input()` / `submit_input()` for synchronous input from the UI thread; runs game logic on a background thread via `run_with_game()` | `GameObserver`, `Board`, `Renderer`, `RenderSnapshot`, `pygame` |
 | `Renderer` | `src/ui/renderer.py` | Stateless rendering class; draws board panels (yellow, blue, green, pink, grey), dice, status bar, buttons, and won-actions from a `RenderSnapshot` | `RenderSnapshot`, `constants`, `pygame` |
 | `RenderSnapshot` | `src/ui/render_snapshot.py` | Immutable `@dataclass` holding a complete copy of game state for one frame (board dict, dice lists, round info, prompt/options, score) | — |
@@ -159,6 +162,7 @@ main.py → entrypoint → Game
                           ├── GameObserver (ABC)
                           │     ├── LoggingObserver
                           │     ├── CompositeObserver → [GameObserver...]
+                          │     ├── RLObserver
                           │     └── PygameUI ← PygameInputHandler
                           ├── InputHandler (ABC)
                           │     ├── ConsoleInputHandler
