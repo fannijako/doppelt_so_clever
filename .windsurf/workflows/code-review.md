@@ -15,12 +15,12 @@ Run through this checklist on all generated/modified code:
 
 5. **One assert per test** — Each test method should contain exactly one `assert` statement. Split multi-assert tests into separate test methods grouped by test class.
 
-6. **Run lint** — Run `make lint` and iterate until:
+6. **Run lint** — Run `make lint` using the virtual environment and iterate until:
    - call `git add` all modified files
    - pylint reports 10.00/10
    - No additional warnings or errors are listed
    - flake8 reports 0 issues
 
-7. **Run tests** — Run `python -m pytest` and confirm all tests pass.
+7. **Run tests** — Run `python -m pytest` using the virtual environment and confirm all tests pass.
 
 8. **Update documentation** — Check that all documentation files in the repository (`README.md`, `ARCHITECTURE.md`, `RULES.md`, `TODO.md`, `RL_PLAN.md`, etc.) reflect the current state of the codebase. Update any sections that are outdated due to changes made in this task.
