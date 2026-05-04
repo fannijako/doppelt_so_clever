@@ -75,6 +75,7 @@ src/
 | `AutomaticInputHandler` | `src/input_handler/automatic_input_handler.py` | Returns random valid choices | `InputHandler` |
 | `PygameInputHandler` | `src/input_handler/pygame_input_handler.py` | Delegates all input to `PygameUI.wait_for_input()` — blocks until the UI submits a result | `InputHandler`, `PygameUI` |
 | `ModelInputHandler` | `src/input_handler/model/model_input_handler.py` | Uses a trained model for decisions | `InputHandler` |
+| `RLInputHandler` | `src/input_handler/model/rl_input_handler.py` | Queries a `Policy` for actions; builds action masks; records `Transition`s (state, action, log_prob, value) during training; skips recording in eval mode | `InputHandler`, `RLObserver`, `Policy` (protocol) |
 
 ### Rounds
 
@@ -168,7 +169,8 @@ main.py → entrypoint → Game
                           │     ├── ConsoleInputHandler
                           │     ├── AutomaticInputHandler
                           │     ├── PygameInputHandler → PygameUI
-                          │     └── ModelInputHandler
+                          │     ├── ModelInputHandler
+                          │     └── RLInputHandler → RLObserver, Policy
                           ├── Board
                           │     ├── BlueBoardPart  → BlueBox
                           │     ├── GreenBoardPart → GreenBox
