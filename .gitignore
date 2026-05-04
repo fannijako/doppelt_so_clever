@@ -209,3 +209,5 @@ __marimo__/
 # Custom
 monte_carlo_scores/
 logs/
+model/checkpoints/
+runs/

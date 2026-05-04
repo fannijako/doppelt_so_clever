@@ -1,4 +1,4 @@
-.PHONY: venv build build-test build-monte-carlo build-interactive build-all lint test run run-auto run-monte-carlo run-interactive clean
+.PHONY: venv build build-test build-monte-carlo build-interactive build-rl build-all lint test run run-auto run-monte-carlo run-interactive train-rl clean
 PYFILES = $(shell git ls-files '*.py')
 
 venv:
@@ -18,7 +18,10 @@ build-monte-carlo: build
 build-interactive: build
 	pip install -e .[interactive]
 
-build-all: build build-test build-monte-carlo build-interactive
+build-rl: build
+	pip install -e .[rl]
+
+build-all: build build-test build-monte-carlo build-interactive build-rl
 
 lint:
 	pylint $(PYFILES) --disable=R0801,W0511,R0401
@@ -40,6 +43,9 @@ run-monte-carlo:
 
 run-interactive:
 	python main.py --mode interactive
+
+train-rl:
+	python train_rl.py
 
 clean:
 	rm -rf .venv

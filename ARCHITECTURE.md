@@ -13,6 +13,7 @@ src/
 │   ├── game.py            # Game orchestrator
 │   ├── game_observer.py   # Observer ABC for game events
 │   ├── logging_observer.py    # Logging-only observer
+│   ├── rl_observer.py        # RL context tracker (round, dice, phase)
 │   └── composite_observer.py  # Multicasts to multiple observers
 ├── ui/
 │   ├── pygame_ui.py       # Pygame observer, threading, input bridging
@@ -38,6 +39,11 @@ src/
     ├── action_handler.py  # Recursive action executor
     ├── immediate_actions/  # Question-mark actions (used immediately)
     └── not_immediate_actions/  # Stored actions (reroll, reuse, etc.)
+model/
+├── policy_network.py      # PolicyNetwork (nn.Module): shared trunk + policy/value heads
+├── trajectory_buffer.py   # Transition, Trajectory, GAE computation, batch building
+└── ppo.py                 # PPOTrainer, PPOConfig, clipped surrogate loss
+train_rl.py                # RL training entrypoint (PPO training loop, checkpointing, TensorBoard)
 ```
 
 ---
@@ -51,6 +57,7 @@ src/
 | *(module)* `entrypoint` | `src/entrypoint.py` | Parses CLI args (`-v`, `--mode`), builds observer + input handler, starts a `Game` | `Game`, `CompositeObserver`, `LoggingObserver`, `PygameUI`, `PygameInputHandler` |
 | `Game` | `src/game/game.py` | Runs 6 active rounds, each followed by a passive round; grants round-specific bonus actions; triggers final scoring; notifies `GameObserver` on lifecycle events | `Board`, `ActionHandler`, `GameObserver`, `ActiveRound`, `PassiveRound`, `ReRollAction`, `ReUseAction`, `PlusOneAction`, `BlackQuestionMarkAction` |
 | *(module)* `monte_carlo` | `monte_carlo.py` | Runs Monte Carlo simulations with configurable rounds | `Game`, `LoggingObserver` |
+| *(module)* `train_rl` | `train_rl.py` | PPO training loop: collects episode batches via `RLInputHandler`, builds trajectory batches, runs PPO updates, logs to TensorBoard, saves periodic checkpoints | `Game`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `PPOTrainer`, `TrajectoryBatch` |
 
 ### Observers
 
@@ -59,6 +66,8 @@ src/
 | `GameObserver` (ABC) | `src/game/game_observer.py` | Abstract interface for game event listeners: round start/end, active/passive round started, subround started, dice rolled, die picked, board updated, action executed, game ended | `Dice` (type-check only) |
 | `LoggingObserver` | `src/game/logging_observer.py` | Logs every game event via `GameLogger` | `GameObserver`, `GameLogger` |
 | `CompositeObserver` | `src/game/composite_observer.py` | Multicasts every event to a list of child `GameObserver`s | `GameObserver` |
+| `RLObserver` | `src/game/rl_observer.py` | Tracks round number, subround, active/passive phase, dice values and availability; exposes `get_context_tensor()` (19 floats) and `get_state()` (board tensor + context); stores terminal score | `GameObserver`, `Board`, `DiceColor`, `DecisionType` |
+| `DecisionType` | `src/game/rl_observer.py` | Enum of decision types presented to the agent: `CHOOSE_INDEX`, `CONFIRM`, `CHOOSE_VALUE` | — |
 | `PygameUI` | `src/ui/pygame_ui.py` | Pygame-based observer; tracks dice/board state for rendering; provides `wait_for_input()` / `submit_input()` for synchronous input from the UI thread; runs game logic on a background thread via `run_with_game()` | `GameObserver`, `Board`, `Renderer`, `RenderSnapshot`, `pygame` |
 | `Renderer` | `src/ui/renderer.py` | Stateless rendering class; draws board panels (yellow, blue, green, pink, grey), dice, status bar, buttons, and won-actions from a `RenderSnapshot` | `RenderSnapshot`, `constants`, `pygame` |
 | `RenderSnapshot` | `src/ui/render_snapshot.py` | Immutable `@dataclass` holding a complete copy of game state for one frame (board dict, dice lists, round info, prompt/options, score) | — |
@@ -72,6 +81,20 @@ src/
 | `AutomaticInputHandler` | `src/input_handler/automatic_input_handler.py` | Returns random valid choices | `InputHandler` |
 | `PygameInputHandler` | `src/input_handler/pygame_input_handler.py` | Delegates all input to `PygameUI.wait_for_input()` — blocks until the UI submits a result | `InputHandler`, `PygameUI` |
 | `ModelInputHandler` | `src/input_handler/model/model_input_handler.py` | Uses a trained model for decisions | `InputHandler` |
+| `RLInputHandler` | `src/input_handler/model/rl_input_handler.py` | Queries a `Policy` for actions; builds action masks; records `Transition`s (state, action, log_prob, value, action_mask) during training; skips recording in eval mode | `InputHandler`, `RLObserver`, `Policy` (protocol) |
+
+### RL Model
+
+| Class | File | Responsibility | Dependencies |
+|-------|------|----------------|--------------|
+| `PolicyNetwork` | `model/policy_network.py` | `nn.Module` with shared trunk (391→256→128), policy head (→30 logits), and value head (→1); `get_action_and_value()` applies action masking and returns sampled/given action, log prob, entropy, and value | `torch`, `Board.STATE_SIZE`, `RLObserver.CONTEXT_SIZE` |
+| `Transition` | `model/trajectory_buffer.py` | Dataclass storing a single step: state, action, log_prob, value, action_mask | — |
+| `Trajectory` | `model/trajectory_buffer.py` | Ordered list of `Transition`s plus terminal reward for one episode | `Transition` |
+| `TrajectoryBatch` | `model/trajectory_buffer.py` | Flat tensors (states, actions, log_probs, values, action_masks, advantages, returns) for a batch of trajectories | `torch` |
+| `PPOConfig` | `model/ppo.py` | Dataclass holding PPO hyperparameters: learning rate, clip epsilon, epochs per batch, entropy/value coefficients, max grad norm, minibatch size | — |
+| `PPOTrainer` | `model/ppo.py` | Runs PPO updates: minibatch splitting, clipped surrogate loss, value loss, entropy bonus, gradient clipping | `PolicyNetwork`, `TrajectoryBatch`, `PPOConfig` |
+| `TrainingConfig` | `train_rl.py` | Dataclass holding training loop parameters: iterations, batch size, checkpoint interval/dir, log dir, resume path, and nested `PPOConfig` | `PPOConfig` |
+| `IterationMetrics` | `train_rl.py` | Dataclass bundling per-iteration stats: iteration number, global episode count, scores, elapsed time | — |
 
 ### Rounds
 
@@ -91,7 +114,7 @@ src/
 
 | Class | File | Responsibility | Dependencies |
 |-------|------|----------------|--------------|
-| `Board` | `src/board/board.py` | Aggregates all 5 colored board parts; tracks foxes, rerolls, reuses, plus-ones; handles white-dice substitution; computes final score via `evaluate()` | `BlueBoardPart`, `PinkBoardPart`, `GreenBoardPart`, `YellowBoardPart`, `GreyBoardPart`, `Dice`, `DiceColor`, `Action` |
+| `Board` | `src/board/board.py` | Aggregates all 5 colored board parts; tracks foxes, rerolls, reuses, plus-ones; handles white-dice substitution; computes final score via `evaluate()`; serialises state via `to_dict()` and `to_tensor()` (372-float vector normalised to [0, 1] for RL) | `BlueBoardPart`, `PinkBoardPart`, `GreenBoardPart`, `YellowBoardPart`, `GreyBoardPart`, `Dice`, `DiceColor`, `Action` |
 
 ### Board Parts
 
@@ -159,12 +182,14 @@ main.py → entrypoint → Game
                           ├── GameObserver (ABC)
                           │     ├── LoggingObserver
                           │     ├── CompositeObserver → [GameObserver...]
+                          │     ├── RLObserver
                           │     └── PygameUI ← PygameInputHandler
                           ├── InputHandler (ABC)
                           │     ├── ConsoleInputHandler
                           │     ├── AutomaticInputHandler
                           │     ├── PygameInputHandler → PygameUI
-                          │     └── ModelInputHandler
+                          │     ├── ModelInputHandler
+                          │     └── RLInputHandler → RLObserver, Policy
                           ├── Board
                           │     ├── BlueBoardPart  → BlueBox
                           │     ├── GreenBoardPart → GreenBox
@@ -181,6 +206,17 @@ main.py → entrypoint → Game
                           │                          └── FoxAction
                           ├── ActiveRound ──→ GameObserver
                           └── PassiveRound ──→ GameObserver
+
+model/
+├── PolicyNetwork (nn.Module)
+│     └── used by RLInputHandler
+├── TrajectoryBuffer (Transition, Trajectory, TrajectoryBatch)
+│     └── stores transitions recorded by RLInputHandler
+└── PPOTrainer
+      └── updates PolicyNetwork using TrajectoryBatch
+
+train_rl.py ─→ Game, RLObserver, RLInputHandler, PolicyNetwork, PPOTrainer
+              └── training loop: collect episodes → build batch → PPO update → log & checkpoint
 ```
 
 Both `ActiveRound` and `PassiveRound` depend on `Board`, `ActionHandler`, `GameObserver`, `Dice`, and `DiceColor`. Board parts depend on their respective box classes, `ActionMap`, `Dice`, and `DiceColor`.

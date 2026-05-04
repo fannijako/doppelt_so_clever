@@ -80,6 +80,11 @@ make build-test
 make build-interactive
 ```
 
+5. Install RL training dependencies (PyTorch, TensorBoard):
+```bash
+make build-rl
+```
+
 ## Usage
 
 Run the game in **console mode** (prompts for dice choices via stdin):
@@ -100,6 +105,16 @@ make run-interactive
 Run the **Monte Carlo simulation**:
 ```bash
 make run-monte-carlo
+```
+
+Train the **RL agent** (PPO):
+```bash
+make train-rl
+```
+
+Monitor training with **TensorBoard**:
+```bash
+tensorboard --logdir runs
 ```
 
 All modes can be selected via the `--mode` flag:

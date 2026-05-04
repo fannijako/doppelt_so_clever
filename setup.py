@@ -11,6 +11,12 @@ INTERACTIVE = [
     "pygame>=2.5.0,<3.0",
 ]
 
+RL = [
+    "torch>=2.2.0,<3.0",
+    "numpy>=1.26.0,<3.0",
+    "tensorboard>=2.16.0,<3.0",
+]
+
 TEST = [
     "pytest>=8.4.1,<9.0",
     "pytest-cov>=5.0.0,<6.0",
@@ -43,6 +49,7 @@ setup(
         "build": BUILD,
         "monte-carlo": MONTE_CARLO,
         "interactive": INTERACTIVE,
+        "rl": RL,
     },
 
     python_requires=">=3.10",
