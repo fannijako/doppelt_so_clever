@@ -163,11 +163,11 @@ for iteration in range(num_iterations):
 - [x] Unit-test `to_tensor()` output shape and value ranges.
 
 ### Phase 2: Policy network & PPO core
-- [ ] Implement `PolicyNetwork(nn.Module)` with shared trunk, policy head, value head.
-- [ ] Implement action masking utility.
-- [ ] Implement trajectory buffer and GAE advantage computation.
-- [ ] Implement PPO update step (clipped surrogate loss + value loss + entropy bonus).
-- [ ] Unit-test PPO update with dummy data.
+- [x] Implement `PolicyNetwork(nn.Module)` with shared trunk, policy head, value head.
+- [x] Implement action masking utility.
+- [x] Implement trajectory buffer and GAE advantage computation.
+- [x] Implement PPO update step (clipped surrogate loss + value loss + entropy bonus).
+- [x] Unit-test PPO update with dummy data.
 
 ### Phase 3: Training script
 - [ ] Create `train_rl.py` (top-level, like `monte_carlo.py`).

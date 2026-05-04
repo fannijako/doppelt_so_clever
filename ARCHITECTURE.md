@@ -39,6 +39,10 @@ src/
     ├── action_handler.py  # Recursive action executor
     ├── immediate_actions/  # Question-mark actions (used immediately)
     └── not_immediate_actions/  # Stored actions (reroll, reuse, etc.)
+model/
+├── policy_network.py      # PolicyNetwork (nn.Module): shared trunk + policy/value heads
+├── trajectory_buffer.py   # Transition, Trajectory, GAE computation, batch building
+└── ppo.py                 # PPOTrainer, PPOConfig, clipped surrogate loss
 ```
 
 ---
@@ -76,6 +80,17 @@ src/
 | `PygameInputHandler` | `src/input_handler/pygame_input_handler.py` | Delegates all input to `PygameUI.wait_for_input()` — blocks until the UI submits a result | `InputHandler`, `PygameUI` |
 | `ModelInputHandler` | `src/input_handler/model/model_input_handler.py` | Uses a trained model for decisions | `InputHandler` |
 | `RLInputHandler` | `src/input_handler/model/rl_input_handler.py` | Queries a `Policy` for actions; builds action masks; records `Transition`s (state, action, log_prob, value) during training; skips recording in eval mode | `InputHandler`, `RLObserver`, `Policy` (protocol) |
+
+### RL Model
+
+| Class | File | Responsibility | Dependencies |
+|-------|------|----------------|--------------|
+| `PolicyNetwork` | `model/policy_network.py` | `nn.Module` with shared trunk (391→256→128), policy head (→30 logits), and value head (→1); `get_action_and_value()` applies action masking and returns sampled/given action, log prob, entropy, and value | `torch`, `Board.STATE_SIZE`, `RLObserver.CONTEXT_SIZE` |
+| `Transition` | `model/trajectory_buffer.py` | Dataclass storing a single step: state, action, log_prob, value, action_mask | — |
+| `Trajectory` | `model/trajectory_buffer.py` | Ordered list of `Transition`s plus terminal reward for one episode | `Transition` |
+| `TrajectoryBatch` | `model/trajectory_buffer.py` | Flat tensors (states, actions, log_probs, values, action_masks, advantages, returns) for a batch of trajectories | `torch` |
+| `PPOConfig` | `model/ppo.py` | Dataclass holding PPO hyperparameters: learning rate, clip epsilon, epochs per batch, entropy/value coefficients, max grad norm, minibatch size | — |
+| `PPOTrainer` | `model/ppo.py` | Runs PPO updates: minibatch splitting, clipped surrogate loss, value loss, entropy bonus, gradient clipping | `PolicyNetwork`, `TrajectoryBatch`, `PPOConfig` |
 
 ### Rounds
 
@@ -187,6 +202,14 @@ main.py → entrypoint → Game
                           │                          └── FoxAction
                           ├── ActiveRound ──→ GameObserver
                           └── PassiveRound ──→ GameObserver
+
+model/
+├── PolicyNetwork (nn.Module)
+│     └── used by RLInputHandler
+├── TrajectoryBuffer (Transition, Trajectory, TrajectoryBatch)
+│     └── stores transitions recorded by RLInputHandler
+└── PPOTrainer
+      └── updates PolicyNetwork using TrajectoryBatch
 ```
 
 Both `ActiveRound` and `PassiveRound` depend on `Board`, `ActionHandler`, `GameObserver`, `Dice`, and `DiceColor`. Board parts depend on their respective box classes, `ActionMap`, `Dice`, and `DiceColor`.
