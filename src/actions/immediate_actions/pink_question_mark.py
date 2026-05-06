@@ -22,5 +22,8 @@ class PinkQuestionMarkAction(ImmediateActions):  # pylint: disable=too-few-publi
     def use(self, board: Board, input_handler: InputHandler) -> list[Action]:
         pink_dice = Dice(DiceColor.PINK)
         pink_dice.set_value(6)
-        action = board.pink_board_part.add_dice(pink_dice)
-        return [action] if action else []
+        try:
+            action = board.pink_board_part.add_dice(pink_dice)
+            return [action] if action else []
+        except ValueError:
+            return []

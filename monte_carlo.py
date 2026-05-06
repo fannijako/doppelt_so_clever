@@ -1,8 +1,10 @@
 import os
 import logging
 import argparse
+from typing import Callable
 from datetime import datetime
 
+import torch
 import matplotlib.pyplot as plt
 
 from src.game.game import Game
@@ -12,21 +14,31 @@ from src.game.score_rating import SCORE_CATEGORIES
 from src.actions.action_handler import ActionHandler
 from src.game.logging_observer import LoggingObserver
 from src.input_handler.heuristics.always_accept import AlwaysAcceptInputHandler
-from src.input_handler import InputHandler, AutomaticInputHandler, ConsoleInputHandler, ModelInputHandler
+from src.input_handler import (
+    InputHandler,
+    AutomaticInputHandler,
+    ConsoleInputHandler,
+    ModelInputHandler,
+    RLInputHandler,
+)
+from src.game.rl_observer import RLObserver
 
 from model.model import DoppeltSoCleverModel
+from model.policy_network import PolicyNetwork
 
 
 logger = logging.getLogger(__name__)
+
+GameFactory = Callable[[], Game]
 
 
 def main() -> None:
     arguments = parse_arguments()
     setup_logging(verbose=arguments.verbose, log_to_file=True, log_dir="logs")
-    logger.info(f"args: {arguments}")
+    logger.info("args: %s", arguments)
 
-    input_handler = get_input_handler(arguments)
-    scores = run_simulation(arguments.rounds, input_handler)
+    game_factory = get_game_factory(arguments)
+    scores = run_simulation(arguments.rounds, game_factory)
 
     plot_scores(
         scores,
@@ -34,22 +46,33 @@ def main() -> None:
     )
 
 
-def run_simulation(rounds: int, input_handler: InputHandler) -> list[int]:
+def run_simulation(rounds: int, game_factory: GameFactory) -> list[int]:
     scores = []
     for _ in range(rounds):
-        board = Board()
-        game = Game(
-            input_handler=input_handler,
-            board=board,
-            observer=LoggingObserver(),
-            action_handler=ActionHandler(board=board),
-        )
+        game = game_factory()
         score = game.play()
         scores.append(score)
 
-    logger.info(f"Scores: {scores}")
+    logger.info("Scores: %s", scores)
 
     return scores
+
+
+def get_game_factory(arguments: argparse.Namespace) -> GameFactory:
+    if arguments.mode == "rl":
+        return _create_rl_game_factory(arguments.checkpoint)
+    input_handler = get_input_handler(arguments)
+    return lambda: _create_standard_game(input_handler)
+
+
+def _create_standard_game(input_handler: InputHandler) -> Game:
+    board = Board()
+    return Game(
+        input_handler=input_handler,
+        board=board,
+        observer=LoggingObserver(),
+        action_handler=ActionHandler(board=board),
+    )
 
 
 def plot_scores(scores: list[int], filename: str) -> None:
@@ -83,9 +106,15 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("-r", "--rounds", type=int, default=1000, help="Number of rounds to play")
     parser.add_argument(
         "--mode",
-        choices=["console", "automatic", "always-accept", "model"],
+        choices=["console", "automatic", "always-accept", "model", "rl"],
         default="automatic",
-        help="Input mode: automatic (default), console, always-accept, or model"
+        help="Input mode: automatic (default), console, always-accept, model, or rl"
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        default=None,
+        help="Path to RL model checkpoint (for rl mode)"
     )
     return parser.parse_args()
 
@@ -103,6 +132,63 @@ def get_input_handler(arguments: argparse.Namespace) -> InputHandler:
     if handler_factory is None:
         raise ValueError(f"Unknown mode: {arguments.mode}")
     return handler_factory()
+
+
+def _create_rl_game_factory(checkpoint_path: str | None) -> GameFactory:
+    if checkpoint_path is None:
+        checkpoint_path = _find_latest_checkpoint()
+    policy = _load_policy(checkpoint_path)
+    policy_fn = _create_policy_fn(policy)
+
+    def factory() -> Game:
+        board = Board()
+        observer = RLObserver(board)
+        handler = RLInputHandler(observer, policy_fn, training=False)
+        return Game(
+            input_handler=handler,
+            board=board,
+            observer=observer,
+            action_handler=ActionHandler(board=board),
+        )
+
+    return factory
+
+
+def _load_policy(checkpoint_path: str) -> PolicyNetwork:
+    logger.info("Loading RL model from checkpoint: %s", checkpoint_path)
+    policy = PolicyNetwork()
+    checkpoint = torch.load(checkpoint_path, weights_only=True)
+    policy.load_state_dict(checkpoint["policy_state_dict"])
+    policy.eval()
+    return policy
+
+
+def _create_policy_fn(policy: PolicyNetwork):
+    @torch.no_grad()
+    def policy_fn(state: list[float], action_mask: list[bool]) -> tuple[int, float, float]:
+        state_t = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+        mask_t = torch.tensor([float(m) for m in action_mask], dtype=torch.float32).unsqueeze(0)
+        logits, value = policy(state_t)
+        masked_logits = logits + (1.0 - mask_t) * (-1e8)
+        action = masked_logits.argmax(dim=-1)
+        dist = torch.distributions.Categorical(logits=masked_logits)
+        log_prob = dist.log_prob(action)
+        return action.item(), log_prob.item(), value.item()
+
+    return policy_fn
+
+
+def _find_latest_checkpoint() -> str:
+    checkpoint_dir = "model/checkpoints"
+    if not os.path.exists(checkpoint_dir):
+        raise ValueError(f"Checkpoint directory {checkpoint_dir} does not exist")
+
+    checkpoints = [f for f in os.listdir(checkpoint_dir) if f.endswith(".pt")]
+    if not checkpoints:
+        raise ValueError(f"No checkpoints found in {checkpoint_dir}")
+
+    latest = max(checkpoints)
+    return os.path.join(checkpoint_dir, latest)
 
 
 if __name__ == "__main__":

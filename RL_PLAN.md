@@ -189,7 +189,7 @@ for iteration in range(num_iterations):
 - [ ] Experiment with observation augmentation (encode prompt text, action descriptions).
 - [ ] Try curriculum learning: train first on subsets of rounds.
 - [ ] Explore self-play or population-based training for diverse strategies.
-- [ ] Update `DoppeltSoCleverModel` to load trained checkpoint and integrate with existing `--mode model` entrypoint.
+- [x] Add `--mode rl` to monte_carlo.py to load trained checkpoint and use RLInputHandler for inference.
 
 ---
 

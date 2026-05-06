@@ -22,5 +22,8 @@ class GreenQuestionMarkAction(ImmediateActions):  # pylint: disable=too-few-publ
     def use(self, board: Board, input_handler: InputHandler) -> list[Action]:
         green_dice = Dice(DiceColor.GREEN)
         green_dice.set_value(6 if board.green_board_part.sign_of_next_empty_field() == 1 else 1)
-        action = board.green_board_part.add_dice(green_dice)
-        return [action] if action else []
+        try:
+            action = board.green_board_part.add_dice(green_dice)
+            return [action] if action else []
+        except ValueError:
+            return []

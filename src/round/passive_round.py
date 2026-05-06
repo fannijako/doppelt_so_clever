@@ -73,8 +73,12 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
         handler = dispatch.get(picked.color)
         if not handler:
             return []
-        result = handler()
-        return result if isinstance(result, list) else [result] if result else []
+        try:
+            result = handler()
+            return result if isinstance(result, list) else [result] if result else []
+        except ValueError:
+            logger.warning("Placement failed", f"no space for {picked.color.value} dice")
+            return []
 
     @staticmethod
     def _get_lowest_n_dice(dice: list[Dice], n: int) -> list[Dice]:

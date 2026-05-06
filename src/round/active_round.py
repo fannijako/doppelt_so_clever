@@ -94,8 +94,12 @@ class ActiveRound:  # pylint: disable=too-many-instance-attributes
         handler = dispatch.get(picked.color)
         if not handler:
             return []
-        result = handler()
-        return result if isinstance(result, list) else [result] if result else []
+        try:
+            result = handler()
+            return result if isinstance(result, list) else [result] if result else []
+        except ValueError:
+            logger.warning("Placement failed", f"no space for {picked.color.value} dice")
+            return []
 
     def _try_reuse(self) -> None:
         logger.info("Usable reuses", self.board.usable_reuses, f"discarded dice: {len(self.discarded_dice)}")

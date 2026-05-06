@@ -36,8 +36,11 @@ class BlueQuestionMarkAction(ImmediateActions):
         logger.debug("Blue dice", blue_dice.value, "set")
         logger.debug("White dice", white_dice.value, "set")
 
-        action = board.blue_board_part.add_dice(
-            blue_dice,
-            white_dice
-        )
-        return [action] if action else []
+        try:
+            action = board.blue_board_part.add_dice(
+                blue_dice,
+                white_dice
+            )
+            return [action] if action else []
+        except ValueError:
+            return []

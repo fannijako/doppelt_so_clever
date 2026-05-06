@@ -35,12 +35,15 @@ class YellowQuestionMarkAction(ImmediateActions):
 
         yellow_dice.set_value(selected_value)
 
-        return board.yellow_board_part.add_dice(
-            dice=yellow_dice,
-            row_position=selected_row,
-            column_position=selected_column,
-            action=selected_action
-        )
+        try:
+            return board.yellow_board_part.add_dice(
+                dice=yellow_dice,
+                row_position=selected_row,
+                column_position=selected_column,
+                action=selected_action
+            )
+        except ValueError:
+            return []
 
     def _pick_placement(
         self,
