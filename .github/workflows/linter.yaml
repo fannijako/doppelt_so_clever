@@ -36,3 +36,7 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
+
+    - name: Evaluate RL model
+      run: |
+        python evaluate_rl.py -n 200 --ci --checkpoint model/ci_checkpoint.pt

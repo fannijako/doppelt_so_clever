@@ -182,6 +182,8 @@ for iteration in range(num_iterations):
 - [x] Run baseline with `AlwaysAcceptInputHandler` — establish heuristic baseline.
 - [x] Compare trained agent score distribution against baselines.
 - [x] Plot learning curves (score vs. episode).
+- [x] Add `--ci` gate to `evaluate_rl.py` — exits non-zero if RL agent mean < Always-Accept mean.
+- [x] Add CI workflow step running evaluation against `model/ci_checkpoint.pt`.
 
 ### Phase 5: Iteration & improvements
 - [ ] Tune hyperparameters (learning rate, network size, entropy coefficient).
@@ -197,7 +199,8 @@ for iteration in range(num_iterations):
 
 ```
 model/
-├── checkpoints/              # saved .pt files
+├── checkpoints/              # saved .pt files (gitignored)
+├── ci_checkpoint.pt          # tracked checkpoint for CI evaluation gate
 ├── model.py                  # update: load trained policy for inference
 ├── policy_network.py         # NEW: nn.Module (shared trunk + two heads)
 ├── trajectory_buffer.py      # NEW: stores (s, a, r, log_prob, value)

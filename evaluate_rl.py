@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import logging
 import argparse
 import statistics
@@ -57,6 +58,9 @@ def main() -> None:
     _plot_learning_curve(args.log_dir, output_dir)
 
     logger.info("Evaluation complete. Plots saved to %s/", output_dir)
+
+    if args.ci:
+        _ci_gate(results)
 
 
 def _run_all_baselines(args: argparse.Namespace) -> list[BaselineResult]:
@@ -252,12 +256,42 @@ def _find_latest_checkpoint() -> str | None:
     return os.path.join(checkpoint_dir, latest)
 
 
+def _ci_gate(results: list[BaselineResult]) -> None:
+    always_accept = _find_result(results, "Always-Accept")
+    rl_agent = _find_result(results, "RL Agent")
+
+    if always_accept is None:
+        logger.error("CI gate: Always-Accept baseline not found.")
+        sys.exit(1)
+
+    if rl_agent is None:
+        logger.error("CI gate: RL Agent result not found — no checkpoint available.")
+        sys.exit(1)
+
+    if rl_agent.mean < always_accept.mean:
+        logger.error(
+            "CI gate FAILED: RL Agent mean (%.1f) < Always-Accept mean (%.1f)",
+            rl_agent.mean, always_accept.mean,
+        )
+        sys.exit(1)
+
+    logger.info(
+        "CI gate PASSED: RL Agent mean (%.1f) >= Always-Accept mean (%.1f)",
+        rl_agent.mean, always_accept.mean,
+    )
+
+
+def _find_result(results: list[BaselineResult], name: str) -> BaselineResult | None:
+    return next((r for r in results if r.name == name), None)
+
+
 def _parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate RL agent against baselines")
     parser.add_argument("-n", "--num-games", type=int, default=1000, help="Games per agent")
     parser.add_argument("--checkpoint", type=str, default=None, help="RL checkpoint path")
     parser.add_argument("--log-dir", type=str, default="runs/doppelt_rl", help="TensorBoard log dir")
     parser.add_argument("--output-dir", type=str, default="evaluation_results", help="Output directory for plots")
+    parser.add_argument("--ci", action="store_true", help="Fail if RL agent scores below Always-Accept")
     return parser.parse_args()
 
 

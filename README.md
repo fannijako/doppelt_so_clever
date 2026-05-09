@@ -122,6 +122,11 @@ Evaluate the **RL agent** against baselines (random, always-accept):
 make evaluate-rl
 ```
 
+Run evaluation with **CI gate** (exits non-zero if RL agent scores below Always-Accept):
+```bash
+python evaluate_rl.py -n 200 --ci --checkpoint model/ci_checkpoint.pt
+```
+
 Monitor training with **TensorBoard**:
 ```bash
 tensorboard --logdir runs

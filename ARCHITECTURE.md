@@ -44,7 +44,7 @@ model/
 ├── trajectory_buffer.py   # Transition, Trajectory, GAE computation, batch building
 └── ppo.py                 # PPOTrainer, PPOConfig, clipped surrogate loss
 train_rl.py                # RL training entrypoint (PPO training loop, checkpointing, TensorBoard)
-evaluate_rl.py             # RL evaluation: baselines, score distributions, learning curves
+evaluate_rl.py             # RL evaluation: baselines, score distributions, learning curves, CI gate
 ```
 
 ---
@@ -59,7 +59,7 @@ evaluate_rl.py             # RL evaluation: baselines, score distributions, lear
 | `Game` | `src/game/game.py` | Runs 6 active rounds, each followed by a passive round; grants round-specific bonus actions; triggers final scoring; notifies `GameObserver` on lifecycle events | `Board`, `ActionHandler`, `GameObserver`, `ActiveRound`, `PassiveRound`, `ReRollAction`, `ReUseAction`, `PlusOneAction`, `BlackQuestionMarkAction` |
 | *(module)* `monte_carlo` | `monte_carlo.py` | Runs Monte Carlo simulations with configurable rounds; uses a `GameFactory` callable to create per-game instances; RL mode wires a fresh `Board`/`RLObserver`/`RLInputHandler` per game matching the training setup | `Game`, `LoggingObserver`, `RLObserver`, `RLInputHandler`, `PolicyNetwork` |
 | *(module)* `train_rl` | `train_rl.py` | PPO training loop: collects episode batches via `RLInputHandler`, builds trajectory batches, runs PPO updates, logs to TensorBoard, saves periodic checkpoints | `Game`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `PPOTrainer`, `TrajectoryBatch` |
-| *(module)* `evaluate_rl` | `evaluate_rl.py` | Runs baseline agents (random, always-accept) and the trained RL agent; prints comparison table; plots score distributions and learning curves from TensorBoard logs | `Game`, `LoggingObserver`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `AutomaticInputHandler`, `AlwaysAcceptInputHandler` |
+| *(module)* `evaluate_rl` | `evaluate_rl.py` | Runs baseline agents (random, always-accept) and the trained RL agent; prints comparison table; plots score distributions and learning curves from TensorBoard logs; `--ci` flag exits non-zero if RL agent mean score is below Always-Accept | `Game`, `LoggingObserver`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `AutomaticInputHandler`, `AlwaysAcceptInputHandler` |
 
 ### Observers
 
