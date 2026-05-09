@@ -44,6 +44,7 @@ model/
 ├── trajectory_buffer.py   # Transition, Trajectory, GAE computation, batch building
 └── ppo.py                 # PPOTrainer, PPOConfig, clipped surrogate loss
 train_rl.py                # RL training entrypoint (PPO training loop, checkpointing, TensorBoard)
+evaluate_rl.py             # RL evaluation: baselines, score distributions, learning curves, CI gate
 ```
 
 ---
@@ -56,8 +57,9 @@ train_rl.py                # RL training entrypoint (PPO training loop, checkpoi
 |-------|------|----------------|--------------|
 | *(module)* `entrypoint` | `src/entrypoint.py` | Parses CLI args (`-v`, `--mode`), builds observer + input handler, starts a `Game` | `Game`, `CompositeObserver`, `LoggingObserver`, `PygameUI`, `PygameInputHandler` |
 | `Game` | `src/game/game.py` | Runs 6 active rounds, each followed by a passive round; grants round-specific bonus actions; triggers final scoring; notifies `GameObserver` on lifecycle events | `Board`, `ActionHandler`, `GameObserver`, `ActiveRound`, `PassiveRound`, `ReRollAction`, `ReUseAction`, `PlusOneAction`, `BlackQuestionMarkAction` |
-| *(module)* `monte_carlo` | `monte_carlo.py` | Runs Monte Carlo simulations with configurable rounds | `Game`, `LoggingObserver` |
+| *(module)* `monte_carlo` | `monte_carlo.py` | Runs Monte Carlo simulations with configurable rounds; uses a `GameFactory` callable to create per-game instances; RL mode wires a fresh `Board`/`RLObserver`/`RLInputHandler` per game matching the training setup | `Game`, `LoggingObserver`, `RLObserver`, `RLInputHandler`, `PolicyNetwork` |
 | *(module)* `train_rl` | `train_rl.py` | PPO training loop: collects episode batches via `RLInputHandler`, builds trajectory batches, runs PPO updates, logs to TensorBoard, saves periodic checkpoints | `Game`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `PPOTrainer`, `TrajectoryBatch` |
+| *(module)* `evaluate_rl` | `evaluate_rl.py` | Runs baseline agents (random, always-accept) and the trained RL agent; prints comparison table; plots score distributions and learning curves from TensorBoard logs; `--ci` flag exits non-zero if RL agent mean score is below Always-Accept | `Game`, `LoggingObserver`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `AutomaticInputHandler`, `AlwaysAcceptInputHandler` |
 
 ### Observers
 
@@ -217,6 +219,8 @@ model/
 
 train_rl.py ─→ Game, RLObserver, RLInputHandler, PolicyNetwork, PPOTrainer
               └── training loop: collect episodes → build batch → PPO update → log & checkpoint
+evaluate_rl.py ─→ Game, RLObserver, RLInputHandler, PolicyNetwork, AutomaticInputHandler, AlwaysAcceptInputHandler
+                └── baseline comparison: run agents → score stats → distribution/learning-curve plots
 ```
 
 Both `ActiveRound` and `PassiveRound` depend on `Board`, `ActionHandler`, `GameObserver`, `Dice`, and `DiceColor`. Board parts depend on their respective box classes, `ActionMap`, `Dice`, and `DiceColor`.

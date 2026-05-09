@@ -178,10 +178,12 @@ for iteration in range(num_iterations):
 - [x] Add `Makefile` target: `make train-rl`.
 
 ### Phase 4: Evaluation & baselines
-- [ ] Run baseline Monte Carlo with `AutomaticInputHandler` (random) — establish lower bound.
-- [ ] Run baseline with `AlwaysAcceptInputHandler` — establish heuristic baseline.
-- [ ] Compare trained agent score distribution against baselines.
-- [ ] Plot learning curves (score vs. episode).
+- [x] Run baseline Monte Carlo with `AutomaticInputHandler` (random) — establish lower bound.
+- [x] Run baseline with `AlwaysAcceptInputHandler` — establish heuristic baseline.
+- [x] Compare trained agent score distribution against baselines.
+- [x] Plot learning curves (score vs. episode).
+- [x] Add `--ci` gate to `evaluate_rl.py` — exits non-zero if RL agent mean < Always-Accept mean.
+- [x] Add CI workflow step running evaluation against `model/ci_checkpoint.pt`.
 
 ### Phase 5: Iteration & improvements
 - [ ] Tune hyperparameters (learning rate, network size, entropy coefficient).
@@ -189,7 +191,7 @@ for iteration in range(num_iterations):
 - [ ] Experiment with observation augmentation (encode prompt text, action descriptions).
 - [ ] Try curriculum learning: train first on subsets of rounds.
 - [ ] Explore self-play or population-based training for diverse strategies.
-- [ ] Update `DoppeltSoCleverModel` to load trained checkpoint and integrate with existing `--mode model` entrypoint.
+- [x] Add `--mode rl` to monte_carlo.py to load trained checkpoint and use RLInputHandler for inference.
 
 ---
 
@@ -197,7 +199,8 @@ for iteration in range(num_iterations):
 
 ```
 model/
-├── checkpoints/              # saved .pt files
+├── checkpoints/              # saved .pt files (gitignored)
+├── ci_checkpoint.pt          # tracked checkpoint for CI evaluation gate
 ├── model.py                  # update: load trained policy for inference
 ├── policy_network.py         # NEW: nn.Module (shared trunk + two heads)
 ├── trajectory_buffer.py      # NEW: stores (s, a, r, log_prob, value)
@@ -212,8 +215,9 @@ src/
 │       ├── model_input_handler.py  # modify: wire to trained policy
 │       └── rl_input_handler.py     # NEW: RLInputHandler(InputHandler)
 train_rl.py                   # NEW: training entrypoint
+evaluate_rl.py                # NEW: evaluation & baseline comparison
 setup.py                      # modify: add "rl" extras (torch, numpy, tensorboard)
-Makefile                      # modify: add train-rl target
+Makefile                      # modify: add train-rl, evaluate-rl targets
 ```
 
 ---

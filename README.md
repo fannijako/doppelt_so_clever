@@ -107,9 +107,24 @@ Run the **Monte Carlo simulation**:
 make run-monte-carlo
 ```
 
+Run Monte Carlo with a **trained RL model**:
+```bash
+python monte_carlo.py --mode rl --rounds 1000
+```
+
 Train the **RL agent** (PPO):
 ```bash
 make train-rl
+```
+
+Evaluate the **RL agent** against baselines (random, always-accept):
+```bash
+make evaluate-rl
+```
+
+Run evaluation with **CI gate** (exits non-zero if RL agent scores below Always-Accept):
+```bash
+python evaluate_rl.py -n 200 --ci --checkpoint model/ci_checkpoint.pt
 ```
 
 Monitor training with **TensorBoard**:
@@ -124,6 +139,15 @@ python main.py --mode automatic         # random decisions
 python main.py --mode always-accept     # heuristic: always accept
 python main.py --mode model             # trained model
 python main.py --mode interactive       # Pygame UI
+```
+
+Monte Carlo simulation modes:
+```bash
+python monte_carlo.py --mode automatic         # random decisions
+python monte_carlo.py --mode always-accept     # heuristic: always accept
+python monte_carlo.py --mode model             # trained model
+python monte_carlo.py --mode rl                # RL model (loads latest checkpoint)
+python monte_carlo.py --mode rl --checkpoint model/checkpoints/checkpoint_000009.pt  # specific checkpoint
 ```
 
 Enable verbose logging with the `-v` flag:

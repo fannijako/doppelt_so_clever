@@ -25,11 +25,14 @@ class GreyQuestionMarkAction(ImmediateActions):
         color, value = self._pick_color_and_value(board, input_handler)
         dice.set_value(value)
 
-        return board.grey_board_part.add_dice(
-            dice=dice,
-            smaller_die=[],
-            color_to_use_grey_as=color,
-        )
+        try:
+            return board.grey_board_part.add_dice(
+                dice=dice,
+                smaller_die=[],
+                color_to_use_grey_as=color,
+            )
+        except ValueError:
+            return []
 
     def _pick_color_and_value(self, board: Board, input_handler: InputHandler) -> tuple[DiceColor, int]:
         possible_combinations = [

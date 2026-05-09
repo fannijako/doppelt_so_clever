@@ -210,4 +210,5 @@ __marimo__/
 monte_carlo_scores/
 logs/
 model/checkpoints/
+!model/ci_checkpoint.pt
 runs/
