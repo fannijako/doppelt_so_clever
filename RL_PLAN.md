@@ -186,11 +186,11 @@ for iteration in range(num_iterations):
 - [x] Add CI workflow step running evaluation against `model/ci_checkpoint.pt`.
 
 ### Phase 5: Iteration & improvements
-- [ ] Tune hyperparameters (learning rate, network size, entropy coefficient).
-- [ ] Add intermediate reward shaping (delta score after each board update).
-- [ ] Experiment with observation augmentation (encode prompt text, action descriptions).
-- [ ] Try curriculum learning: train first on subsets of rounds.
-- [ ] Explore self-play or population-based training for diverse strategies.
+- [x] Tune hyperparameters (learning rate, network size, entropy coefficient).
+- [x] Add intermediate reward shaping (delta score after each board update).
+- [x] Experiment with observation augmentation (encode prompt text, action descriptions).
+- [x] Try curriculum learning: train first on subsets of rounds.
+- [x] Explore self-play or population-based training for diverse strategies.
 - [x] Add `--mode rl` to monte_carlo.py to load trained checkpoint and use RLInputHandler for inference.
 
 ---

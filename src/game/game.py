@@ -44,9 +44,10 @@ class Game:  # pylint: disable=too-few-public-methods
         self.action_handler = action_handler
         self.observer = observer
 
-    def play(self) -> int:
+    def play(self, max_rounds: int | None = None) -> int:
+        num_rounds = max_rounds if max_rounds is not None else self._NUMBER_OF_ROUNDS
         try:
-            for round_number in range(1, self._NUMBER_OF_ROUNDS + 1):
+            for round_number in range(1, num_rounds + 1):
                 self._play_round(round_number=round_number)
             score = self.board.evaluate()
             self.observer.on_game_ended(score)

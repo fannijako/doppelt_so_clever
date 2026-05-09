@@ -9,20 +9,31 @@ from dataclasses import dataclass, field
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-from model.policy_network import PolicyNetwork
+from model.policy_network import PolicyNetwork, STATE_SIZE
 from model.ppo import PPOConfig, PPOTrainer, PPOUpdateResult
-from model.trajectory_buffer import (
-    Trajectory,
-    Transition as BufferTransition,
-    build_batch,
-)
-from src.actions.action_handler import ActionHandler
-from src.board.board import Board
-from src.game.game import Game
-from src.game.rl_observer import RLObserver
-from src.input_handler.model.rl_input_handler import RLInputHandler, Transition
+from model.trajectory_buffer import build_batch
+from model.rl_utils import collect_batch
+from src.game.rl_observer import PROMPT_FEATURES_SIZE
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class FeatureFlags:
+    reward_shaping: bool = False
+    augmented: bool = False
+    lr_decay: bool = False
+    curriculum: bool = False
+    max_rounds_start: int = 2
+    max_rounds_end: int = 6
+
+
+@dataclass
+class IOConfig:
+    checkpoint_interval: int = 100
+    checkpoint_dir: str = "model/checkpoints"
+    log_dir: str = "runs/doppelt_rl"
+    resume: str | None = None
 
 
 @dataclass
@@ -30,10 +41,10 @@ class TrainingConfig:
     iterations: int = 5000
     batch_size: int = 64
     ppo: PPOConfig = field(default_factory=PPOConfig)
-    checkpoint_interval: int = 100
-    checkpoint_dir: str = "model/checkpoints"
-    log_dir: str = "runs/doppelt_rl"
-    resume: str | None = None
+    hidden1: int = 256
+    hidden2: int = 128
+    features: FeatureFlags = field(default_factory=FeatureFlags)
+    io: IOConfig = field(default_factory=IOConfig)
 
 
 @dataclass
@@ -44,6 +55,13 @@ class IterationMetrics:
     elapsed: float
 
 
+@dataclass
+class TrainingContext:
+    policy: PolicyNetwork
+    trainer: PPOTrainer
+    scheduler: torch.optim.lr_scheduler.LRScheduler | None = None
+
+
 def main() -> None:
     args = _parse_arguments()
     logging.basicConfig(
@@ -52,95 +70,75 @@ def main() -> None:
     )
     config = _build_config(args)
     policy, trainer, start_iteration = _setup_model(config)
-    writer = SummaryWriter(log_dir=config.log_dir)
-    os.makedirs(config.checkpoint_dir, exist_ok=True)
+    writer = SummaryWriter(log_dir=config.io.log_dir)
+    os.makedirs(config.io.checkpoint_dir, exist_ok=True)
 
-    _training_loop(policy, trainer, writer, config, start_iteration)
+    ctx = TrainingContext(
+        policy=policy, trainer=trainer,
+        scheduler=_build_scheduler(trainer, config),
+    )
+    _training_loop(ctx, writer, config, start_iteration)
 
     writer.close()
     logger.info("Training complete.")
 
 
 def _training_loop(
-    policy: PolicyNetwork,
-    trainer: PPOTrainer,
+    ctx: TrainingContext,
     writer: SummaryWriter,
     config: TrainingConfig,
     start_iteration: int,
 ) -> None:
     for iteration in range(start_iteration, config.iterations):
-        t0 = time.time()
-        trajectories, scores = _collect_batch(policy, config.batch_size)
-        batch = build_batch(trajectories)
-        result = trainer.update(batch)
-        elapsed = time.time() - t0
-
-        metrics = IterationMetrics(
-            iteration=iteration,
-            global_episode=(iteration + 1) * config.batch_size,
-            scores=scores,
-            elapsed=elapsed,
-        )
+        result, metrics = _training_step(ctx, config, iteration)
         _log_iteration(writer, metrics, result)
-        _maybe_checkpoint(policy, trainer, iteration, config)
-
-    _save_checkpoint(policy, trainer, config.iterations - 1, config.checkpoint_dir)
-
-
-def _collect_batch(
-    policy: PolicyNetwork,
-    batch_size: int,
-) -> tuple[list[Trajectory], list[int]]:
-    policy_fn = _make_policy_fn(policy)
-    trajectories: list[Trajectory] = []
-    scores: list[int] = []
-    for _ in range(batch_size):
-        traj, score = _run_episode(policy_fn)
-        trajectories.append(traj)
-        scores.append(score)
-    return trajectories, scores
+        _maybe_checkpoint(ctx.policy, ctx.trainer, iteration, config)
+    _save_checkpoint(ctx.policy, ctx.trainer, config.iterations - 1, config.io.checkpoint_dir)
 
 
-def _run_episode(policy_fn) -> tuple[Trajectory, int]:
-    board = Board()
-    observer = RLObserver(board)
-    handler = RLInputHandler(observer, policy_fn, training=True)
-    game = Game(
-        input_handler=handler,
-        board=board,
-        observer=observer,
-        action_handler=ActionHandler(board=board),
+def _training_step(
+    ctx: TrainingContext,
+    config: TrainingConfig,
+    iteration: int,
+) -> tuple[PPOUpdateResult, IterationMetrics]:
+    t0 = time.time()
+    max_rounds = _curriculum_rounds(iteration, config)
+    trajectories, scores = collect_batch(
+        ctx.policy, config.batch_size, config.features.reward_shaping,
+        config.features.augmented, max_rounds,
     )
-    score = game.play()
-    return _convert_trajectory(handler.trajectory, float(score)), score
+    batch = build_batch(trajectories)
+    result = ctx.trainer.update(batch)
+    if ctx.scheduler is not None:
+        ctx.scheduler.step()
+    metrics = IterationMetrics(
+        iteration=iteration,
+        global_episode=(iteration + 1) * config.batch_size,
+        scores=scores,
+        elapsed=time.time() - t0,
+    )
+    return result, metrics
 
 
-def _convert_trajectory(transitions: list[Transition], reward: float) -> Trajectory:
-    traj = Trajectory(reward=reward)
-    for t in transitions:
-        traj.append(BufferTransition(
-            state=t.state,
-            action=t.action,
-            log_prob=t.log_prob,
-            value=t.value,
-            action_mask=[float(m) for m in t.action_mask],
-        ))
-    return traj
+def _build_scheduler(
+    trainer: PPOTrainer, config: TrainingConfig,
+) -> torch.optim.lr_scheduler.LRScheduler | None:
+    if not config.features.lr_decay:
+        return None
+    return torch.optim.lr_scheduler.LinearLR(
+        trainer.optimizer,
+        start_factor=1.0,
+        end_factor=0.0,
+        total_iters=config.iterations,
+    )
 
 
-def _make_policy_fn(policy: PolicyNetwork):
-    @torch.no_grad()
-    def policy_fn(
-        state: list[float], action_mask: list[bool]
-    ) -> tuple[int, float, float]:
-        state_t = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
-        mask_t = torch.tensor(
-            [float(m) for m in action_mask], dtype=torch.float32
-        ).unsqueeze(0)
-        action, log_prob, _, value = policy.get_action_and_value(state_t, mask_t)
-        return action.item(), log_prob.item(), value.item()
-
-    return policy_fn
+def _curriculum_rounds(iteration: int, config: TrainingConfig) -> int | None:
+    if not config.features.curriculum:
+        return None
+    progress = iteration / max(config.iterations - 1, 1)
+    span = config.features.max_rounds_end - config.features.max_rounds_start
+    return config.features.max_rounds_start + int(progress * span)
 
 
 def _log_iteration(
@@ -148,26 +146,22 @@ def _log_iteration(
     metrics: IterationMetrics,
     result: PPOUpdateResult,
 ) -> None:
-    mean_score = sum(metrics.scores) / len(metrics.scores)
-    min_score = min(metrics.scores)
-    max_score = max(metrics.scores)
-
+    mean_s, min_s, max_s = _score_stats(metrics.scores)
     logger.info(
         "iter=%d  episodes=%d  score=%.1f/%.0f/%.0f  "
         "ploss=%.4f  vloss=%.4f  ent=%.4f  time=%.1fs",
-        metrics.iteration, metrics.global_episode, mean_score, min_score, max_score,
+        metrics.iteration, metrics.global_episode, mean_s, min_s, max_s,
         result.policy_loss, result.value_loss, result.entropy, metrics.elapsed,
     )
-
     _write_scalars(writer, metrics.global_episode, {
-        "score/mean": mean_score,
-        "score/min": min_score,
-        "score/max": max_score,
-        "loss/policy": result.policy_loss,
-        "loss/value": result.value_loss,
-        "loss/total": result.total_loss,
-        "loss/entropy": result.entropy,
+        "score/mean": mean_s, "score/min": min_s, "score/max": max_s,
+        "loss/policy": result.policy_loss, "loss/value": result.value_loss,
+        "loss/total": result.total_loss, "loss/entropy": result.entropy,
     })
+
+
+def _score_stats(scores: list[int]) -> tuple[float, int, int]:
+    return sum(scores) / len(scores), min(scores), max(scores)
 
 
 def _write_scalars(
@@ -185,8 +179,8 @@ def _maybe_checkpoint(
     iteration: int,
     config: TrainingConfig,
 ) -> None:
-    if (iteration + 1) % config.checkpoint_interval == 0:
-        _save_checkpoint(policy, trainer, iteration, config.checkpoint_dir)
+    if (iteration + 1) % config.io.checkpoint_interval == 0:
+        _save_checkpoint(policy, trainer, iteration, config.io.checkpoint_dir)
 
 
 def _save_checkpoint(
@@ -217,14 +211,23 @@ def _load_checkpoint(
     return start_iteration
 
 
+def _compute_state_size(augmented: bool) -> int:
+    if augmented:
+        return STATE_SIZE + PROMPT_FEATURES_SIZE
+    return STATE_SIZE
+
+
 def _setup_model(
     config: TrainingConfig,
 ) -> tuple[PolicyNetwork, PPOTrainer, int]:
-    policy = PolicyNetwork()
+    state_size = _compute_state_size(config.features.augmented)
+    policy = PolicyNetwork(
+        state_size=state_size, hidden1=config.hidden1, hidden2=config.hidden2,
+    )
     trainer = PPOTrainer(policy, config.ppo)
     start_iteration = 0
-    if config.resume:
-        start_iteration = _load_checkpoint(config.resume, policy, trainer)
+    if config.io.resume:
+        start_iteration = _load_checkpoint(config.io.resume, policy, trainer)
     return policy, trainer, start_iteration
 
 
@@ -235,14 +238,28 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
         entropy_coefficient=args.entropy_coef,
         value_loss_coefficient=args.value_coef,
     )
-    return TrainingConfig(
-        iterations=args.iterations,
-        batch_size=args.batch_size,
-        ppo=ppo,
+    features = FeatureFlags(
+        reward_shaping=args.reward_shaping,
+        augmented=args.augmented,
+        lr_decay=args.lr_decay,
+        curriculum=args.curriculum,
+        max_rounds_start=args.max_rounds_start,
+        max_rounds_end=args.max_rounds_end,
+    )
+    io_config = IOConfig(
         checkpoint_interval=args.checkpoint_interval,
         checkpoint_dir=args.checkpoint_dir,
         log_dir=args.log_dir,
         resume=args.resume,
+    )
+    return TrainingConfig(
+        iterations=args.iterations,
+        batch_size=args.batch_size,
+        ppo=ppo,
+        hidden1=args.hidden1,
+        hidden2=args.hidden2,
+        features=features,
+        io=io_config,
     )
 
 
@@ -258,6 +275,14 @@ def _parse_arguments() -> argparse.Namespace:
     parser.add_argument("--checkpoint-dir", type=str, default="model/checkpoints")
     parser.add_argument("--log-dir", type=str, default="runs/doppelt_rl")
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
+    parser.add_argument("--reward-shaping", action="store_true", help="Enable intermediate reward shaping")
+    parser.add_argument("--hidden1", type=int, default=256, help="First hidden layer size")
+    parser.add_argument("--hidden2", type=int, default=128, help="Second hidden layer size")
+    parser.add_argument("--lr-decay", action="store_true", help="Enable linear learning rate decay")
+    parser.add_argument("--augmented", action="store_true", help="Enable observation augmentation (prompt type encoding)")
+    parser.add_argument("--curriculum", action="store_true", help="Enable curriculum learning (gradual round increase)")
+    parser.add_argument("--max-rounds-start", type=int, default=2, help="Starting number of rounds for curriculum")
+    parser.add_argument("--max-rounds-end", type=int, default=6, help="Final number of rounds for curriculum")
     return parser.parse_args()
 
 
