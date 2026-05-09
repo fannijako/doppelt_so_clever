@@ -53,7 +53,7 @@ def main() -> None:
 
     output_dir = args.output_dir
     os.makedirs(output_dir, exist_ok=True)
-    _plot_score_distributions(results, output_dir)
+    _plot_overlaid_distributions(results, output_dir)
     _plot_learning_curve(args.log_dir, output_dir)
 
     logger.info("Evaluation complete. Plots saved to %s/", output_dir)
@@ -159,31 +159,6 @@ def _print_relative_improvements(results: list[BaselineResult]) -> None:
     for r in results[1:]:
         improvement = (r.mean - base.mean) / base.mean * 100 if base.mean else 0.0
         print(f"  {r.name}: {improvement:+.1f}% mean score improvement")
-
-
-def _plot_score_distributions(results: list[BaselineResult], output_dir: str) -> None:
-    fig, axes = plt.subplots(1, len(results), figsize=(6 * len(results), 5), sharey=True)
-    if len(results) == 1:
-        axes = [axes]
-
-    for ax, result in zip(axes, results):
-        _plot_single_distribution(ax, result)
-
-    fig.suptitle("Score Distributions", fontsize=14, fontweight="bold")
-    fig.tight_layout()
-    fig.savefig(os.path.join(output_dir, "score_distributions.png"), dpi=150)
-    plt.close(fig)
-
-    _plot_overlaid_distributions(results, output_dir)
-
-
-def _plot_single_distribution(ax, result: BaselineResult) -> None:
-    ax.hist(result.scores, bins=20, alpha=0.7, edgecolor="black")
-    ax.set_title(f"{result.name}\n(mean={result.mean:.1f}, std={result.std:.1f})")
-    ax.set_xlabel("Score")
-    ax.set_ylabel("Frequency")
-    _add_category_lines(ax)
-    ax.set_xlim(0, 350)
 
 
 def _plot_overlaid_distributions(results: list[BaselineResult], output_dir: str) -> None:
