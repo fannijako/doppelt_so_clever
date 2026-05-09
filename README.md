@@ -117,6 +117,11 @@ Train the **RL agent** (PPO):
 make train-rl
 ```
 
+Evaluate the **RL agent** against baselines (random, always-accept):
+```bash
+make evaluate-rl
+```
+
 Monitor training with **TensorBoard**:
 ```bash
 tensorboard --logdir runs

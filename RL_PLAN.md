@@ -178,10 +178,10 @@ for iteration in range(num_iterations):
 - [x] Add `Makefile` target: `make train-rl`.
 
 ### Phase 4: Evaluation & baselines
-- [ ] Run baseline Monte Carlo with `AutomaticInputHandler` (random) — establish lower bound.
-- [ ] Run baseline with `AlwaysAcceptInputHandler` — establish heuristic baseline.
-- [ ] Compare trained agent score distribution against baselines.
-- [ ] Plot learning curves (score vs. episode).
+- [x] Run baseline Monte Carlo with `AutomaticInputHandler` (random) — establish lower bound.
+- [x] Run baseline with `AlwaysAcceptInputHandler` — establish heuristic baseline.
+- [x] Compare trained agent score distribution against baselines.
+- [x] Plot learning curves (score vs. episode).
 
 ### Phase 5: Iteration & improvements
 - [ ] Tune hyperparameters (learning rate, network size, entropy coefficient).
@@ -212,8 +212,9 @@ src/
 │       ├── model_input_handler.py  # modify: wire to trained policy
 │       └── rl_input_handler.py     # NEW: RLInputHandler(InputHandler)
 train_rl.py                   # NEW: training entrypoint
+evaluate_rl.py                # NEW: evaluation & baseline comparison
 setup.py                      # modify: add "rl" extras (torch, numpy, tensorboard)
-Makefile                      # modify: add train-rl target
+Makefile                      # modify: add train-rl, evaluate-rl targets
 ```
 
 ---
