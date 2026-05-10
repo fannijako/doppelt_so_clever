@@ -29,6 +29,7 @@ src/
 │   ├── pygame_ui.py     # Pygame observer, threading, input bridging
 │   ├── renderer.py      # Pure rendering logic (draws board, dice, prompts)
 │   ├── render_snapshot.py # Immutable dataclass snapshot of game state
+│   ├── model_advisor.py # Loads trained model and provides action recommendations
 │   └── constants.py     # Colors, dice colors, action labels, FPS
 ├── input_handler/
 │   ├── base_input_handler.py      # InputHandler ABC
@@ -101,6 +102,8 @@ Run the game in **interactive mode** (Pygame UI):
 ```bash
 make run-interactive
 ```
+
+Press **H** during any prompt to get a recommendation from the trained RL model (loaded from `model/pbt_checkpoints/best_agent.pt`). The recommended option will be highlighted with a cyan border.
 
 Run the **Monte Carlo simulation**:
 ```bash

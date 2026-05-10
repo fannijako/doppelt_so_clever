@@ -7,6 +7,7 @@ COLORS = {
     "button":       (60, 70, 100),
     "button_hover": (80, 95, 140),
     "button_text":  (240, 240, 255),
+    "button_hint":  (100, 220, 255),
     "green":        (50, 160, 70),
     "blue":         (50, 100, 200),
     "pink":         (210, 80, 140),
@@ -122,6 +123,7 @@ BUTTON_GAP = 10
 BUTTON_MAX_WIDTH = 320
 BUTTON_AREA_MARGIN = 40
 BUTTON_TEXT_OFFSET_Y = 6
+BUTTON_HINT_BORDER_WIDTH = 3
 
 STATUS_BAR_HEIGHT = 28
 PROMPT_TEXT_HEIGHT = 28

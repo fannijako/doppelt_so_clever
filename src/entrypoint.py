@@ -4,6 +4,8 @@ from typing import Optional
 from src.game.game import Game
 from src.board.board import Board
 from src.ui.pygame_ui import PygameUI
+from src.game.rl_observer import RLObserver
+from src.ui.model_advisor import ModelAdvisor
 from src.game.game_observer import GameObserver
 from src.actions.action_handler import ActionHandler
 from src.game.logging_observer import LoggingObserver
@@ -60,8 +62,11 @@ def build_observer(arguments: argparse.Namespace, board: Board) -> tuple[GameObs
     pygame_ui: Optional[PygameUI] = None
 
     if arguments.mode == "interactive":
-        pygame_ui = PygameUI(board)
+        rl_observer = RLObserver(board)
+        advisor = ModelAdvisor(rl_observer)
+        pygame_ui = PygameUI(board, model_advisor=advisor)
         observers.append(pygame_ui)
+        observers.append(rl_observer)
 
     if len(observers) == 1:
         return observers[0], pygame_ui

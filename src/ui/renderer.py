@@ -28,7 +28,8 @@ from src.ui.constants import (
     GREY_CELL_TEXT_OFFSET_Y, PILL_HEIGHT, PILL_GAP, PILL_TEXT_PADDING,
     PILL_TEXT_OFFSET_X, PILL_TEXT_OFFSET_Y, PILL_BOTTOM_MARGIN,
     WON_ACTIONS_EMPTY_OFFSET_Y, BUTTON_HEIGHT, BUTTON_GAP, BUTTON_MAX_WIDTH,
-    BUTTON_AREA_MARGIN, BUTTON_TEXT_OFFSET_Y, STATUS_BAR_HEIGHT,
+    BUTTON_AREA_MARGIN, BUTTON_TEXT_OFFSET_Y, BUTTON_HINT_BORDER_WIDTH,
+    STATUS_BAR_HEIGHT,
     PROMPT_TEXT_HEIGHT, GAME_OVER_BANNER_HEIGHT, SCORE_RATING_HEIGHT,
     POPUP_WIDTH, POPUP_HEIGHT, POPUP_GAP, POPUP_MARGIN_RIGHT,
     POPUP_MARGIN_TOP, POPUP_BORDER_RADIUS, POPUP_TEXT_OFFSET_X,
@@ -82,6 +83,7 @@ class Renderer:  # pylint: disable=too-few-public-methods
                 snapshot.options,
                 screen_width,
                 status_vertical_offset,
+                snapshot.hint_index,
             )
 
         if snapshot.popup_notifications:
@@ -264,9 +266,11 @@ class Renderer:  # pylint: disable=too-few-public-methods
 
     def _render_prompt_with_buttons(
         self, prompt: str, options: list, screen_width: int, vertical_offset: int,
+        hint_index: int | None = None,
     ) -> list[pygame.Rect]:
+        hint_label = "  [H] Ask model" if hint_index is None else ""
         self._draw_text(
-            prompt,
+            prompt + hint_label,
             (screen_width // 2, vertical_offset),
             COLORS["prompt"],
             self._font_regular,
@@ -287,6 +291,11 @@ class Renderer:  # pylint: disable=too-few-public-methods
             is_hovered = button_rect.collidepoint(mouse_position)
             background = COLORS["button_hover"] if is_hovered else COLORS["button"]
             pygame.draw.rect(self._screen, background, button_rect, border_radius=BUTTON_BORDER_RADIUS)
+            if hint_index == index:
+                pygame.draw.rect(
+                    self._screen, COLORS["button_hint"], button_rect,
+                    width=BUTTON_HINT_BORDER_WIDTH, border_radius=BUTTON_BORDER_RADIUS,
+                )
             label = f"[{index}] {option}"
             self._draw_text(
                 label,

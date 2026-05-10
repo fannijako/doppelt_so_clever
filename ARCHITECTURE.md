@@ -19,6 +19,7 @@ src/
 │   ├── pygame_ui.py       # Pygame observer, threading, input bridging
 │   ├── renderer.py        # Pure rendering logic (board, dice, prompts)
 │   ├── render_snapshot.py # Immutable dataclass snapshot of game state
+│   ├── model_advisor.py   # Loads trained model and provides action recommendations
 │   └── constants.py       # Colors, dice colors, action labels, FPS
 ├── input_handler/
 │   ├── base_input_handler.py      # InputHandler ABC
@@ -75,7 +76,8 @@ scripts/
 | `RLObserver` | `src/game/rl_observer.py` | Tracks round number, subround, active/passive phase, dice values and availability; exposes `get_context_tensor()` (19 floats) and `get_state()` (board tensor + context + optional prompt-type one-hot); stores terminal score | `GameObserver`, `Board`, `DiceColor`, `DecisionType`, `PromptType` |
 | `PromptType` | `src/game/rl_observer.py` | Enum of 11 prompt types used for observation augmentation (one-hot encoding appended to state) | — |
 | `DecisionType` | `src/game/rl_observer.py` | Enum of decision types presented to the agent: `CHOOSE_INDEX`, `CONFIRM`, `CHOOSE_VALUE` | — |
-| `PygameUI` | `src/ui/pygame_ui.py` | Pygame-based observer; tracks dice/board state for rendering; provides `wait_for_input()` / `submit_input()` for synchronous input from the UI thread; runs game logic on a background thread via `run_with_game()` | `GameObserver`, `Board`, `Renderer`, `RenderSnapshot`, `pygame` |
+| `PygameUI` | `src/ui/pygame_ui.py` | Pygame-based observer; tracks dice/board state for rendering; provides `wait_for_input()` / `submit_input()` for synchronous input from the UI thread; runs game logic on a background thread via `run_with_game()`; supports model hints via `H` keypress | `GameObserver`, `Board`, `Renderer`, `RenderSnapshot`, `pygame`, `ModelAdvisor` (optional) |
+| `ModelAdvisor` | `src/ui/model_advisor.py` | Loads a trained `PolicyNetwork` checkpoint; uses `RLObserver` to build game state tensors; returns greedy action recommendations for UI hints | `PolicyNetwork`, `RLObserver`, `DecisionType`, `_MAX_OPTIONS` |
 | `Renderer` | `src/ui/renderer.py` | Stateless rendering class; draws board panels (yellow, blue, green, pink, grey), dice, status bar, buttons, and won-actions from a `RenderSnapshot` | `RenderSnapshot`, `constants`, `pygame` |
 | `RenderSnapshot` | `src/ui/render_snapshot.py` | Immutable `@dataclass` holding a complete copy of game state for one frame (board dict, dice lists, round info, prompt/options, score) | — |
 
@@ -196,6 +198,7 @@ main.py → entrypoint → Game
                           │     ├── CompositeObserver → [GameObserver...]
                           │     ├── RLObserver
                           │     └── PygameUI ← PygameInputHandler
+                          │           └── ModelAdvisor (optional, for hints)
                           ├── InputHandler (ABC)
                           │     ├── ConsoleInputHandler
                           │     ├── AutomaticInputHandler
