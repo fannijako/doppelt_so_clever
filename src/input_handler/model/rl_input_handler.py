@@ -34,19 +34,19 @@ class RLInputHandler(InputHandler):
         return list(self._trajectory)
 
     def choose_index(self, prompt: str, options: list[Any]) -> int:
-        return self._decide(DecisionType.CHOOSE_INDEX, len(options))
+        return self._decide(DecisionType.CHOOSE_INDEX, len(options), prompt)
 
     def confirm(self, prompt: str) -> bool:
-        return self._decide(DecisionType.CONFIRM, 2) == 0
+        return self._decide(DecisionType.CONFIRM, 2, prompt) == 0
 
     def choose_value(self, prompt: str, valid_values: list[str]) -> str:
-        return valid_values[self._decide(DecisionType.CHOOSE_VALUE, len(valid_values))]
+        return valid_values[self._decide(DecisionType.CHOOSE_VALUE, len(valid_values), prompt)]
 
     def clear_trajectory(self) -> None:
         self._trajectory.clear()
 
-    def _decide(self, decision_type: DecisionType, num_options: int) -> int:
-        state = self._observer.get_state(decision_type, num_options)
+    def _decide(self, decision_type: DecisionType, num_options: int, prompt: str = "") -> int:
+        state = self._observer.get_state(decision_type, num_options, prompt)
         mask = _build_action_mask(num_options)
         action, log_prob, value = self._policy(state, mask)
         if self._training:

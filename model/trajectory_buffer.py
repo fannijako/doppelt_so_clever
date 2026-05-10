@@ -39,7 +39,7 @@ class TrajectoryBatch:
 
 def compute_gae(
     trajectory: Trajectory,
-    gamma: float = 0.99,
+    gamma: float = 1.0,
     gae_lambda: float = 0.95,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     n = len(trajectory)

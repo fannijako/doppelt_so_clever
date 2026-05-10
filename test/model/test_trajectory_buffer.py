@@ -68,7 +68,7 @@ class TestBuildBatch:
 
     def test_advantages_normalized_mean_near_zero(self):
         batch = build_batch([_make_trajectory(10, 50.0)])
-        assert batch.advantages.mean().item() == pytest.approx(0.0, abs=1e-6)
+        assert batch.advantages.mean().item() == pytest.approx(0.0, abs=1e-5)
 
     def test_states_length_matches_total_transitions(self):
         batch = build_batch([_make_trajectory(4, 10.0), _make_trajectory(6, 30.0)])

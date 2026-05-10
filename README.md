@@ -109,7 +109,7 @@ make run-monte-carlo
 
 Run Monte Carlo with a **trained RL model**:
 ```bash
-python monte_carlo.py --mode rl --rounds 1000
+python main.py monte-carlo --mode rl --rounds 1000
 ```
 
 Train the **RL agent** (PPO):
@@ -124,7 +124,12 @@ make evaluate-rl
 
 Run evaluation with **CI gate** (exits non-zero if RL agent scores below Always-Accept):
 ```bash
-python evaluate_rl.py -n 200 --ci --checkpoint model/ci_checkpoint.pt
+python main.py evaluate -n 200 --ci --checkpoint model/ci_checkpoint.pt
+```
+
+Train the RL agent with **Population-Based Training** (PBT):
+```bash
+python main.py pbt-train --population-size 8 --iterations 5000
 ```
 
 Monitor training with **TensorBoard**:
@@ -132,27 +137,76 @@ Monitor training with **TensorBoard**:
 tensorboard --logdir runs
 ```
 
+---
+
+## PBT Training Parameters
+
+Population-Based Training runs multiple agents in parallel, periodically replacing the worst performers with mutated copies of the best. This automates hyperparameter tuning during training.
+
+### PBT Schedule Parameters
+
+| Parameter | Flag | Default | Effect |
+|-----------|------|---------|--------|
+| **population_size** | `--population-size` | 8 | Number of agents trained in parallel. Larger populations explore more hyperparameter combinations but increase compute linearly. |
+| **iterations** | `--iterations` | 5000 | Total training iterations. Each iteration runs one PPO update per agent. More iterations give agents more time to converge. |
+| **eval_interval** | `--eval-interval` | 50 | How often (in iterations) agents are evaluated and exploit/explore is triggered. Lower values adapt faster but add evaluation overhead. |
+| **eval_episodes** | `--eval-episodes` | 32 | Number of game episodes used to estimate each agent's mean score. More episodes reduce variance in fitness estimation. |
+| **batch_size** | `--batch-size` | 64 | Number of game episodes collected per agent per training step. Larger batches give more stable gradient estimates but slow each iteration. |
+
+### Exploit/Explore Parameters
+
+| Parameter | Flag | Default | Effect |
+|-----------|------|---------|--------|
+| **fraction** | `--exploit-fraction` | 0.2 | Fraction of the population considered top/bottom performers. At each eval interval, the bottom fraction copies weights from a random top-fraction agent. Higher values are more aggressive (replace more agents). |
+| **perturb_factor** | `--perturb-factor` | 1.2 | After copying weights, the new agent's learning rate and entropy coefficient are multiplied or divided by this factor (50/50 chance each). Larger values explore hyperparameter space more broadly; smaller values stay closer to proven configurations. |
+
+### Per-Agent Hyperparameters (evolved by PBT)
+
+| Parameter | Initial Range | Perturb Bounds | Effect |
+|-----------|---------------|----------------|--------|
+| **learning_rate** | log-uniform [1e-4, 1e-3] | [1e-6, 1e-2] | Controls the Adam optimizer step size. Too high → unstable policy updates; too low → slow learning. PBT adjusts this automatically. |
+| **entropy_coefficient** | log-uniform [0.001, 0.05] | [1e-4, 0.1] | Weight of the entropy bonus in the PPO loss. Higher values encourage exploration (more random actions); lower values exploit the current best strategy. |
+| **hidden1** | 256 (fixed) | — | First hidden layer size of the policy network. Not perturbed by PBT. |
+| **hidden2** | 128 (fixed) | — | Second hidden layer size of the policy network. Not perturbed by PBT. |
+
+### PPO Parameters (fixed across all agents)
+
+| Parameter | Value | Effect |
+|-----------|-------|--------|
+| **clip_epsilon** | 0.2 | Clamps the policy ratio in the PPO surrogate objective. Prevents destructively large policy updates. |
+| **epochs_per_batch** | 4 | Number of passes over the collected batch per PPO update. More epochs extract more signal from each batch but risk overfitting to stale data. |
+| **value_loss_coefficient** | 0.5 | Weight of the value-function MSE loss relative to the policy loss. |
+| **max_grad_norm** | 0.5 | Gradient clipping threshold. Prevents exploding gradients during optimization. |
+| **minibatch_size** | 256 | Size of minibatches sampled from the batch during PPO updates. Smaller minibatches add noise that can help escape local optima. |
+
+### I/O Parameters
+
+| Parameter | Flag | Default | Effect |
+|-----------|------|---------|--------|
+| **checkpoint_dir** | `--checkpoint-dir` | `model/pbt_checkpoints` | Directory where the best agent is saved at the end of training. |
+| **log_dir** | `--log-dir` | `runs/pbt` | TensorBoard log directory. Tracks per-agent learning rates, entropy coefficients, and population-level scores. |
+
 All modes can be selected via the `--mode` flag:
 ```bash
-python main.py --mode console          # default, stdin prompts
-python main.py --mode automatic         # random decisions
-python main.py --mode always-accept     # heuristic: always accept
-python main.py --mode model             # trained model
-python main.py --mode interactive       # Pygame UI
+python main.py play --mode console          # default, stdin prompts
+python main.py play --mode automatic         # random decisions
+python main.py play --mode always-accept     # heuristic: always accept
+python main.py play --mode model             # trained model
+python main.py play --mode interactive       # Pygame UI
 ```
 
 Monte Carlo simulation modes:
 ```bash
-python monte_carlo.py --mode automatic         # random decisions
-python monte_carlo.py --mode always-accept     # heuristic: always accept
-python monte_carlo.py --mode model             # trained model
-python monte_carlo.py --mode rl                # RL model (loads latest checkpoint)
-python monte_carlo.py --mode rl --checkpoint model/checkpoints/checkpoint_000009.pt  # specific checkpoint
+python main.py monte-carlo --mode automatic         # random decisions
+python main.py monte-carlo --mode always-accept     # heuristic: always accept
+python main.py monte-carlo --mode model             # trained model
+python main.py monte-carlo --mode rl                # RL model (loads latest checkpoint)
+python main.py monte-carlo --mode rl --checkpoint model/checkpoints/checkpoint_000009.pt  # specific checkpoint
 ```
 
 Enable verbose logging with the `-v` flag:
 ```bash
-python main.py --mode automatic -v
+python main.py play --mode automatic -v
 ```
 
 ## Development

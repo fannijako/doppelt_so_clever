@@ -42,9 +42,13 @@ src/
 model/
 ├── policy_network.py      # PolicyNetwork (nn.Module): shared trunk + policy/value heads
 ├── trajectory_buffer.py   # Transition, Trajectory, GAE computation, batch building
-└── ppo.py                 # PPOTrainer, PPOConfig, clipped surrogate loss
-train_rl.py                # RL training entrypoint (PPO training loop, checkpointing, TensorBoard)
-evaluate_rl.py             # RL evaluation: baselines, score distributions, learning curves, CI gate
+├── ppo.py                 # PPOTrainer, PPOConfig, clipped surrogate loss
+└── rl_utils.py            # Shared helpers: make_policy_fn, run_episode, collect_batch, convert_trajectory
+scripts/
+├── train_rl.py            # RL training entrypoint (PPO training loop, checkpointing, TensorBoard)
+├── pbt_train_rl.py        # Population-Based Training: multiple agents, exploit/explore, hyperparameter perturbation
+├── evaluate_rl.py         # RL evaluation: baselines, score distributions, learning curves, CI gate
+└── monte_carlo.py         # Monte Carlo simulation with configurable input modes
 ```
 
 ---
@@ -57,9 +61,9 @@ evaluate_rl.py             # RL evaluation: baselines, score distributions, lear
 |-------|------|----------------|--------------|
 | *(module)* `entrypoint` | `src/entrypoint.py` | Parses CLI args (`-v`, `--mode`), builds observer + input handler, starts a `Game` | `Game`, `CompositeObserver`, `LoggingObserver`, `PygameUI`, `PygameInputHandler` |
 | `Game` | `src/game/game.py` | Runs 6 active rounds, each followed by a passive round; grants round-specific bonus actions; triggers final scoring; notifies `GameObserver` on lifecycle events | `Board`, `ActionHandler`, `GameObserver`, `ActiveRound`, `PassiveRound`, `ReRollAction`, `ReUseAction`, `PlusOneAction`, `BlackQuestionMarkAction` |
-| *(module)* `monte_carlo` | `monte_carlo.py` | Runs Monte Carlo simulations with configurable rounds; uses a `GameFactory` callable to create per-game instances; RL mode wires a fresh `Board`/`RLObserver`/`RLInputHandler` per game matching the training setup | `Game`, `LoggingObserver`, `RLObserver`, `RLInputHandler`, `PolicyNetwork` |
-| *(module)* `train_rl` | `train_rl.py` | PPO training loop: collects episode batches via `RLInputHandler`, builds trajectory batches, runs PPO updates, logs to TensorBoard, saves periodic checkpoints | `Game`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `PPOTrainer`, `TrajectoryBatch` |
-| *(module)* `evaluate_rl` | `evaluate_rl.py` | Runs baseline agents (random, always-accept) and the trained RL agent; prints comparison table; plots score distributions and learning curves from TensorBoard logs; `--ci` flag exits non-zero if RL agent mean score is below Always-Accept | `Game`, `LoggingObserver`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `AutomaticInputHandler`, `AlwaysAcceptInputHandler` |
+| *(module)* `monte_carlo` | `scripts/monte_carlo.py` | Runs Monte Carlo simulations with configurable rounds; uses a `GameFactory` callable to create per-game instances; RL mode wires a fresh `Board`/`RLObserver`/`RLInputHandler` per game matching the training setup | `Game`, `LoggingObserver`, `RLObserver`, `RLInputHandler`, `PolicyNetwork` |
+| *(module)* `train_rl` | `scripts/train_rl.py` | PPO training loop: collects episode batches via `RLInputHandler`, builds trajectory batches, runs PPO updates, logs to TensorBoard, saves periodic checkpoints | `Game`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `PPOTrainer`, `TrajectoryBatch` |
+| *(module)* `evaluate_rl` | `scripts/evaluate_rl.py` | Runs baseline agents (random, always-accept) and the trained RL agent; prints comparison table; plots score distributions and learning curves from TensorBoard logs; `--ci` flag exits non-zero if RL agent mean score is below Always-Accept | `Game`, `LoggingObserver`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `AutomaticInputHandler`, `AlwaysAcceptInputHandler` |
 
 ### Observers
 
@@ -68,7 +72,8 @@ evaluate_rl.py             # RL evaluation: baselines, score distributions, lear
 | `GameObserver` (ABC) | `src/game/game_observer.py` | Abstract interface for game event listeners: round start/end, active/passive round started, subround started, dice rolled, die picked, board updated, action executed, game ended | `Dice` (type-check only) |
 | `LoggingObserver` | `src/game/logging_observer.py` | Logs every game event via `GameLogger` | `GameObserver`, `GameLogger` |
 | `CompositeObserver` | `src/game/composite_observer.py` | Multicasts every event to a list of child `GameObserver`s | `GameObserver` |
-| `RLObserver` | `src/game/rl_observer.py` | Tracks round number, subround, active/passive phase, dice values and availability; exposes `get_context_tensor()` (19 floats) and `get_state()` (board tensor + context); stores terminal score | `GameObserver`, `Board`, `DiceColor`, `DecisionType` |
+| `RLObserver` | `src/game/rl_observer.py` | Tracks round number, subround, active/passive phase, dice values and availability; exposes `get_context_tensor()` (19 floats) and `get_state()` (board tensor + context + optional prompt-type one-hot); stores terminal score | `GameObserver`, `Board`, `DiceColor`, `DecisionType`, `PromptType` |
+| `PromptType` | `src/game/rl_observer.py` | Enum of 11 prompt types used for observation augmentation (one-hot encoding appended to state) | — |
 | `DecisionType` | `src/game/rl_observer.py` | Enum of decision types presented to the agent: `CHOOSE_INDEX`, `CONFIRM`, `CHOOSE_VALUE` | — |
 | `PygameUI` | `src/ui/pygame_ui.py` | Pygame-based observer; tracks dice/board state for rendering; provides `wait_for_input()` / `submit_input()` for synchronous input from the UI thread; runs game logic on a background thread via `run_with_game()` | `GameObserver`, `Board`, `Renderer`, `RenderSnapshot`, `pygame` |
 | `Renderer` | `src/ui/renderer.py` | Stateless rendering class; draws board panels (yellow, blue, green, pink, grey), dice, status bar, buttons, and won-actions from a `RenderSnapshot` | `RenderSnapshot`, `constants`, `pygame` |
@@ -95,8 +100,13 @@ evaluate_rl.py             # RL evaluation: baselines, score distributions, lear
 | `TrajectoryBatch` | `model/trajectory_buffer.py` | Flat tensors (states, actions, log_probs, values, action_masks, advantages, returns) for a batch of trajectories | `torch` |
 | `PPOConfig` | `model/ppo.py` | Dataclass holding PPO hyperparameters: learning rate, clip epsilon, epochs per batch, entropy/value coefficients, max grad norm, minibatch size | — |
 | `PPOTrainer` | `model/ppo.py` | Runs PPO updates: minibatch splitting, clipped surrogate loss, value loss, entropy bonus, gradient clipping | `PolicyNetwork`, `TrajectoryBatch`, `PPOConfig` |
-| `TrainingConfig` | `train_rl.py` | Dataclass holding training loop parameters: iterations, batch size, checkpoint interval/dir, log dir, resume path, and nested `PPOConfig` | `PPOConfig` |
-| `IterationMetrics` | `train_rl.py` | Dataclass bundling per-iteration stats: iteration number, global episode count, scores, elapsed time | — |
+| `TrainingConfig` | `scripts/train_rl.py` | Dataclass holding training loop parameters: iterations, batch size, hidden layer sizes, and nested `PPOConfig`, `FeatureFlags`, `IOConfig` | `PPOConfig`, `FeatureFlags`, `IOConfig` |
+| `FeatureFlags` | `scripts/train_rl.py` | Dataclass holding feature toggles: observation augmentation, LR decay, curriculum learning (start/end rounds) | — |
+| `IOConfig` | `scripts/train_rl.py` | Dataclass holding I/O parameters: checkpoint interval/dir, log dir, resume path | — |
+| `TrainingContext` | `scripts/train_rl.py` | Dataclass bundling policy, trainer, and optional LR scheduler for the training loop | `PolicyNetwork`, `PPOTrainer` |
+| `IterationMetrics` | `scripts/train_rl.py` | Dataclass bundling per-iteration stats: iteration number, global episode count, scores, elapsed time | — |
+| `PBTConfig` | `scripts/pbt_train_rl.py` | Dataclass holding PBT parameters: population size, iterations, eval interval/episodes, batch size, and nested `ExploitConfig`, `PBTIOConfig` | `ExploitConfig`, `PBTIOConfig` |
+| `Agent` | `scripts/pbt_train_rl.py` | Dataclass representing one agent in the population: policy, trainer, config, mean score | `PolicyNetwork`, `PPOTrainer`, `AgentConfig` |
 
 ### Rounds
 
@@ -217,10 +227,14 @@ model/
 └── PPOTrainer
       └── updates PolicyNetwork using TrajectoryBatch
 
-train_rl.py ─→ Game, RLObserver, RLInputHandler, PolicyNetwork, PPOTrainer
-              └── training loop: collect episodes → build batch → PPO update → log & checkpoint
-evaluate_rl.py ─→ Game, RLObserver, RLInputHandler, PolicyNetwork, AutomaticInputHandler, AlwaysAcceptInputHandler
-                └── baseline comparison: run agents → score stats → distribution/learning-curve plots
+scripts/
+├── train_rl.py ─→ rl_utils, PolicyNetwork, PPOTrainer
+│                 └── training loop: collect episodes → build batch → PPO update → log & checkpoint
+│                 └── features: observation augmentation, LR decay, curriculum learning
+├── pbt_train_rl.py ─→ rl_utils, PolicyNetwork, PPOTrainer
+│                    └── population-based training: init agents → train step → evaluate → exploit/explore
+└── evaluate_rl.py ─→ Game, RLObserver, RLInputHandler, PolicyNetwork, AutomaticInputHandler, AlwaysAcceptInputHandler
+                    └── baseline comparison: run agents → score stats → distribution/learning-curve plots
 ```
 
 Both `ActiveRound` and `PassiveRound` depend on `Board`, `ActionHandler`, `GameObserver`, `Dice`, and `DiceColor`. Board parts depend on their respective box classes, `ActionMap`, `Dice`, and `DiceColor`.

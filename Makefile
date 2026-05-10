@@ -1,4 +1,4 @@
-.PHONY: venv build build-test build-monte-carlo build-interactive build-rl build-all lint test run run-auto run-monte-carlo run-interactive train-rl evaluate-rl clean
+.PHONY: venv build build-test build-monte-carlo build-interactive build-rl build-all lint test run run-auto run-monte-carlo run-interactive train-rl pbt-train-rl evaluate-rl clean
 PYFILES = $(shell git ls-files '*.py')
 
 venv:
@@ -36,19 +36,22 @@ run:
 	python main.py
 
 run-auto:
-	python main.py --mode automatic
+	python main.py play --mode automatic
 
 run-monte-carlo:
-	python monte_carlo.py -r 1000 --mode automatic
+	python main.py monte-carlo -r 1000 --mode automatic
 
 run-interactive:
-	python main.py --mode interactive
+	python main.py play --mode interactive
 
 train-rl:
-	python train_rl.py
+	python main.py train
+
+pbt-train-rl:
+	python main.py pbt-train
 
 evaluate-rl:
-	python evaluate_rl.py -n 1000
+	python main.py evaluate -n 1000
 
 clean:
 	rm -rf .venv
