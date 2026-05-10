@@ -24,14 +24,16 @@ if TYPE_CHECKING:
     from src.dice.dice import Dice
     from src.game.game import Game
     from src.actions.base_action import Action
+    from src.ui.model_advisor import ModelAdvisor
 
 logger = GameLogger(__name__)
 
 
 class PygameUI(GameObserver):
 
-    def __init__(self, board: Board):
+    def __init__(self, board: Board, model_advisor: ModelAdvisor | None = None):
         self.board = board
+        self._model_advisor = model_advisor
         self.current_dice: list[Dice] = []
         self.available_dice: list[Dice] = []
         self._picked_dice: list[Dice] = []
@@ -43,6 +45,7 @@ class PygameUI(GameObserver):
         self._game_over = False
         self._won_actions: list[dict] = []
         self._popups: list[dict] = []
+        self._hint_index: int | None = None
 
         self._lock = threading.Lock()
         self._input_event = threading.Event()
@@ -138,6 +141,7 @@ class PygameUI(GameObserver):
             self._options = list(options)
             self._waiting = True
             self._button_rects = []
+            self._hint_index = None
         self._input_result = None
         self._input_event.clear()
         self._input_event.wait()
@@ -188,11 +192,27 @@ class PygameUI(GameObserver):
                 return True
             options = self._options
 
+        if event.key == pygame.K_h:
+            self._request_hint()
+            return True
+
         if pygame.K_0 <= event.key <= pygame.K_9:
             index = event.key - pygame.K_0
             if 0 <= index < len(options):
                 self.submit_input(index)
         return True
+
+    def _request_hint(self) -> None:
+        if self._model_advisor is None:
+            return
+        with self._lock:
+            num_options = len(self._options)
+            prompt = self._prompt
+        if num_options < 1:
+            return
+        recommendation = self._model_advisor.get_recommendation(num_options, prompt)
+        with self._lock:
+            self._hint_index = recommendation
 
     def _handle_mouse_click(self, position: tuple[int, int]) -> None:
         with self._lock:
@@ -222,6 +242,7 @@ class PygameUI(GameObserver):
                 is_game_over=self._game_over,
                 won_actions=list(self._won_actions),
                 popup_notifications=self._build_popup_notifications(),
+                hint_index=self._hint_index,
             )
 
     def _build_popup_notifications(self) -> list[dict]:
