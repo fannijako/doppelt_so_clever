@@ -14,7 +14,6 @@ class Transition:
     log_prob: float
     value: float
     action_mask: list[bool]
-    reward: float = 0.0
 
 
 class Policy(Protocol):  # pylint: disable=too-few-public-methods
@@ -43,14 +42,10 @@ class RLInputHandler(InputHandler):
     def choose_value(self, prompt: str, valid_values: list[str]) -> str:
         return valid_values[self._decide(DecisionType.CHOOSE_VALUE, len(valid_values), prompt)]
 
-    def flush_final_reward(self) -> None:
-        self._assign_step_reward()
-
     def clear_trajectory(self) -> None:
         self._trajectory.clear()
 
     def _decide(self, decision_type: DecisionType, num_options: int, prompt: str = "") -> int:
-        self._assign_step_reward()
         state = self._observer.get_state(decision_type, num_options, prompt)
         mask = _build_action_mask(num_options)
         action, log_prob, value = self._policy(state, mask)
@@ -62,11 +57,6 @@ class RLInputHandler(InputHandler):
                 )
             )
         return action
-
-    def _assign_step_reward(self) -> None:
-        if not self._training or not self._trajectory:
-            return
-        self._trajectory[-1].reward += self._observer.get_step_reward()
 
 
 def _build_action_mask(num_options: int) -> list[bool]:

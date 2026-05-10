@@ -12,7 +12,6 @@ class Transition:
     log_prob: float
     value: float
     action_mask: list[float]
-    reward: float = 0.0
 
 
 @dataclass
@@ -40,7 +39,7 @@ class TrajectoryBatch:
 
 def compute_gae(
     trajectory: Trajectory,
-    gamma: float = 0.99,
+    gamma: float = 1.0,
     gae_lambda: float = 0.95,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     n = len(trajectory)
@@ -48,13 +47,11 @@ def compute_gae(
     values = torch.tensor([t.value for t in trajectory.transitions])
     terminal_reward = trajectory.reward
 
-    step_rewards = torch.tensor([t.reward for t in trajectory.transitions])
-
     last_gae = 0.0
     for t in reversed(range(n)):
         next_value = values[t + 1] if t + 1 < n else 0.0
         is_last = 1.0 if t == n - 1 else 0.0
-        reward = step_rewards[t] + terminal_reward * is_last
+        reward = terminal_reward * is_last
         delta = reward + gamma * next_value - values[t]
         last_gae = delta + gamma * gae_lambda * (1.0 - is_last) * last_gae
         advantages[t] = last_gae

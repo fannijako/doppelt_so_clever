@@ -120,12 +120,11 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def get_input_handler(arguments: argparse.Namespace) -> InputHandler:
-    # pylint: disable=unnecessary-lambda
     handlers = {
-        "console": lambda: ConsoleInputHandler(),
-        "always-accept": lambda: AlwaysAcceptInputHandler(),
+        "console": ConsoleInputHandler,
+        "always-accept": AlwaysAcceptInputHandler,
         "model": lambda: ModelInputHandler(DoppeltSoCleverModel()),
-        "automatic": lambda: AutomaticInputHandler(),
+        "automatic": AutomaticInputHandler,
     }
 
     handler_factory = handlers.get(arguments.mode)

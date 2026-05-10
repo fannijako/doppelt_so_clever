@@ -35,22 +35,18 @@ def convert_trajectory(transitions: list[Transition], reward: float) -> Trajecto
             log_prob=t.log_prob,
             value=t.value,
             action_mask=[float(m) for m in t.action_mask],
-            reward=t.reward,
         ))
     return traj
 
 
 def run_episode(
     policy_fn,
-    reward_shaping: bool = False,
     augmented: bool = False,
     max_rounds: int | None = None,
     training: bool = True,
 ) -> tuple[Trajectory, int]:
     board = Board()
-    observer = RLObserver(
-        board, reward_shaping=reward_shaping, augmented=augmented,
-    )
+    observer = RLObserver(board, augmented=augmented)
     handler = RLInputHandler(observer, policy_fn, training=training)
     game = Game(
         input_handler=handler,
@@ -59,14 +55,12 @@ def run_episode(
         action_handler=ActionHandler(board=board),
     )
     score = game.play(max_rounds=max_rounds)
-    handler.flush_final_reward()
     return convert_trajectory(handler.trajectory, float(score)), score
 
 
 def collect_batch(
     policy: PolicyNetwork,
     batch_size: int,
-    reward_shaping: bool = False,
     augmented: bool = False,
     max_rounds: int | None = None,
 ) -> tuple[list[Trajectory], list[int]]:
@@ -74,7 +68,7 @@ def collect_batch(
     trajectories: list[Trajectory] = []
     scores: list[int] = []
     for _ in range(batch_size):
-        traj, score = run_episode(policy_fn, reward_shaping, augmented, max_rounds)
+        traj, score = run_episode(policy_fn, augmented=augmented, max_rounds=max_rounds)
         trajectories.append(traj)
         scores.append(score)
     return trajectories, scores

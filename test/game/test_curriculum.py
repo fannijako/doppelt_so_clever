@@ -1,4 +1,4 @@
-from train_rl import _curriculum_rounds, TrainingConfig, FeatureFlags
+from scripts.train_rl import _curriculum_rounds, TrainingConfig, FeatureFlags
 
 
 def _config(curriculum=False, iterations=5000, start=2, end=6):

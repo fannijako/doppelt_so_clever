@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class FeatureFlags:
-    reward_shaping: bool = False
     augmented: bool = False
     lr_decay: bool = False
     curriculum: bool = False
@@ -104,7 +103,7 @@ def _training_step(
     t0 = time.time()
     max_rounds = _curriculum_rounds(iteration, config)
     trajectories, scores = collect_batch(
-        ctx.policy, config.batch_size, config.features.reward_shaping,
+        ctx.policy, config.batch_size,
         config.features.augmented, max_rounds,
     )
     batch = build_batch(trajectories)
@@ -239,7 +238,6 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
         value_loss_coefficient=args.value_coef,
     )
     features = FeatureFlags(
-        reward_shaping=args.reward_shaping,
         augmented=args.augmented,
         lr_decay=args.lr_decay,
         curriculum=args.curriculum,
@@ -275,7 +273,6 @@ def _parse_arguments() -> argparse.Namespace:
     parser.add_argument("--checkpoint-dir", type=str, default="model/checkpoints")
     parser.add_argument("--log-dir", type=str, default="runs/doppelt_rl")
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
-    parser.add_argument("--reward-shaping", action="store_true", help="Enable intermediate reward shaping")
     parser.add_argument("--hidden1", type=int, default=256, help="First hidden layer size")
     parser.add_argument("--hidden2", type=int, default=128, help="Second hidden layer size")
     parser.add_argument("--lr-decay", action="store_true", help="Enable linear learning rate decay")

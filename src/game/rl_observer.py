@@ -49,8 +49,6 @@ class _ObserverState:
     dice_available: dict[DiceColor, bool] = field(
         default_factory=lambda: {c: False for c in DiceColor},
     )
-    prev_score: int = 0
-    accumulated_reward: float = 0.0
 
 
 PROMPT_FEATURES_SIZE = len(PromptType)
@@ -60,11 +58,8 @@ class RLObserver(GameObserver):
     CONTEXT_SIZE = 19
     AUGMENTED_CONTEXT_SIZE = CONTEXT_SIZE + PROMPT_FEATURES_SIZE
 
-    def __init__(
-        self, board: Board, reward_shaping: bool = False, augmented: bool = False,
-    ):
+    def __init__(self, board: Board, augmented: bool = False):
         self._board = board
-        self._reward_shaping = reward_shaping
         self._augmented = augmented
         self._state = _ObserverState()
         self._score: int | None = None
@@ -102,11 +97,7 @@ class RLObserver(GameObserver):
             self._state.dice_available[color] = color in available_colors
 
     def on_board_updated(self) -> None:
-        if not self._reward_shaping:
-            return
-        current_score = self._board.evaluate()
-        self._state.accumulated_reward += current_score - self._state.prev_score
-        self._state.prev_score = current_score
+        pass
 
     def on_game_ended(self, score: int) -> None:
         self._score = score
@@ -122,11 +113,6 @@ class RLObserver(GameObserver):
             + _decision_type_one_hot(decision_type)
             + [num_options / _MAX_OPTIONS]
         )
-
-    def get_step_reward(self) -> float:
-        reward = self._state.accumulated_reward
-        self._state.accumulated_reward = 0.0
-        return reward
 
     def get_state(
         self, decision_type: DecisionType, num_options: int, prompt: str = "",

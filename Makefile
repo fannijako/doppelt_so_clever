@@ -36,22 +36,22 @@ run:
 	python main.py
 
 run-auto:
-	python main.py --mode automatic
+	python main.py play --mode automatic
 
 run-monte-carlo:
-	python monte_carlo.py -r 1000 --mode automatic
+	python main.py monte-carlo -r 1000 --mode automatic
 
 run-interactive:
-	python main.py --mode interactive
+	python main.py play --mode interactive
 
 train-rl:
-	python train_rl.py
+	python main.py train
 
 pbt-train-rl:
-	python pbt_train_rl.py
+	python main.py pbt-train
 
 evaluate-rl:
-	python evaluate_rl.py -n 1000
+	python main.py evaluate -n 1000
 
 clean:
 	rm -rf .venv

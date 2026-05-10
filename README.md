@@ -109,7 +109,7 @@ make run-monte-carlo
 
 Run Monte Carlo with a **trained RL model**:
 ```bash
-python monte_carlo.py --mode rl --rounds 1000
+python main.py monte-carlo --mode rl --rounds 1000
 ```
 
 Train the **RL agent** (PPO):
@@ -124,12 +124,12 @@ make evaluate-rl
 
 Run evaluation with **CI gate** (exits non-zero if RL agent scores below Always-Accept):
 ```bash
-python evaluate_rl.py -n 200 --ci --checkpoint model/ci_checkpoint.pt
+python main.py evaluate -n 200 --ci --checkpoint model/ci_checkpoint.pt
 ```
 
 Train the RL agent with **Population-Based Training** (PBT):
 ```bash
-python pbt_train_rl.py --population-size 8 --iterations 5000
+python main.py pbt-train --population-size 8 --iterations 5000
 ```
 
 Monitor training with **TensorBoard**:
@@ -188,25 +188,25 @@ Population-Based Training runs multiple agents in parallel, periodically replaci
 
 All modes can be selected via the `--mode` flag:
 ```bash
-python main.py --mode console          # default, stdin prompts
-python main.py --mode automatic         # random decisions
-python main.py --mode always-accept     # heuristic: always accept
-python main.py --mode model             # trained model
-python main.py --mode interactive       # Pygame UI
+python main.py play --mode console          # default, stdin prompts
+python main.py play --mode automatic         # random decisions
+python main.py play --mode always-accept     # heuristic: always accept
+python main.py play --mode model             # trained model
+python main.py play --mode interactive       # Pygame UI
 ```
 
 Monte Carlo simulation modes:
 ```bash
-python monte_carlo.py --mode automatic         # random decisions
-python monte_carlo.py --mode always-accept     # heuristic: always accept
-python monte_carlo.py --mode model             # trained model
-python monte_carlo.py --mode rl                # RL model (loads latest checkpoint)
-python monte_carlo.py --mode rl --checkpoint model/checkpoints/checkpoint_000009.pt  # specific checkpoint
+python main.py monte-carlo --mode automatic         # random decisions
+python main.py monte-carlo --mode always-accept     # heuristic: always accept
+python main.py monte-carlo --mode model             # trained model
+python main.py monte-carlo --mode rl                # RL model (loads latest checkpoint)
+python main.py monte-carlo --mode rl --checkpoint model/checkpoints/checkpoint_000009.pt  # specific checkpoint
 ```
 
 Enable verbose logging with the `-v` flag:
 ```bash
-python main.py --mode automatic -v
+python main.py play --mode automatic -v
 ```
 
 ## Development

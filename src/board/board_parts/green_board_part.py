@@ -31,6 +31,8 @@ class GreenBoardPart:
         self._validate_dice(dice)
         logger.info("Green board", dice, "adding")
         index_of_next_empty_field = self.index_of_next_empty_field()
+        if index_of_next_empty_field >= len(self.boxes):
+            raise ValueError("Green board is full, cannot add dice")
         box = self.boxes[index_of_next_empty_field]
         box.add_dice_value(dice.value)
         logger.info("Green box", f"{dice} at {index_of_next_empty_field}: {box.value_used}", "added")
