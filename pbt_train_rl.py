@@ -247,7 +247,7 @@ def _parse_arguments() -> argparse.Namespace:
         description="Population-Based Training for Doppelt so clever",
     )
     parser.add_argument("--population-size", type=int, default=8)
-    parser.add_argument("--iterations", type=int, default=5000)
+    parser.add_argument("--iterations", type=int, default=5)
     parser.add_argument("--eval-interval", type=int, default=50)
     parser.add_argument("--eval-episodes", type=int, default=32)
     parser.add_argument("--batch-size", type=int, default=64)
