@@ -12,6 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 from model.policy_network import PolicyNetwork, STATE_SIZE
 from model.ppo import PPOConfig, PPOTrainer, PPOUpdateResult
 from model.trajectory_buffer import build_batch
+from model.early_stop import EarlyStopConfig, EarlyStopTracker
 from model.rl_utils import collect_batch
 from src.game.rl_observer import PROMPT_FEATURES_SIZE
 
@@ -42,8 +43,10 @@ class TrainingConfig:
     ppo: PPOConfig = field(default_factory=PPOConfig)
     hidden1: int = 256
     hidden2: int = 128
+    num_workers: int = 0
     features: FeatureFlags = field(default_factory=FeatureFlags)
     io: IOConfig = field(default_factory=IOConfig)
+    early_stop: EarlyStopConfig = field(default_factory=EarlyStopConfig)
 
 
 @dataclass
@@ -88,11 +91,32 @@ def _training_loop(
     config: TrainingConfig,
     start_iteration: int,
 ) -> None:
+    tracker = EarlyStopTracker(
+        patience=config.early_stop.patience,
+        smoothing=config.early_stop.smoothing,
+    )
+    last_iteration = start_iteration
     for iteration in range(start_iteration, config.iterations):
         result, metrics = _training_step(ctx, config, iteration)
         _log_iteration(writer, metrics, result)
         _maybe_checkpoint(ctx.policy, ctx.trainer, iteration, config)
-    _save_checkpoint(ctx.policy, ctx.trainer, config.iterations - 1, config.io.checkpoint_dir)
+        last_iteration = iteration
+        if _check_early_stop(tracker, metrics, ctx.policy):
+            break
+    _save_checkpoint(ctx.policy, ctx.trainer, last_iteration, config.io.checkpoint_dir)
+
+
+def _check_early_stop(
+    tracker: EarlyStopTracker,
+    metrics: IterationMetrics,
+    policy: PolicyNetwork,
+) -> bool:
+    mean_score = sum(metrics.scores) / len(metrics.scores)
+    if tracker.step(mean_score, policy.state_dict()):
+        logger.info("Restoring best weights (smoothed score: %.1f)", tracker.best_score)
+        policy.load_state_dict(tracker.best_state())
+        return True
+    return False
 
 
 def _training_step(
@@ -105,6 +129,7 @@ def _training_step(
     trajectories, scores = collect_batch(
         ctx.policy, config.batch_size,
         config.features.augmented, max_rounds,
+        num_workers=config.num_workers,
     )
     batch = build_batch(trajectories)
     result = ctx.trainer.update(batch)
@@ -250,14 +275,20 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
         log_dir=args.log_dir,
         resume=args.resume,
     )
+    early_stop = EarlyStopConfig(
+        patience=args.early_stop_patience,
+        smoothing=args.early_stop_smoothing,
+    )
     return TrainingConfig(
         iterations=args.iterations,
         batch_size=args.batch_size,
+        num_workers=args.num_workers,
         ppo=ppo,
         hidden1=args.hidden1,
         hidden2=args.hidden2,
         features=features,
         io=io_config,
+        early_stop=early_stop,
     )
 
 
@@ -265,6 +296,7 @@ def _parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train RL agent for Doppelt so clever")
     parser.add_argument("--iterations", type=int, default=5000)
     parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--num-workers", type=int, default=0, help="Parallel episode workers (0=sequential)")
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--ppo-epochs", type=int, default=4)
     parser.add_argument("--entropy-coef", type=float, default=0.01)
@@ -280,6 +312,8 @@ def _parse_arguments() -> argparse.Namespace:
     parser.add_argument("--curriculum", action="store_true", help="Enable curriculum learning (gradual round increase)")
     parser.add_argument("--max-rounds-start", type=int, default=2, help="Starting number of rounds for curriculum")
     parser.add_argument("--max-rounds-end", type=int, default=6, help="Final number of rounds for curriculum")
+    parser.add_argument("--early-stop-patience", type=int, default=0, help="Early stop patience in iterations (0=disabled)")
+    parser.add_argument("--early-stop-smoothing", type=float, default=0.05, help="EMA smoothing factor for early stop score")
     return parser.parse_args()
 
 

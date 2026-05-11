@@ -4,6 +4,9 @@ disable=missing-module-docstring,missing-function-docstring,missing-class-docstr
 [FORMAT]
 max-line-length=127
 
+[DESIGN]
+max-attributes=9
+
 [MASTER]
 ignored-modules=setuptools
 extension-pkg-allow-list=pygame
