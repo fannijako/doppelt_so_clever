@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*/__pycache__/
+*.egg-info/
+.git/
+.pytest_cache/
+runs/
+logs/
+monte_carlo_scores/
+evaluation_results/
+model/pbt_checkpoints/
+model/checkpoints/
+*.pt
+rulebook.pdf
+test/
+DOCKER_REVIEW.md
+TODO.md

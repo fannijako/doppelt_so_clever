@@ -144,9 +144,14 @@ Train the RL agent with **Population-Based Training** (PBT):
 python main.py pbt-train --population-size 8 --iterations 5000
 ```
 
-Run PBT training with **Docker**:
+Run PBT training with **Docker** (default 5 iterations):
 ```bash
 make docker-run
+```
+
+Override the number of iterations:
+```bash
+make docker-run ITERATIONS=1000
 ```
 
 Clean up Docker resources:
