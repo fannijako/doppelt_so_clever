@@ -39,6 +39,7 @@ class PBTConfig:
     eval_interval: int = 50
     eval_episodes: int = 32
     batch_size: int = 64
+    num_workers: int = 0
     exploit: ExploitConfig = field(default_factory=ExploitConfig)
     io: PBTIOConfig = field(default_factory=PBTIOConfig)
 
@@ -95,14 +96,18 @@ def _pbt_loop(
 
 def _train_step(population: list[Agent], config: PBTConfig) -> None:
     for agent in population:
-        trajectories, _ = collect_batch(agent.policy, config.batch_size)
+        trajectories, _ = collect_batch(
+            agent.policy, config.batch_size, num_workers=config.num_workers,
+        )
         batch = build_batch(trajectories)
         agent.trainer.update(batch)
 
 
 def _evaluate_population(population: list[Agent], config: PBTConfig) -> None:
     for agent in population:
-        _, scores = collect_batch(agent.policy, config.eval_episodes)
+        _, scores = collect_batch(
+            agent.policy, config.eval_episodes, num_workers=config.num_workers,
+        )
         agent.mean_score = sum(scores) / len(scores)
 
 
@@ -231,6 +236,7 @@ def _build_pbt_config(args: argparse.Namespace) -> PBTConfig:
         eval_interval=args.eval_interval,
         eval_episodes=args.eval_episodes,
         batch_size=args.batch_size,
+        num_workers=args.num_workers,
         exploit=ExploitConfig(
             fraction=args.exploit_fraction,
             perturb_factor=args.perturb_factor,
@@ -251,6 +257,7 @@ def _parse_arguments() -> argparse.Namespace:
     parser.add_argument("--eval-interval", type=int, default=50)
     parser.add_argument("--eval-episodes", type=int, default=32)
     parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--num-workers", type=int, default=0, help="Parallel episode workers (0=sequential)")
     parser.add_argument("--exploit-fraction", type=float, default=0.2)
     parser.add_argument("--perturb-factor", type=float, default=1.2)
     parser.add_argument("--checkpoint-dir", type=str, default="model/pbt_checkpoints")

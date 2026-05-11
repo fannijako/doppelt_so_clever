@@ -44,7 +44,7 @@ model/
 ├── policy_network.py      # PolicyNetwork (nn.Module): shared trunk + policy/value heads
 ├── trajectory_buffer.py   # Transition, Trajectory, GAE computation, batch building
 ├── ppo.py                 # PPOTrainer, PPOConfig, clipped surrogate loss
-└── rl_utils.py            # Shared helpers: make_policy_fn, run_episode, collect_batch, convert_trajectory
+└── rl_utils.py            # Shared helpers: make_policy_fn, run_episode, collect_batch (sequential/parallel), convert_trajectory
 scripts/
 ├── train_rl.py            # RL training entrypoint (PPO training loop, checkpointing, TensorBoard)
 ├── pbt_train_rl.py        # Population-Based Training: multiple agents, exploit/explore, hyperparameter perturbation
@@ -102,12 +102,12 @@ scripts/
 | `TrajectoryBatch` | `model/trajectory_buffer.py` | Flat tensors (states, actions, log_probs, values, action_masks, advantages, returns) for a batch of trajectories | `torch` |
 | `PPOConfig` | `model/ppo.py` | Dataclass holding PPO hyperparameters: learning rate, clip epsilon, epochs per batch, entropy/value coefficients, max grad norm, minibatch size | — |
 | `PPOTrainer` | `model/ppo.py` | Runs PPO updates: minibatch splitting, clipped surrogate loss, value loss, entropy bonus, gradient clipping | `PolicyNetwork`, `TrajectoryBatch`, `PPOConfig` |
-| `TrainingConfig` | `scripts/train_rl.py` | Dataclass holding training loop parameters: iterations, batch size, hidden layer sizes, and nested `PPOConfig`, `FeatureFlags`, `IOConfig` | `PPOConfig`, `FeatureFlags`, `IOConfig` |
+| `TrainingConfig` | `scripts/train_rl.py` | Dataclass holding training loop parameters: iterations, batch size, num_workers, hidden layer sizes, and nested `PPOConfig`, `FeatureFlags`, `IOConfig` | `PPOConfig`, `FeatureFlags`, `IOConfig` |
 | `FeatureFlags` | `scripts/train_rl.py` | Dataclass holding feature toggles: observation augmentation, LR decay, curriculum learning (start/end rounds) | — |
 | `IOConfig` | `scripts/train_rl.py` | Dataclass holding I/O parameters: checkpoint interval/dir, log dir, resume path | — |
 | `TrainingContext` | `scripts/train_rl.py` | Dataclass bundling policy, trainer, and optional LR scheduler for the training loop | `PolicyNetwork`, `PPOTrainer` |
 | `IterationMetrics` | `scripts/train_rl.py` | Dataclass bundling per-iteration stats: iteration number, global episode count, scores, elapsed time | — |
-| `PBTConfig` | `scripts/pbt_train_rl.py` | Dataclass holding PBT parameters: population size, iterations, eval interval/episodes, batch size, and nested `ExploitConfig`, `PBTIOConfig` | `ExploitConfig`, `PBTIOConfig` |
+| `PBTConfig` | `scripts/pbt_train_rl.py` | Dataclass holding PBT parameters: population size, iterations, eval interval/episodes, batch size, num_workers, and nested `ExploitConfig`, `PBTIOConfig` | `ExploitConfig`, `PBTIOConfig` |
 | `Agent` | `scripts/pbt_train_rl.py` | Dataclass representing one agent in the population: policy, trainer, config, mean score | `PolicyNetwork`, `PPOTrainer`, `AgentConfig` |
 
 ### Rounds
@@ -241,3 +241,9 @@ scripts/
 ```
 
 Both `ActiveRound` and `PassiveRound` depend on `Board`, `ActionHandler`, `GameObserver`, `Dice`, and `DiceColor`. Board parts depend on their respective box classes, `ActionMap`, `Dice`, and `DiceColor`.
+
+---
+
+## Why CPU-Only Training
+
+GPU is intentionally not used. The `PolicyNetwork` is a small 2-layer MLP and the training bottleneck is the Python game simulation (CPU-bound), not the neural network forward/backward passes. CPU-to-GPU transfer overhead would make training slower, not faster. Multiprocessing across CPU cores is used instead to parallelise episode collection (`--num-workers`).

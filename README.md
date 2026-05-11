@@ -129,6 +129,11 @@ Train the **RL agent** (PPO):
 make train-rl
 ```
 
+Train with **parallel episode collection** (uses multiple CPU cores):
+```bash
+python main.py train --num-workers 4
+```
+
 Evaluate the **RL agent** against baselines (random, always-accept):
 ```bash
 make evaluate-rl
@@ -141,7 +146,7 @@ python main.py evaluate -n 200 --ci --checkpoint model/ci_checkpoint.pt
 
 Train the RL agent with **Population-Based Training** (PBT):
 ```bash
-python main.py pbt-train --population-size 8 --iterations 5000
+python main.py pbt-train --population-size 8 --iterations 5000 --num-workers 4
 ```
 
 Run PBT training with **Docker** (default 5 iterations):
@@ -179,6 +184,7 @@ Population-Based Training runs multiple agents in parallel, periodically replaci
 | **eval_interval** | `--eval-interval` | 50 | How often (in iterations) agents are evaluated and exploit/explore is triggered. Lower values adapt faster but add evaluation overhead. |
 | **eval_episodes** | `--eval-episodes` | 32 | Number of game episodes used to estimate each agent's mean score. More episodes reduce variance in fitness estimation. |
 | **batch_size** | `--batch-size` | 64 | Number of game episodes collected per agent per training step. Larger batches give more stable gradient estimates but slow each iteration. |
+| **num_workers** | `--num-workers` | 0 | Number of parallel worker processes for episode collection. 0 means sequential. Set to the number of CPU cores for best throughput. GPU is not used because the bottleneck is the Python game simulation, not the small neural network. |
 
 ### Exploit/Explore Parameters
 

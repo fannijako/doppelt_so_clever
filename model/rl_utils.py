@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from multiprocessing import get_context
+
 import torch
 
 from model.policy_network import PolicyNetwork
@@ -9,6 +11,8 @@ from src.board.board import Board
 from src.game.game import Game
 from src.game.rl_observer import RLObserver
 from src.input_handler.model.rl_input_handler import RLInputHandler, Transition
+
+_WORKER_STATE: dict = {}
 
 
 def make_policy_fn(policy: PolicyNetwork):
@@ -63,6 +67,18 @@ def collect_batch(
     batch_size: int,
     augmented: bool = False,
     max_rounds: int | None = None,
+    num_workers: int = 0,
+) -> tuple[list[Trajectory], list[int]]:
+    if num_workers <= 1:
+        return _collect_sequential(policy, batch_size, augmented, max_rounds)
+    return _collect_parallel(policy, batch_size, augmented, max_rounds, num_workers)
+
+
+def _collect_sequential(
+    policy: PolicyNetwork,
+    batch_size: int,
+    augmented: bool,
+    max_rounds: int | None,
 ) -> tuple[list[Trajectory], list[int]]:
     policy_fn = make_policy_fn(policy)
     trajectories: list[Trajectory] = []
@@ -71,4 +87,55 @@ def collect_batch(
         traj, score = run_episode(policy_fn, augmented=augmented, max_rounds=max_rounds)
         trajectories.append(traj)
         scores.append(score)
+    return trajectories, scores
+
+
+def _collect_parallel(
+    policy: PolicyNetwork,
+    batch_size: int,
+    augmented: bool,
+    max_rounds: int | None,
+    num_workers: int,
+) -> tuple[list[Trajectory], list[int]]:
+    state_dict = {k: v.cpu() for k, v in policy.state_dict().items()}
+    arch = _extract_architecture(policy)
+    ctx = get_context("spawn")
+    args = [(augmented, max_rounds)] * batch_size
+    with ctx.Pool(
+        processes=min(num_workers, batch_size),
+        initializer=_init_episode_worker,
+        initargs=(state_dict, *arch),
+    ) as pool:
+        results = pool.map(_run_episode_worker, args)
+    return _unpack_results(results)
+
+
+def _extract_architecture(policy: PolicyNetwork) -> tuple[int, int, int, int]:
+    state_size = policy.trunk[0].in_features
+    hidden1 = policy.trunk[0].out_features
+    hidden2 = policy.trunk[2].out_features
+    num_actions = policy.policy_head.out_features
+    return state_size, hidden1, hidden2, num_actions
+
+
+def _init_episode_worker(state_dict, state_size, hidden1, hidden2, num_actions):
+    policy = PolicyNetwork(
+        state_size=state_size, hidden1=hidden1,
+        hidden2=hidden2, num_actions=num_actions,
+    )
+    policy.load_state_dict(state_dict)
+    policy.eval()
+    _WORKER_STATE["policy_fn"] = make_policy_fn(policy)
+
+
+def _run_episode_worker(args):
+    augmented, max_rounds = args
+    return run_episode(_WORKER_STATE["policy_fn"], augmented=augmented, max_rounds=max_rounds)
+
+
+def _unpack_results(
+    results: list[tuple[Trajectory, int]],
+) -> tuple[list[Trajectory], list[int]]:
+    trajectories = [r[0] for r in results]
+    scores = [r[1] for r in results]
     return trajectories, scores

@@ -42,6 +42,7 @@ class TrainingConfig:
     ppo: PPOConfig = field(default_factory=PPOConfig)
     hidden1: int = 256
     hidden2: int = 128
+    num_workers: int = 0
     features: FeatureFlags = field(default_factory=FeatureFlags)
     io: IOConfig = field(default_factory=IOConfig)
 
@@ -105,6 +106,7 @@ def _training_step(
     trajectories, scores = collect_batch(
         ctx.policy, config.batch_size,
         config.features.augmented, max_rounds,
+        num_workers=config.num_workers,
     )
     batch = build_batch(trajectories)
     result = ctx.trainer.update(batch)
@@ -253,6 +255,7 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
     return TrainingConfig(
         iterations=args.iterations,
         batch_size=args.batch_size,
+        num_workers=args.num_workers,
         ppo=ppo,
         hidden1=args.hidden1,
         hidden2=args.hidden2,
@@ -265,6 +268,7 @@ def _parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train RL agent for Doppelt so clever")
     parser.add_argument("--iterations", type=int, default=5000)
     parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--num-workers", type=int, default=0, help="Parallel episode workers (0=sequential)")
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--ppo-epochs", type=int, default=4)
     parser.add_argument("--entropy-coef", type=float, default=0.01)
