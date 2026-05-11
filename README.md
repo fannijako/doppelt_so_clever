@@ -134,6 +134,11 @@ Train with **parallel episode collection** (uses multiple CPU cores):
 python main.py train --num-workers 4
 ```
 
+Train with **early stopping** (stops when score plateaus, restores best weights):
+```bash
+python main.py train --early-stop-patience 300 --early-stop-smoothing 0.05
+```
+
 Evaluate the **RL agent** against baselines (random, always-accept):
 ```bash
 make evaluate-rl
@@ -154,9 +159,10 @@ Run PBT training with **Docker** (default 5 iterations):
 make docker-run
 ```
 
-Override the number of iterations:
+Override the number of iterations or parallel workers:
 ```bash
 make docker-run ITERATIONS=1000
+make docker-run NUM_WORKERS=8
 ```
 
 Clean up Docker resources:
@@ -184,7 +190,7 @@ Population-Based Training runs multiple agents in parallel, periodically replaci
 | **eval_interval** | `--eval-interval` | 50 | How often (in iterations) agents are evaluated and exploit/explore is triggered. Lower values adapt faster but add evaluation overhead. |
 | **eval_episodes** | `--eval-episodes` | 32 | Number of game episodes used to estimate each agent's mean score. More episodes reduce variance in fitness estimation. |
 | **batch_size** | `--batch-size` | 64 | Number of game episodes collected per agent per training step. Larger batches give more stable gradient estimates but slow each iteration. |
-| **num_workers** | `--num-workers` | 0 | Number of parallel worker processes for episode collection. 0 means sequential. Set to the number of CPU cores for best throughput. GPU is not used because the bottleneck is the Python game simulation, not the small neural network. |
+| **num_workers** | `--num-workers` | 0 (CLI) / 4 (Docker) | Number of parallel worker processes for episode collection. 0 means sequential. The Docker image defaults to 4 workers. Set to the number of CPU cores for best throughput. GPU is not used because the bottleneck is the Python game simulation, not the small neural network. |
 
 ### Exploit/Explore Parameters
 

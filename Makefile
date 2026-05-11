@@ -64,7 +64,7 @@ docker-build:
 	docker build -t doppelt-so-clever-pbt .
 
 docker-run:
-	docker run -e ITERATIONS=$(or $(ITERATIONS),5) -v $(PWD)/model/pbt_checkpoints:/app/model/pbt_checkpoints -v $(PWD)/runs:/app/runs doppelt-so-clever-pbt
+	docker run -e ITERATIONS=$(or $(ITERATIONS),5) -e NUM_WORKERS=$(or $(NUM_WORKERS),0) -v $(PWD)/model/pbt_checkpoints:/app/model/pbt_checkpoints -v $(PWD)/runs:/app/runs doppelt-so-clever-pbt
 
 docker-clean:
 	docker rmi doppelt-so-clever-pbt

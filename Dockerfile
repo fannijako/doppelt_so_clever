@@ -13,4 +13,5 @@ COPY model/ ./model/
 COPY scripts/ ./scripts/
 
 ENV ITERATIONS=5
-CMD ["sh", "-c", "python main.py pbt-train --iterations ${ITERATIONS}"]
+ENV NUM_WORKERS=4
+CMD ["sh", "-c", "NUM_W=${NUM_WORKERS:-0}; [ \"$NUM_W\" = \"0\" ] && NUM_W=$(nproc); python main.py pbt-train --iterations ${ITERATIONS} --num-workers ${NUM_W}"]

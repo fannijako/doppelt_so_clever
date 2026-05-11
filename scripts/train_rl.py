@@ -12,6 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 from model.policy_network import PolicyNetwork, STATE_SIZE
 from model.ppo import PPOConfig, PPOTrainer, PPOUpdateResult
 from model.trajectory_buffer import build_batch
+from model.early_stop import EarlyStopConfig, EarlyStopTracker
 from model.rl_utils import collect_batch
 from src.game.rl_observer import PROMPT_FEATURES_SIZE
 
@@ -45,6 +46,7 @@ class TrainingConfig:
     num_workers: int = 0
     features: FeatureFlags = field(default_factory=FeatureFlags)
     io: IOConfig = field(default_factory=IOConfig)
+    early_stop: EarlyStopConfig = field(default_factory=EarlyStopConfig)
 
 
 @dataclass
@@ -89,11 +91,32 @@ def _training_loop(
     config: TrainingConfig,
     start_iteration: int,
 ) -> None:
+    tracker = EarlyStopTracker(
+        patience=config.early_stop.patience,
+        smoothing=config.early_stop.smoothing,
+    )
+    last_iteration = start_iteration
     for iteration in range(start_iteration, config.iterations):
         result, metrics = _training_step(ctx, config, iteration)
         _log_iteration(writer, metrics, result)
         _maybe_checkpoint(ctx.policy, ctx.trainer, iteration, config)
-    _save_checkpoint(ctx.policy, ctx.trainer, config.iterations - 1, config.io.checkpoint_dir)
+        last_iteration = iteration
+        if _check_early_stop(tracker, metrics, ctx.policy):
+            break
+    _save_checkpoint(ctx.policy, ctx.trainer, last_iteration, config.io.checkpoint_dir)
+
+
+def _check_early_stop(
+    tracker: EarlyStopTracker,
+    metrics: IterationMetrics,
+    policy: PolicyNetwork,
+) -> bool:
+    mean_score = sum(metrics.scores) / len(metrics.scores)
+    if tracker.step(mean_score, policy.state_dict()):
+        logger.info("Restoring best weights (smoothed score: %.1f)", tracker.best_score)
+        policy.load_state_dict(tracker.best_state())
+        return True
+    return False
 
 
 def _training_step(
@@ -252,6 +275,10 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
         log_dir=args.log_dir,
         resume=args.resume,
     )
+    early_stop = EarlyStopConfig(
+        patience=args.early_stop_patience,
+        smoothing=args.early_stop_smoothing,
+    )
     return TrainingConfig(
         iterations=args.iterations,
         batch_size=args.batch_size,
@@ -261,6 +288,7 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
         hidden2=args.hidden2,
         features=features,
         io=io_config,
+        early_stop=early_stop,
     )
 
 
@@ -284,6 +312,8 @@ def _parse_arguments() -> argparse.Namespace:
     parser.add_argument("--curriculum", action="store_true", help="Enable curriculum learning (gradual round increase)")
     parser.add_argument("--max-rounds-start", type=int, default=2, help="Starting number of rounds for curriculum")
     parser.add_argument("--max-rounds-end", type=int, default=6, help="Final number of rounds for curriculum")
+    parser.add_argument("--early-stop-patience", type=int, default=0, help="Early stop patience in iterations (0=disabled)")
+    parser.add_argument("--early-stop-smoothing", type=float, default=0.05, help="EMA smoothing factor for early stop score")
     return parser.parse_args()
 
 
