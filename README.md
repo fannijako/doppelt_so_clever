@@ -60,6 +60,8 @@ src/
 
 ## Installation
 
+### Local Installation
+
 1. Create a virtual environment:
 ```bash
 make venv
@@ -84,6 +86,13 @@ make build-interactive
 5. Install RL training dependencies (PyTorch, TensorBoard):
 ```bash
 make build-rl
+```
+
+### Docker Installation
+
+Build the Docker image:
+```bash
+make docker-build
 ```
 
 ## Usage
@@ -133,6 +142,16 @@ python main.py evaluate -n 200 --ci --checkpoint model/ci_checkpoint.pt
 Train the RL agent with **Population-Based Training** (PBT):
 ```bash
 python main.py pbt-train --population-size 8 --iterations 5000
+```
+
+Run PBT training with **Docker**:
+```bash
+make docker-run
+```
+
+Clean up Docker resources:
+```bash
+make docker-clean
 ```
 
 Monitor training with **TensorBoard**:

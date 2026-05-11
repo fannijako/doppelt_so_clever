@@ -1,4 +1,4 @@
-.PHONY: venv build build-test build-monte-carlo build-interactive build-rl build-all lint test run run-auto run-monte-carlo run-interactive train-rl pbt-train-rl evaluate-rl clean
+.PHONY: venv build build-test build-monte-carlo build-interactive build-rl build-all lint test run run-auto run-monte-carlo run-interactive train-rl pbt-train-rl evaluate-rl clean docker-build docker-run docker-run-gpu docker-clean
 PYFILES = $(shell git ls-files '*.py')
 
 venv:
@@ -59,3 +59,12 @@ clean:
 	rm -rf */__pycache__
 	rm -rf .pytest_cache
 	rm -rf *.egg-info
+
+docker-build:
+	docker build -t doppelt-so-clever-pbt .
+
+docker-run:
+	docker run -v $(PWD)/model/pbt_checkpoints:/app/model/pbt_checkpoints -v $(PWD)/runs:/app/runs doppelt-so-clever-pbt
+
+docker-clean:
+	docker rmi doppelt-so-clever-pbt
