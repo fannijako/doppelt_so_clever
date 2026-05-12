@@ -33,6 +33,7 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
         self.usable_plus_ones = 0
         self.gained_reuses = 0
         self.usable_reuses = 0
+        self.game_over = False
 
     _COLOR_INDEX = {c.value: i for i, c in enumerate(DiceColor)}
     _SUBSTITUTABLE_COLORS = [DiceColor.BLUE, DiceColor.GREEN, DiceColor.PINK, DiceColor.YELLOW]
@@ -205,6 +206,8 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
         ]
 
     def evaluate(self) -> int:
+        if not self.game_over:
+            return 0
         part_values = [
             board_part.evaluate()
             for board_part

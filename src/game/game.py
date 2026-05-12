@@ -49,6 +49,7 @@ class Game:  # pylint: disable=too-few-public-methods
         try:
             for round_number in range(1, num_rounds + 1):
                 self._play_round(round_number=round_number)
+            self.board.game_over = True
             score = self.board.evaluate()
             self.observer.on_game_ended(score)
             return score

@@ -212,3 +212,4 @@ logs/
 model/checkpoints/
 !model/ci_checkpoint.pt
 runs/
+*.DS_Store

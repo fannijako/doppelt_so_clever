@@ -64,8 +64,11 @@ class Agent:
 def main() -> None:
     args = _parse_arguments()
     logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        force=True,
     )
+    logging.getLogger("src").setLevel(logging.WARNING)
     pbt_config = _build_pbt_config(args)
     os.makedirs(pbt_config.io.checkpoint_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=pbt_config.io.log_dir)
@@ -87,6 +90,7 @@ def _pbt_loop(
         t0 = time.time()
         _train_step(population, config)
         elapsed = time.time() - t0
+        logger.info("iter %d/%d  train_time=%.1fs", iteration + 1, config.iterations, elapsed)
 
         if (iteration + 1) % config.eval_interval == 0:
             _evaluate_population(population, config)
