@@ -40,6 +40,8 @@ Improve the reinforcement learning agent for Doppelt so clever by addressing the
 
 ## Phase 3: Fix observation/action aliasing
 
+- **Status: complete**
+
 - **Enable prompt augmentation by default**
   - Set augmented observations as the default for training.
   - Ensure evaluation, Monte Carlo, UI advisor, and checkpoint loading use matching state size.

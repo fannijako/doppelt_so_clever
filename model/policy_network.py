@@ -7,7 +7,8 @@ from torch.distributions import Categorical
 from src.board.board import Board
 from src.game.rl_observer import RLObserver
 
-STATE_SIZE = Board.STATE_SIZE + RLObserver.CONTEXT_SIZE
+STATE_SIZE = Board.STATE_SIZE + RLObserver.AUGMENTED_CONTEXT_SIZE
+LEGACY_STATE_SIZE = Board.STATE_SIZE + RLObserver.CONTEXT_SIZE
 MAX_ACTIONS = 30
 
 

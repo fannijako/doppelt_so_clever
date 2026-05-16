@@ -12,10 +12,13 @@ from dataclasses import dataclass, field
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-from model.policy_network import PolicyNetwork, STATE_SIZE
+from model.policy_network import PolicyNetwork
 from model.ppo import PPOConfig, PPOTrainer
 from model.trajectory_buffer import build_batch
 from model.rl_utils import collect_batch
+from src.board.board import Board
+from src.game.rl_observer import RLObserver
+from src.game.option_features import OPTION_FEATURE_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +43,7 @@ class PBTConfig:
     eval_episodes: int = 32
     batch_size: int = 64
     num_workers: int = 0
+    augmented: bool = True
     exploit: ExploitConfig = field(default_factory=ExploitConfig)
     io: PBTIOConfig = field(default_factory=PBTIOConfig)
 
@@ -50,6 +54,7 @@ class AgentConfig:
     entropy_coefficient: float = 0.01
     hidden1: int = 256
     hidden2: int = 128
+    augmented: bool = True
 
 
 @dataclass
@@ -101,7 +106,8 @@ def _pbt_loop(
 def _train_step(population: list[Agent], config: PBTConfig) -> None:
     for agent in population:
         trajectories, _ = collect_batch(
-            agent.policy, config.batch_size, num_workers=config.num_workers,
+            agent.policy, config.batch_size,
+            augmented=config.augmented, num_workers=config.num_workers,
         )
         batch = build_batch(trajectories)
         agent.trainer.update(batch)
@@ -110,7 +116,8 @@ def _train_step(population: list[Agent], config: PBTConfig) -> None:
 def _evaluate_population(population: list[Agent], config: PBTConfig) -> None:
     for agent in population:
         _, scores = collect_batch(
-            agent.policy, config.eval_episodes, num_workers=config.num_workers,
+            agent.policy, config.eval_episodes,
+            augmented=config.augmented, num_workers=config.num_workers,
         )
         agent.mean_score = sum(scores) / len(scores)
 
@@ -155,15 +162,17 @@ def _rebuild_optimizer(agent: Agent) -> None:
 
 
 def _init_population(config: PBTConfig) -> list[Agent]:
-    return [_create_agent(i) for i in range(config.population_size)]
+    return [_create_agent(i, config.augmented) for i in range(config.population_size)]
 
 
-def _create_agent(idx: int) -> Agent:
+def _create_agent(idx: int, augmented: bool) -> Agent:
     lr = _sample_log_uniform(1e-4, 1e-3)
     ent = _sample_log_uniform(0.001, 0.05)
-    agent_config = AgentConfig(learning_rate=lr, entropy_coefficient=ent)
+    agent_config = AgentConfig(
+        learning_rate=lr, entropy_coefficient=ent, augmented=augmented,
+    )
     policy = PolicyNetwork(
-        state_size=STATE_SIZE,
+        state_size=_compute_pbt_state_size(augmented),
         hidden1=agent_config.hidden1,
         hidden2=agent_config.hidden2,
     )
@@ -173,6 +182,12 @@ def _create_agent(idx: int) -> Agent:
     )
     trainer = PPOTrainer(policy, ppo_config)
     return Agent(idx=idx, policy=policy, trainer=trainer, config=agent_config)
+
+
+def _compute_pbt_state_size(augmented: bool) -> int:
+    if augmented:
+        return Board.STATE_SIZE + RLObserver.AUGMENTED_CONTEXT_SIZE
+    return Board.STATE_SIZE + RLObserver.CONTEXT_SIZE
 
 
 def _sample_log_uniform(low: float, high: float) -> float:
@@ -229,6 +244,11 @@ def _save_best(population: list[Agent], checkpoint_dir: str) -> None:
             "hidden2": best.config.hidden2,
         },
         "mean_score": best.mean_score,
+        "state_size": _compute_pbt_state_size(best.config.augmented),
+        "augmented": best.config.augmented,
+        "option_feature_size": OPTION_FEATURE_SIZE,
+        "hidden1": best.config.hidden1,
+        "hidden2": best.config.hidden2,
     }, path)
     logger.info("Saved best agent (score=%.1f) to %s", best.mean_score, path)
 
@@ -241,6 +261,7 @@ def _build_pbt_config(args: argparse.Namespace) -> PBTConfig:
         eval_episodes=args.eval_episodes,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
+        augmented=args.augmented,
         exploit=ExploitConfig(
             fraction=args.exploit_fraction,
             perturb_factor=args.perturb_factor,
@@ -266,6 +287,10 @@ def _parse_arguments() -> argparse.Namespace:
     parser.add_argument("--perturb-factor", type=float, default=1.2)
     parser.add_argument("--checkpoint-dir", type=str, default="model/pbt_checkpoints")
     parser.add_argument("--log-dir", type=str, default="runs/pbt")
+    parser.add_argument(
+        "--augmented", action=argparse.BooleanOptionalAction, default=True,
+        help="Enable observation augmentation. Default on; use --no-augmented to disable.",
+    )
     return parser.parse_args()
 
 

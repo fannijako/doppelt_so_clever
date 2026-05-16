@@ -9,19 +9,21 @@ from dataclasses import dataclass, field
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-from model.policy_network import PolicyNetwork, STATE_SIZE
+from model.policy_network import PolicyNetwork, LEGACY_STATE_SIZE
 from model.ppo import PPOConfig, PPOTrainer, PPOUpdateResult
 from model.trajectory_buffer import build_batch
 from model.early_stop import EarlyStopConfig, EarlyStopTracker
 from model.rl_utils import collect_batch
-from src.game.rl_observer import PROMPT_FEATURES_SIZE
+from src.board.board import Board
+from src.game.rl_observer import RLObserver
+from src.game.option_features import OPTION_FEATURE_SIZE
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class FeatureFlags:
-    augmented: bool = False
+    augmented: bool = True
     lr_decay: bool = False
     curriculum: bool = False
     max_rounds_start: int = 2
@@ -103,7 +105,7 @@ def _training_loop(
         last_iteration = iteration
         if _check_early_stop(tracker, metrics, ctx.policy):
             break
-    _save_checkpoint(ctx.policy, ctx.trainer, last_iteration, config.io.checkpoint_dir)
+    _save_checkpoint(ctx.policy, ctx.trainer, last_iteration, config)
 
 
 def _check_early_stop(
@@ -204,20 +206,25 @@ def _maybe_checkpoint(
     config: TrainingConfig,
 ) -> None:
     if (iteration + 1) % config.io.checkpoint_interval == 0:
-        _save_checkpoint(policy, trainer, iteration, config.io.checkpoint_dir)
+        _save_checkpoint(policy, trainer, iteration, config)
 
 
 def _save_checkpoint(
     policy: PolicyNetwork,
     trainer: PPOTrainer,
     iteration: int,
-    checkpoint_dir: str,
+    config: TrainingConfig,
 ) -> None:
-    path = os.path.join(checkpoint_dir, f"checkpoint_{iteration:06d}.pt")
+    path = os.path.join(config.io.checkpoint_dir, f"checkpoint_{iteration:06d}.pt")
     torch.save({
         "iteration": iteration,
         "policy_state_dict": policy.state_dict(),
         "optimizer_state_dict": trainer.optimizer.state_dict(),
+        "state_size": _compute_state_size(config.features.augmented),
+        "augmented": config.features.augmented,
+        "option_feature_size": OPTION_FEATURE_SIZE,
+        "hidden1": config.hidden1,
+        "hidden2": config.hidden2,
     }, path)
     logger.info("Saved checkpoint: %s", path)
 
@@ -228,6 +235,7 @@ def _load_checkpoint(
     trainer: PPOTrainer,
 ) -> int:
     checkpoint = torch.load(path, weights_only=True)
+    require_phase3_metadata(checkpoint, path)
     policy.load_state_dict(checkpoint["policy_state_dict"])
     trainer.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     start_iteration = checkpoint["iteration"] + 1
@@ -235,10 +243,21 @@ def _load_checkpoint(
     return start_iteration
 
 
+_PHASE3_METADATA_ERROR = (
+    "Checkpoint missing required Phase 3 metadata (state_size, augmented). "
+    "Regenerate the checkpoint after Phase 3."
+)
+
+
+def require_phase3_metadata(checkpoint: dict, path: str) -> None:
+    if "state_size" not in checkpoint or "augmented" not in checkpoint:
+        raise ValueError(f"{_PHASE3_METADATA_ERROR} Checkpoint: {path}")
+
+
 def _compute_state_size(augmented: bool) -> int:
     if augmented:
-        return STATE_SIZE + PROMPT_FEATURES_SIZE
-    return STATE_SIZE
+        return Board.STATE_SIZE + RLObserver.AUGMENTED_CONTEXT_SIZE
+    return LEGACY_STATE_SIZE
 
 
 def _setup_model(
@@ -308,7 +327,10 @@ def _parse_arguments() -> argparse.Namespace:
     parser.add_argument("--hidden1", type=int, default=256, help="First hidden layer size")
     parser.add_argument("--hidden2", type=int, default=128, help="Second hidden layer size")
     parser.add_argument("--lr-decay", action="store_true", help="Enable linear learning rate decay")
-    parser.add_argument("--augmented", action="store_true", help="Enable observation augmentation (prompt type encoding)")
+    parser.add_argument(
+        "--augmented", action=argparse.BooleanOptionalAction, default=True,
+        help="Enable observation augmentation (prompt + option features). Default on; use --no-augmented to disable.",
+    )
     parser.add_argument("--curriculum", action="store_true", help="Enable curriculum learning (gradual round increase)")
     parser.add_argument("--max-rounds-start", type=int, default=2, help="Starting number of rounds for curriculum")
     parser.add_argument("--max-rounds-end", type=int, default=6, help="Final number of rounds for curriculum")

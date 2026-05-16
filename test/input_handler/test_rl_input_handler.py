@@ -1,4 +1,6 @@
 from src.board.board import Board
+from src.dice.dice import Dice
+from src.dice.dice_color import DiceColor
 from src.game.rl_observer import RLObserver, _MAX_OPTIONS
 from src.input_handler.model.rl_input_handler import _build_action_mask
 
@@ -19,7 +21,7 @@ class TestChooseIndex:
         h, policy = handler
         h.choose_index("pick", ["a", "b"])
         state, _ = policy.calls[0]
-        assert len(state) == Board.STATE_SIZE + RLObserver.CONTEXT_SIZE
+        assert len(state) == Board.STATE_SIZE + RLObserver.AUGMENTED_CONTEXT_SIZE
 
 
 class TestConfirm:
@@ -114,6 +116,34 @@ class TestEvalMode:
         h, policy = eval_handler
         policy.action = 1
         assert h.choose_index("pick", ["a", "b"]) == 1
+
+
+class TestOptionFeaturesFlowThrough:
+    def test_choose_index_distinguishes_dice_colors(self, handler):
+        h, policy = handler
+        blue = Dice(DiceColor.BLUE)
+        blue.set_value(3)
+        green = Dice(DiceColor.GREEN)
+        green.set_value(3)
+        h.choose_index("Pick a die index: ", [blue])
+        h.choose_index("Pick a die index: ", [green])
+        state_a, _ = policy.calls[0]
+        state_b, _ = policy.calls[1]
+        assert state_a != state_b
+
+    def test_confirm_writes_option_features(self, handler):
+        h, policy = handler
+        h.confirm("Use a reroll? (y/n): ")
+        state, _ = policy.calls[0]
+        assert any(v != 0.0 for v in state[-_MAX_OPTIONS * 12:])
+
+    def test_choose_value_writes_color_features(self, handler):
+        h, policy = handler
+        h.choose_value("Pick an available color: ", ["blue", "green"])
+        h.choose_value("Pick an available color: ", ["pink", "yellow"])
+        state_a, _ = policy.calls[0]
+        state_b, _ = policy.calls[1]
+        assert state_a != state_b
 
 
 class TestBuildActionMask:

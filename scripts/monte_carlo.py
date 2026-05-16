@@ -25,6 +25,7 @@ from src.game.rl_observer import RLObserver
 
 from model.model import DoppeltSoCleverModel
 from model.policy_network import PolicyNetwork
+from scripts.train_rl import require_phase3_metadata
 
 
 logger = logging.getLogger(__name__)
@@ -136,12 +137,12 @@ def get_input_handler(arguments: argparse.Namespace) -> InputHandler:
 def _create_rl_game_factory(checkpoint_path: str | None) -> GameFactory:
     if checkpoint_path is None:
         checkpoint_path = _find_latest_checkpoint()
-    policy = _load_policy(checkpoint_path)
+    policy, augmented = _load_policy(checkpoint_path)
     policy_fn = _create_policy_fn(policy)
 
     def factory() -> Game:
         board = Board()
-        observer = RLObserver(board)
+        observer = RLObserver(board, augmented=augmented)
         handler = RLInputHandler(observer, policy_fn, training=False)
         return Game(
             input_handler=handler,
@@ -153,13 +154,18 @@ def _create_rl_game_factory(checkpoint_path: str | None) -> GameFactory:
     return factory
 
 
-def _load_policy(checkpoint_path: str) -> PolicyNetwork:
+def _load_policy(checkpoint_path: str) -> tuple[PolicyNetwork, bool]:
     logger.info("Loading RL model from checkpoint: %s", checkpoint_path)
-    policy = PolicyNetwork()
     checkpoint = torch.load(checkpoint_path, weights_only=True)
+    require_phase3_metadata(checkpoint, checkpoint_path)
+    policy = PolicyNetwork(
+        state_size=checkpoint["state_size"],
+        hidden1=checkpoint.get("hidden1", 256),
+        hidden2=checkpoint.get("hidden2", 128),
+    )
     policy.load_state_dict(checkpoint["policy_state_dict"])
     policy.eval()
-    return policy
+    return policy, checkpoint["augmented"]
 
 
 def _create_policy_fn(policy: PolicyNetwork):

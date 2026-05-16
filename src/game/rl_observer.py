@@ -7,6 +7,11 @@ from typing import TYPE_CHECKING
 from src.dice.dice_color import DiceColor
 from src.game.game_observer import GameObserver
 from src.actions.action_source import ActionSource
+from src.game.option_features import (
+    OPTION_BLOCK_SIZE,
+    featurize_options,
+    flatten_option_block,
+)
 
 if TYPE_CHECKING:
     from src.dice.dice import Dice
@@ -56,9 +61,9 @@ PROMPT_FEATURES_SIZE = len(PromptType)
 
 class RLObserver(GameObserver):
     CONTEXT_SIZE = 19
-    AUGMENTED_CONTEXT_SIZE = CONTEXT_SIZE + PROMPT_FEATURES_SIZE
+    AUGMENTED_CONTEXT_SIZE = CONTEXT_SIZE + PROMPT_FEATURES_SIZE + OPTION_BLOCK_SIZE
 
-    def __init__(self, board: Board, augmented: bool = False):
+    def __init__(self, board: Board, augmented: bool = True):
         self._board = board
         self._augmented = augmented
         self._state = _ObserverState()
@@ -125,11 +130,16 @@ class RLObserver(GameObserver):
         )
 
     def get_state(
-        self, decision_type: DecisionType, num_options: int, prompt: str = "",
+        self,
+        decision_type: DecisionType,
+        num_options: int,
+        prompt: str = "",
+        options: list | None = None,
     ) -> list[float]:
         ctx = self.get_context_tensor(decision_type, num_options)
         if self._augmented:
             ctx += _prompt_type_one_hot(classify_prompt(prompt))
+            ctx += flatten_option_block(featurize_options(options))
         return self._board.to_tensor() + ctx
 
     @property

@@ -46,7 +46,7 @@ def convert_trajectory(transitions: list[Transition], reward: float) -> Trajecto
 
 def run_episode(
     policy_fn,
-    augmented: bool = False,
+    augmented: bool = True,
     max_rounds: int | None = None,
     training: bool = True,
 ) -> tuple[Trajectory, int]:
@@ -67,7 +67,7 @@ def run_episode(
 def collect_batch(
     policy: PolicyNetwork,
     batch_size: int,
-    augmented: bool = False,
+    augmented: bool = True,
     max_rounds: int | None = None,
     num_workers: int = 0,
 ) -> tuple[list[Trajectory], list[int]]:

@@ -23,6 +23,7 @@ from src.input_handler import AutomaticInputHandler, InputHandler, RLInputHandle
 from src.input_handler.heuristics.always_accept import AlwaysAcceptInputHandler
 
 from model.policy_network import PolicyNetwork
+from scripts.train_rl import require_phase3_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -99,15 +100,15 @@ def _play_standard_game(handler: InputHandler) -> int:
 
 
 def _run_rl_agent(checkpoint_path: str, num_games: int) -> BaselineResult:
-    policy = _load_policy(checkpoint_path)
+    policy, augmented = _load_policy(checkpoint_path)
     policy_fn = _create_policy_fn(policy)
-    scores = [_play_rl_game(policy_fn) for _ in range(num_games)]
+    scores = [_play_rl_game(policy_fn, augmented) for _ in range(num_games)]
     return BaselineResult(name="RL Agent", scores=scores)
 
 
-def _play_rl_game(policy_fn) -> int:
+def _play_rl_game(policy_fn, augmented: bool) -> int:
     board = Board()
-    observer = RLObserver(board)
+    observer = RLObserver(board, augmented=augmented)
     handler = RLInputHandler(observer, policy_fn, training=False)
     game = Game(
         input_handler=handler,
@@ -118,12 +119,17 @@ def _play_rl_game(policy_fn) -> int:
     return game.play()
 
 
-def _load_policy(checkpoint_path: str) -> PolicyNetwork:
-    policy = PolicyNetwork()
+def _load_policy(checkpoint_path: str) -> tuple[PolicyNetwork, bool]:
     checkpoint = torch.load(checkpoint_path, weights_only=True)
+    require_phase3_metadata(checkpoint, checkpoint_path)
+    policy = PolicyNetwork(
+        state_size=checkpoint["state_size"],
+        hidden1=checkpoint.get("hidden1", 256),
+        hidden2=checkpoint.get("hidden2", 128),
+    )
     policy.load_state_dict(checkpoint["policy_state_dict"])
     policy.eval()
-    return policy
+    return policy, checkpoint["augmented"]
 
 
 def _create_policy_fn(policy: PolicyNetwork):
