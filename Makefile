@@ -51,7 +51,7 @@ pbt-train-rl:
 	python main.py pbt-train
 
 evaluate-rl:
-	python main.py evaluate -n 1000
+	python main.py evaluate -n 1000 --checkpoint model/pbt_checkpoints/best_agent.pt
 
 clean:
 	rm -rf .venv

@@ -62,16 +62,19 @@ Improve the reinforcement learning agent for Doppelt so clever by addressing the
 
 ## Phase 4: Improve training setup
 
+- **Status: complete**
+
 - **Normalize reward scale**
-  - Keep rewards in a stable range, for example by dividing final score by `300` or using shaped deltas with controlled weights.
-  - Prevent value loss from dominating PPO.
+  - Terminal score is scaled by `DEFAULT_TERMINAL_REWARD_SCALE = 1/300` in `model/rl_utils.py`, applied at the `convert_trajectory` boundary.
+  - `--terminal-reward-scale` CLI knob on both `train` and `pbt-train`.
 
 - **Tune PPO after structural fixes**
-  - Revisit `entropy_coefficient`, `value_loss_coefficient`, `gamma`, `gae_lambda`, and batch size only after reward/action fixes are in place.
+  - `PPOConfig` now carries `gamma` and `gae_lambda`; threaded through `build_batch` → `compute_gae`.
+  - New CLI knobs on both training scripts: `--gamma`, `--gae-lambda`, `--minibatch-size`.
 
 - **Use curriculum carefully**
-  - Train first on fewer rounds only if shaped rewards are active.
-  - Validate that curriculum evaluation always transitions back to full six-round games.
+  - `--curriculum` requires shaped rewards on; combining it with `--no-shaped-rewards` raises at config build time.
+  - When curriculum is active, early-stop scoring runs a separate full-6-round eval (`--curriculum-eval-episodes`, default 16) instead of trusting truncated training scores.
 
 ## Phase 5: Evaluation and regression tracking
 

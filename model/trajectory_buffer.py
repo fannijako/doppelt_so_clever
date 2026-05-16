@@ -61,8 +61,12 @@ def compute_gae(
     return advantages, returns
 
 
-def build_batch(trajectories: list[Trajectory]) -> TrajectoryBatch:
-    flat = _flatten_trajectories(trajectories)
+def build_batch(
+    trajectories: list[Trajectory],
+    gamma: float = 1.0,
+    gae_lambda: float = 0.95,
+) -> TrajectoryBatch:
+    flat = _flatten_trajectories(trajectories, gamma, gae_lambda)
     return TrajectoryBatch(
         states=torch.tensor(flat["states"]),
         actions=torch.tensor(flat["actions"], dtype=torch.long),
@@ -74,18 +78,22 @@ def build_batch(trajectories: list[Trajectory]) -> TrajectoryBatch:
     )
 
 
-def _flatten_trajectories(trajectories: list[Trajectory]) -> dict[str, list]:
+def _flatten_trajectories(
+    trajectories: list[Trajectory], gamma: float, gae_lambda: float,
+) -> dict[str, list]:
     flat: dict[str, list] = {
         "states": [], "actions": [], "log_probs": [],
         "values": [], "action_masks": [], "advantages": [], "returns": [],
     }
     for traj in trajectories:
-        _append_trajectory(traj, flat)
+        _append_trajectory(traj, flat, gamma, gae_lambda)
     return flat
 
 
-def _append_trajectory(traj: Trajectory, flat: dict[str, list]) -> None:
-    advantages, returns = compute_gae(traj)
+def _append_trajectory(
+    traj: Trajectory, flat: dict[str, list], gamma: float, gae_lambda: float,
+) -> None:
+    advantages, returns = compute_gae(traj, gamma=gamma, gae_lambda=gae_lambda)
     for i, t in enumerate(traj.transitions):
         flat["states"].append(t.state)
         flat["actions"].append(t.action)

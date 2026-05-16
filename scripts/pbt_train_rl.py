@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 from model.policy_network import PolicyNetwork
 from model.ppo import PPOConfig, PPOTrainer
 from model.trajectory_buffer import build_batch
-from model.rl_utils import collect_batch
+from model.rl_utils import DEFAULT_TERMINAL_REWARD_SCALE, EpisodeOptions, collect_batch
 from src.board.board import Board
 from src.game.rl_observer import RLObserver
 from src.game.option_features import OPTION_FEATURE_SIZE
@@ -36,6 +36,15 @@ class PBTIOConfig:
 
 
 @dataclass
+class SharedHyperparams:
+    augmented: bool = True
+    terminal_reward_scale: float = DEFAULT_TERMINAL_REWARD_SCALE
+    gamma: float = 1.0
+    gae_lambda: float = 0.95
+    minibatch_size: int = 256
+
+
+@dataclass
 class PBTConfig:
     population_size: int = 8
     iterations: int = 5000
@@ -43,7 +52,7 @@ class PBTConfig:
     eval_episodes: int = 32
     batch_size: int = 64
     num_workers: int = 0
-    augmented: bool = True
+    shared: SharedHyperparams = field(default_factory=SharedHyperparams)
     exploit: ExploitConfig = field(default_factory=ExploitConfig)
     io: PBTIOConfig = field(default_factory=PBTIOConfig)
 
@@ -54,7 +63,7 @@ class AgentConfig:
     entropy_coefficient: float = 0.01
     hidden1: int = 256
     hidden2: int = 128
-    augmented: bool = True
+    shared: SharedHyperparams = field(default_factory=SharedHyperparams)
 
 
 @dataclass
@@ -104,22 +113,34 @@ def _pbt_loop(
 
 
 def _train_step(population: list[Agent], config: PBTConfig) -> None:
+    options = _shared_episode_options(config.shared)
     for agent in population:
         trajectories, _ = collect_batch(
             agent.policy, config.batch_size,
-            augmented=config.augmented, num_workers=config.num_workers,
+            options=options, num_workers=config.num_workers,
         )
-        batch = build_batch(trajectories)
+        batch = build_batch(
+            trajectories,
+            gamma=config.shared.gamma, gae_lambda=config.shared.gae_lambda,
+        )
         agent.trainer.update(batch)
 
 
 def _evaluate_population(population: list[Agent], config: PBTConfig) -> None:
+    options = _shared_episode_options(config.shared)
     for agent in population:
         _, scores = collect_batch(
             agent.policy, config.eval_episodes,
-            augmented=config.augmented, num_workers=config.num_workers,
+            options=options, num_workers=config.num_workers,
         )
         agent.mean_score = sum(scores) / len(scores)
+
+
+def _shared_episode_options(shared: SharedHyperparams) -> EpisodeOptions:
+    return EpisodeOptions(
+        augmented=shared.augmented,
+        terminal_reward_scale=shared.terminal_reward_scale,
+    )
 
 
 def _exploit_and_explore(population: list[Agent], config: PBTConfig) -> None:
@@ -154,33 +175,35 @@ def _perturb_value(value: float, factor: float, lo: float, hi: float) -> float:
 
 
 def _rebuild_optimizer(agent: Agent) -> None:
-    ppo_config = PPOConfig(
-        learning_rate=agent.config.learning_rate,
-        entropy_coefficient=agent.config.entropy_coefficient,
+    agent.trainer = PPOTrainer(agent.policy, _ppo_config_from(agent.config))
+
+
+def _ppo_config_from(agent_config: AgentConfig) -> PPOConfig:
+    return PPOConfig(
+        learning_rate=agent_config.learning_rate,
+        entropy_coefficient=agent_config.entropy_coefficient,
+        gamma=agent_config.shared.gamma,
+        gae_lambda=agent_config.shared.gae_lambda,
+        minibatch_size=agent_config.shared.minibatch_size,
     )
-    agent.trainer = PPOTrainer(agent.policy, ppo_config)
 
 
 def _init_population(config: PBTConfig) -> list[Agent]:
-    return [_create_agent(i, config.augmented) for i in range(config.population_size)]
+    return [_create_agent(i, config) for i in range(config.population_size)]
 
 
-def _create_agent(idx: int, augmented: bool) -> Agent:
+def _create_agent(idx: int, config: PBTConfig) -> Agent:
     lr = _sample_log_uniform(1e-4, 1e-3)
     ent = _sample_log_uniform(0.001, 0.05)
     agent_config = AgentConfig(
-        learning_rate=lr, entropy_coefficient=ent, augmented=augmented,
+        learning_rate=lr, entropy_coefficient=ent, shared=config.shared,
     )
     policy = PolicyNetwork(
-        state_size=_compute_pbt_state_size(augmented),
+        state_size=_compute_pbt_state_size(config.shared.augmented),
         hidden1=agent_config.hidden1,
         hidden2=agent_config.hidden2,
     )
-    ppo_config = PPOConfig(
-        learning_rate=agent_config.learning_rate,
-        entropy_coefficient=agent_config.entropy_coefficient,
-    )
-    trainer = PPOTrainer(policy, ppo_config)
+    trainer = PPOTrainer(policy, _ppo_config_from(agent_config))
     return Agent(idx=idx, policy=policy, trainer=trainer, config=agent_config)
 
 
@@ -244,11 +267,14 @@ def _save_best(population: list[Agent], checkpoint_dir: str) -> None:
             "hidden2": best.config.hidden2,
         },
         "mean_score": best.mean_score,
-        "state_size": _compute_pbt_state_size(best.config.augmented),
-        "augmented": best.config.augmented,
+        "state_size": _compute_pbt_state_size(best.config.shared.augmented),
+        "augmented": best.config.shared.augmented,
         "option_feature_size": OPTION_FEATURE_SIZE,
         "hidden1": best.config.hidden1,
         "hidden2": best.config.hidden2,
+        "terminal_reward_scale": best.config.shared.terminal_reward_scale,
+        "gamma": best.config.shared.gamma,
+        "gae_lambda": best.config.shared.gae_lambda,
     }, path)
     logger.info("Saved best agent (score=%.1f) to %s", best.mean_score, path)
 
@@ -261,7 +287,13 @@ def _build_pbt_config(args: argparse.Namespace) -> PBTConfig:
         eval_episodes=args.eval_episodes,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
-        augmented=args.augmented,
+        shared=SharedHyperparams(
+            augmented=args.augmented,
+            terminal_reward_scale=args.terminal_reward_scale,
+            gamma=args.gamma,
+            gae_lambda=args.gae_lambda,
+            minibatch_size=args.minibatch_size,
+        ),
         exploit=ExploitConfig(
             fraction=args.exploit_fraction,
             perturb_factor=args.perturb_factor,
@@ -277,21 +309,44 @@ def _parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Population-Based Training for Doppelt so clever",
     )
+    _add_pbt_core_args(parser)
+    _add_pbt_exploit_args(parser)
+    _add_pbt_io_args(parser)
+    _add_pbt_shared_args(parser)
+    return parser.parse_args()
+
+
+def _add_pbt_core_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--population-size", type=int, default=8)
     parser.add_argument("--iterations", type=int, default=5)
     parser.add_argument("--eval-interval", type=int, default=50)
     parser.add_argument("--eval-episodes", type=int, default=32)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--num-workers", type=int, default=0, help="Parallel episode workers (0=sequential)")
+
+
+def _add_pbt_exploit_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--exploit-fraction", type=float, default=0.2)
     parser.add_argument("--perturb-factor", type=float, default=1.2)
+
+
+def _add_pbt_io_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--checkpoint-dir", type=str, default="model/pbt_checkpoints")
     parser.add_argument("--log-dir", type=str, default="runs/pbt")
+
+
+def _add_pbt_shared_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--augmented", action=argparse.BooleanOptionalAction, default=True,
         help="Enable observation augmentation. Default on; use --no-augmented to disable.",
     )
-    return parser.parse_args()
+    parser.add_argument("--gamma", type=float, default=1.0, help="Discount factor for GAE")
+    parser.add_argument("--gae-lambda", type=float, default=0.95, help="GAE lambda")
+    parser.add_argument("--minibatch-size", type=int, default=256, help="PPO minibatch size")
+    parser.add_argument(
+        "--terminal-reward-scale", type=float, default=DEFAULT_TERMINAL_REWARD_SCALE,
+        help="Multiplier applied to the terminal score reward (default 1/300)",
+    )
 
 
 if __name__ == "__main__":

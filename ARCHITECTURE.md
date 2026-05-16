@@ -101,16 +101,18 @@ scripts/
 | `Transition` | `model/trajectory_buffer.py` | Dataclass storing a single step: state, action, log_prob, value, action_mask | — |
 | `Trajectory` | `model/trajectory_buffer.py` | Ordered list of `Transition`s plus terminal reward for one episode | `Transition` |
 | `TrajectoryBatch` | `model/trajectory_buffer.py` | Flat tensors (states, actions, log_probs, values, action_masks, advantages, returns) for a batch of trajectories | `torch` |
-| `PPOConfig` | `model/ppo.py` | Dataclass holding PPO hyperparameters: learning rate, clip epsilon, epochs per batch, entropy/value coefficients, max grad norm, minibatch size | — |
+| `PPOConfig` | `model/ppo.py` | Dataclass holding PPO hyperparameters: learning rate, clip epsilon, epochs per batch, entropy/value coefficients, max grad norm, minibatch size, gamma, gae_lambda | — |
+| `EpisodeOptions` | `model/rl_utils.py` | Dataclass bundling per-episode collection knobs: augmented, max_rounds, terminal_reward_scale, reward_config | `RewardConfig` |
 | `PPOTrainer` | `model/ppo.py` | Runs PPO updates: minibatch splitting, clipped surrogate loss, value loss, entropy bonus, gradient clipping | `PolicyNetwork`, `TrajectoryBatch`, `PPOConfig` |
 | `EarlyStopConfig` | `model/early_stop.py` | Dataclass holding early stopping parameters: patience (iterations without improvement, 0=disabled) and EMA smoothing factor | — |
 | `EarlyStopTracker` | `model/early_stop.py` | Tracks exponential moving average of scores, snapshots best policy state, signals when to stop and provides best weights for restoration | — |
 | `TrainingConfig` | `scripts/train_rl.py` | Dataclass holding training loop parameters: iterations, batch size, num_workers, hidden layer sizes, and nested `PPOConfig`, `FeatureFlags`, `IOConfig`, `EarlyStopConfig` | `PPOConfig`, `FeatureFlags`, `IOConfig`, `EarlyStopConfig` |
-| `FeatureFlags` | `scripts/train_rl.py` | Dataclass holding feature toggles: observation augmentation, LR decay, curriculum learning (start/end rounds) | — |
+| `FeatureFlags` | `scripts/train_rl.py` | Dataclass holding feature toggles: observation augmentation, LR decay, curriculum (start/end rounds, eval episodes), shaped rewards on/off, custom reward config, terminal reward scale | `RewardConfig` |
 | `IOConfig` | `scripts/train_rl.py` | Dataclass holding I/O parameters: checkpoint interval/dir, log dir, resume path | — |
 | `TrainingContext` | `scripts/train_rl.py` | Dataclass bundling policy, trainer, and optional LR scheduler for the training loop | `PolicyNetwork`, `PPOTrainer` |
 | `IterationMetrics` | `scripts/train_rl.py` | Dataclass bundling per-iteration stats: iteration number, global episode count, scores, elapsed time | — |
-| `PBTConfig` | `scripts/pbt_train_rl.py` | Dataclass holding PBT parameters: population size, iterations, eval interval/episodes, batch size, num_workers, and nested `ExploitConfig`, `PBTIOConfig` | `ExploitConfig`, `PBTIOConfig` |
+| `PBTConfig` | `scripts/pbt_train_rl.py` | Dataclass holding PBT parameters: population size, iterations, eval interval/episodes, batch size, num_workers, and nested `SharedHyperparams`, `ExploitConfig`, `PBTIOConfig` | `SharedHyperparams`, `ExploitConfig`, `PBTIOConfig` |
+| `SharedHyperparams` | `scripts/pbt_train_rl.py` | Dataclass for fields shared across the PBT population: augmented, terminal_reward_scale, gamma, gae_lambda, minibatch_size | — |
 | `Agent` | `scripts/pbt_train_rl.py` | Dataclass representing one agent in the population: policy, trainer, config, mean score | `PolicyNetwork`, `PPOTrainer`, `AgentConfig` |
 
 ### Rounds
@@ -236,7 +238,7 @@ model/
 scripts/
 ├── train_rl.py ─→ rl_utils, PolicyNetwork, PPOTrainer, EarlyStopTracker
 │                 └── training loop: collect episodes → build batch → PPO update → log & checkpoint
-│                 └── features: observation augmentation, LR decay, curriculum learning, early stopping
+│                 └── features: observation augmentation, LR decay, curriculum (with full-round eval), shaped rewards, terminal reward scaling, early stopping
 ├── pbt_train_rl.py ─→ rl_utils, PolicyNetwork, PPOTrainer
 │                    └── population-based training: init agents → train step → evaluate → exploit/explore
 └── evaluate_rl.py ─→ Game, RLObserver, RLInputHandler, PolicyNetwork, AutomaticInputHandler, AlwaysAcceptInputHandler

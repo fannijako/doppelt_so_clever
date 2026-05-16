@@ -91,3 +91,11 @@ class TestBuildBatch:
         assert batch_with.returns.sum().item() != pytest.approx(
             batch_without.returns.sum().item()
         )
+
+    def test_gamma_lambda_kwargs_change_returns(self):
+        traj = _make_trajectory(4, reward=10.0, step_reward=1.0)
+        batch_default = build_batch([traj])
+        batch_discounted = build_batch([traj], gamma=0.5, gae_lambda=0.5)
+        assert batch_default.returns.sum().item() != pytest.approx(
+            batch_discounted.returns.sum().item()
+        )

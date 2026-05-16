@@ -25,9 +25,6 @@ class BoardSnapshot:
     gained_rerolls: int
     gained_plus_ones: int
     gained_reuses: int
-    usable_rerolls: int
-    usable_plus_ones: int
-    usable_reuses: int
     failed_action_count: int
     partial_score: float | None = None
 
@@ -41,9 +38,6 @@ class BoardSnapshot:
             gained_rerolls=board.gained_rerolls,
             gained_plus_ones=board.gained_plus_ones,
             gained_reuses=board.gained_reuses,
-            usable_rerolls=board.usable_rerolls,
-            usable_plus_ones=board.usable_plus_ones,
-            usable_reuses=board.usable_reuses,
             failed_action_count=observer.failed_action_count,
             partial_score=board.partial_evaluate() if config.use_partial_score else None,
         )

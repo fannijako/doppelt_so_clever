@@ -13,12 +13,19 @@ from model.policy_network import PolicyNetwork, LEGACY_STATE_SIZE
 from model.ppo import PPOConfig, PPOTrainer, PPOUpdateResult
 from model.trajectory_buffer import build_batch
 from model.early_stop import EarlyStopConfig, EarlyStopTracker
-from model.rl_utils import collect_batch
+from model.rl_utils import DEFAULT_TERMINAL_REWARD_SCALE, EpisodeOptions, collect_batch
 from src.board.board import Board
+from src.game.reward_shaper import RewardConfig
 from src.game.rl_observer import RLObserver
 from src.game.option_features import OPTION_FEATURE_SIZE
 
 logger = logging.getLogger(__name__)
+
+
+NO_SHAPING_REWARD_CONFIG = RewardConfig(
+    w_box=0.0, w_fox=0.0, w_resource=0.0, w_failed=0.0, w_score=0.0,
+    use_partial_score=False,
+)
 
 
 @dataclass
@@ -28,6 +35,10 @@ class FeatureFlags:
     curriculum: bool = False
     max_rounds_start: int = 2
     max_rounds_end: int = 6
+    shaped_rewards: bool = True
+    reward_config: RewardConfig | None = None
+    curriculum_eval_episodes: int = 16
+    terminal_reward_scale: float = DEFAULT_TERMINAL_REWARD_SCALE
 
 
 @dataclass
@@ -103,7 +114,7 @@ def _training_loop(
         _log_iteration(writer, metrics, result)
         _maybe_checkpoint(ctx.policy, ctx.trainer, iteration, config)
         last_iteration = iteration
-        if _check_early_stop(tracker, metrics, ctx.policy):
+        if _check_early_stop(tracker, metrics, ctx.policy, config):
             break
     _save_checkpoint(ctx.policy, ctx.trainer, last_iteration, config)
 
@@ -112,13 +123,47 @@ def _check_early_stop(
     tracker: EarlyStopTracker,
     metrics: IterationMetrics,
     policy: PolicyNetwork,
+    config: TrainingConfig,
 ) -> bool:
-    mean_score = sum(metrics.scores) / len(metrics.scores)
-    if tracker.step(mean_score, policy.state_dict()):
+    if not tracker.enabled:
+        return False
+    score = _early_stop_score(metrics, policy, config)
+    if tracker.step(score, policy.state_dict()):
         logger.info("Restoring best weights (smoothed score: %.1f)", tracker.best_score)
         policy.load_state_dict(tracker.best_state())
         return True
     return False
+
+
+def _early_stop_score(
+    metrics: IterationMetrics,
+    policy: PolicyNetwork,
+    config: TrainingConfig,
+) -> float:
+    if config.features.curriculum:
+        return _full_round_eval(policy, config)
+    return sum(metrics.scores) / len(metrics.scores)
+
+
+def _full_round_eval(policy: PolicyNetwork, config: TrainingConfig) -> float:
+    n = config.features.curriculum_eval_episodes
+    _, scores = collect_batch(
+        policy, n,
+        options=_episode_options(config, max_rounds=None),
+        num_workers=config.num_workers,
+    )
+    mean = sum(scores) / len(scores)
+    logger.info("Curriculum full-round eval (%d games): mean=%.1f", n, mean)
+    return mean
+
+
+def _episode_options(config: TrainingConfig, max_rounds: int | None) -> EpisodeOptions:
+    return EpisodeOptions(
+        augmented=config.features.augmented,
+        max_rounds=max_rounds,
+        terminal_reward_scale=config.features.terminal_reward_scale,
+        reward_config=config.features.reward_config,
+    )
 
 
 def _training_step(
@@ -130,10 +175,12 @@ def _training_step(
     max_rounds = _curriculum_rounds(iteration, config)
     trajectories, scores = collect_batch(
         ctx.policy, config.batch_size,
-        config.features.augmented, max_rounds,
+        options=_episode_options(config, max_rounds),
         num_workers=config.num_workers,
     )
-    batch = build_batch(trajectories)
+    batch = build_batch(
+        trajectories, gamma=config.ppo.gamma, gae_lambda=config.ppo.gae_lambda,
+    )
     result = ctx.trainer.update(batch)
     if ctx.scheduler is not None:
         ctx.scheduler.step()
@@ -225,6 +272,10 @@ def _save_checkpoint(
         "option_feature_size": OPTION_FEATURE_SIZE,
         "hidden1": config.hidden1,
         "hidden2": config.hidden2,
+        "terminal_reward_scale": config.features.terminal_reward_scale,
+        "gamma": config.ppo.gamma,
+        "gae_lambda": config.ppo.gae_lambda,
+        "shaped_rewards": config.features.shaped_rewards,
     }, path)
     logger.info("Saved checkpoint: %s", path)
 
@@ -275,11 +326,15 @@ def _setup_model(
 
 
 def _build_config(args: argparse.Namespace) -> TrainingConfig:
+    _validate_args(args)
     ppo = PPOConfig(
         learning_rate=args.lr,
         epochs_per_batch=args.ppo_epochs,
         entropy_coefficient=args.entropy_coef,
         value_loss_coefficient=args.value_coef,
+        minibatch_size=args.minibatch_size,
+        gamma=args.gamma,
+        gae_lambda=args.gae_lambda,
     )
     features = FeatureFlags(
         augmented=args.augmented,
@@ -287,6 +342,10 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
         curriculum=args.curriculum,
         max_rounds_start=args.max_rounds_start,
         max_rounds_end=args.max_rounds_end,
+        shaped_rewards=args.shaped_rewards,
+        reward_config=None if args.shaped_rewards else NO_SHAPING_REWARD_CONFIG,
+        curriculum_eval_episodes=args.curriculum_eval_episodes,
+        terminal_reward_scale=args.terminal_reward_scale,
     )
     io_config = IOConfig(
         checkpoint_interval=args.checkpoint_interval,
@@ -311,22 +370,53 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
     )
 
 
+def _validate_args(args: argparse.Namespace) -> None:
+    if args.curriculum and not args.shaped_rewards:
+        raise ValueError(
+            "curriculum requires shaped rewards (per-step signal). "
+            "Drop --no-shaped-rewards or --curriculum.",
+        )
+
+
 def _parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train RL agent for Doppelt so clever")
+    _add_core_args(parser)
+    _add_ppo_args(parser)
+    _add_io_args(parser)
+    _add_feature_args(parser)
+    _add_reward_args(parser)
+    return parser.parse_args()
+
+
+def _add_core_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--iterations", type=int, default=5000)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--num-workers", type=int, default=0, help="Parallel episode workers (0=sequential)")
+    parser.add_argument("--hidden1", type=int, default=256, help="First hidden layer size")
+    parser.add_argument("--hidden2", type=int, default=128, help="Second hidden layer size")
+
+
+def _add_ppo_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--ppo-epochs", type=int, default=4)
     parser.add_argument("--entropy-coef", type=float, default=0.01)
     parser.add_argument("--value-coef", type=float, default=0.5)
+    parser.add_argument("--gamma", type=float, default=1.0, help="Discount factor for GAE")
+    parser.add_argument("--gae-lambda", type=float, default=0.95, help="GAE lambda")
+    parser.add_argument("--minibatch-size", type=int, default=256, help="PPO minibatch size")
+    parser.add_argument("--lr-decay", action="store_true", help="Enable linear learning rate decay")
+
+
+def _add_io_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--checkpoint-interval", type=int, default=100)
     parser.add_argument("--checkpoint-dir", type=str, default="model/checkpoints")
     parser.add_argument("--log-dir", type=str, default="runs/doppelt_rl")
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
-    parser.add_argument("--hidden1", type=int, default=256, help="First hidden layer size")
-    parser.add_argument("--hidden2", type=int, default=128, help="Second hidden layer size")
-    parser.add_argument("--lr-decay", action="store_true", help="Enable linear learning rate decay")
+    parser.add_argument("--early-stop-patience", type=int, default=0, help="Early stop patience in iterations (0=disabled)")
+    parser.add_argument("--early-stop-smoothing", type=float, default=0.05, help="EMA smoothing factor for early stop score")
+
+
+def _add_feature_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--augmented", action=argparse.BooleanOptionalAction, default=True,
         help="Enable observation augmentation (prompt + option features). Default on; use --no-augmented to disable.",
@@ -334,9 +424,21 @@ def _parse_arguments() -> argparse.Namespace:
     parser.add_argument("--curriculum", action="store_true", help="Enable curriculum learning (gradual round increase)")
     parser.add_argument("--max-rounds-start", type=int, default=2, help="Starting number of rounds for curriculum")
     parser.add_argument("--max-rounds-end", type=int, default=6, help="Final number of rounds for curriculum")
-    parser.add_argument("--early-stop-patience", type=int, default=0, help="Early stop patience in iterations (0=disabled)")
-    parser.add_argument("--early-stop-smoothing", type=float, default=0.05, help="EMA smoothing factor for early stop score")
-    return parser.parse_args()
+    parser.add_argument(
+        "--curriculum-eval-episodes", type=int, default=16,
+        help="Full 6-round episodes used to score the policy for early-stop when curriculum is on.",
+    )
+
+
+def _add_reward_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--terminal-reward-scale", type=float, default=DEFAULT_TERMINAL_REWARD_SCALE,
+        help="Multiplier applied to the terminal score reward (default 1/300)",
+    )
+    parser.add_argument(
+        "--shaped-rewards", action=argparse.BooleanOptionalAction, default=True,
+        help="Enable per-step shaped rewards (Phase 2). Default on; use --no-shaped-rewards for ablation.",
+    )
 
 
 if __name__ == "__main__":

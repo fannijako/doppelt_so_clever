@@ -139,6 +139,21 @@ Train with **early stopping** (stops when score plateaus, restores best weights)
 python main.py train --early-stop-patience 300 --early-stop-smoothing 0.05
 ```
 
+Train with a **curriculum** (gradually increases the number of rounds, uses full-6-round eval for early-stop):
+```bash
+python main.py train --curriculum --max-rounds-start 2 --max-rounds-end 6 --curriculum-eval-episodes 16 --early-stop-patience 300
+```
+
+Train with **custom PPO hyperparameters** and a different terminal-reward scale:
+```bash
+python main.py train --gamma 0.99 --gae-lambda 0.95 --minibatch-size 128 --terminal-reward-scale 0.005
+```
+
+Ablation: turn off **shaped rewards** (terminal-only, no per-step signal):
+```bash
+python main.py train --no-shaped-rewards
+```
+
 Evaluate the **RL agent** against baselines (random, always-accept):
 ```bash
 make evaluate-rl
@@ -210,13 +225,16 @@ Population-Based Training runs multiple agents in parallel, periodically replaci
 
 ### PPO Parameters (fixed across all agents)
 
-| Parameter | Value | Effect |
-|-----------|-------|--------|
-| **clip_epsilon** | 0.2 | Clamps the policy ratio in the PPO surrogate objective. Prevents destructively large policy updates. |
-| **epochs_per_batch** | 4 | Number of passes over the collected batch per PPO update. More epochs extract more signal from each batch but risk overfitting to stale data. |
-| **value_loss_coefficient** | 0.5 | Weight of the value-function MSE loss relative to the policy loss. |
-| **max_grad_norm** | 0.5 | Gradient clipping threshold. Prevents exploding gradients during optimization. |
-| **minibatch_size** | 256 | Size of minibatches sampled from the batch during PPO updates. Smaller minibatches add noise that can help escape local optima. |
+| Parameter | Flag | Default | Effect |
+|-----------|------|---------|--------|
+| **clip_epsilon** | (fixed) | 0.2 | Clamps the policy ratio in the PPO surrogate objective. Prevents destructively large policy updates. |
+| **epochs_per_batch** | (fixed) | 4 | Number of passes over the collected batch per PPO update. More epochs extract more signal from each batch but risk overfitting to stale data. |
+| **value_loss_coefficient** | (fixed) | 0.5 | Weight of the value-function MSE loss relative to the policy loss. |
+| **max_grad_norm** | (fixed) | 0.5 | Gradient clipping threshold. Prevents exploding gradients during optimization. |
+| **minibatch_size** | `--minibatch-size` | 256 | Size of minibatches sampled from the batch during PPO updates. Smaller minibatches add noise that can help escape local optima. |
+| **gamma** | `--gamma` | 1.0 | Discount factor used by GAE. `1.0` treats the whole episode as one undiscounted return. |
+| **gae_lambda** | `--gae-lambda` | 0.95 | GAE bias/variance trade-off. Lower values reduce variance at the cost of bias. |
+| **terminal_reward_scale** | `--terminal-reward-scale` | 1/300 | Multiplier on the final game score before it is folded into the trajectory return. Keeps the terminal reward in roughly the same magnitude as per-step shaped rewards. |
 
 ### I/O Parameters
 
