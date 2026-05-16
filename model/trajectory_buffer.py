@@ -12,6 +12,7 @@ class Transition:
     log_prob: float
     value: float
     action_mask: list[float]
+    reward: float = 0.0
 
 
 @dataclass
@@ -51,7 +52,7 @@ def compute_gae(
     for t in reversed(range(n)):
         next_value = values[t + 1] if t + 1 < n else 0.0
         is_last = 1.0 if t == n - 1 else 0.0
-        reward = terminal_reward * is_last
+        reward = trajectory.transitions[t].reward + terminal_reward * is_last
         delta = reward + gamma * next_value - values[t]
         last_gae = delta + gamma * gae_lambda * (1.0 - is_last) * last_gae
         advantages[t] = last_gae

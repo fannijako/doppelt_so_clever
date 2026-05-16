@@ -73,6 +73,10 @@ class RLObserver(GameObserver):
     def failed_action_count(self) -> int:
         return self._failed_action_count
 
+    @property
+    def board(self) -> Board:
+        return self._board
+
     def on_round_started(self, round_number: int) -> None:
         self._state.round_number = round_number
 

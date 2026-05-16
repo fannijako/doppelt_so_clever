@@ -208,6 +208,12 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
     def evaluate(self) -> int:
         if not self.game_over:
             return 0
+        return self._score_from_parts()
+
+    def partial_evaluate(self) -> int:
+        return self._score_from_parts()
+
+    def _score_from_parts(self) -> int:
         part_values = [
             board_part.evaluate()
             for board_part

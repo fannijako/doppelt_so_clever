@@ -39,6 +39,7 @@ def convert_trajectory(transitions: list[Transition], reward: float) -> Trajecto
             log_prob=t.log_prob,
             value=t.value,
             action_mask=[float(m) for m in t.action_mask],
+            reward=t.reward,
         ))
     return traj
 
@@ -59,6 +60,7 @@ def run_episode(
         action_handler=ActionHandler(board=board),
     )
     score = game.play(max_rounds=max_rounds)
+    handler.flush_terminal_step_reward()
     return convert_trajectory(handler.trajectory, float(score)), score
 
 
