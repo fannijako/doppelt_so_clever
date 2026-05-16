@@ -9,6 +9,7 @@ from model.ppo import PPOConfig, PPOTrainer
 from scripts.train_rl import (
     FeatureFlags,
     IOConfig,
+    ModelConfig,
     TrainingConfig,
     _save_checkpoint,
 )
@@ -23,7 +24,7 @@ def _make_checkpoint(tmpdir: str, augmented: bool) -> str:
     config = TrainingConfig(
         features=FeatureFlags(augmented=augmented),
         io=IOConfig(checkpoint_dir=tmpdir),
-        hidden1=64, hidden2=32,
+        model=ModelConfig(hidden1=64, hidden2=32),
     )
     state_size = Board.STATE_SIZE + (
         RLObserver.AUGMENTED_CONTEXT_SIZE if augmented else RLObserver.CONTEXT_SIZE

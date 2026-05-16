@@ -78,17 +78,22 @@ Improve the reinforcement learning agent for Doppelt so clever by addressing the
 
 ## Phase 5: Evaluation and regression tracking
 
+- **Status: complete**
+
 - **Add stronger baselines**
-  - Keep random and always-accept baselines.
-  - Add heuristic baselines for greedy immediate score, fox balancing, and resource-aware play.
-  - Use these as meaningful thresholds.
+  - Random and always-accept baselines retained.
+  - Three rule-based heuristic baselines added in `src/input_handler/heuristics/`: `GreedyImmediateInputHandler`, `FoxBalancingInputHandler`, `ResourceAwareInputHandler`.
+  - All five baselines registered in `scripts/evaluate_rl.py:_BASELINES`.
 
 - **Track score categories**
-  - Log the percentage of games in each official category: `<140`, `140-159`, `160-179`, `180-199`, `200-219`, and higher.
+  - `_category_distribution()` + `_print_category_table()` in `scripts/evaluate_rl.py` print percentages per agent in each official band: `<140`, `140-159`, `160-179`, ..., `>=320`.
+  - Grouped bar chart saved as `score_categories.png` alongside the existing overlay histogram.
 
 - **Checkpoint best model by evaluation score**
-  - Save the best checkpoint using separate evaluation episodes, not only the latest training iteration.
-  - Avoid selecting noisy checkpoints from small training batches.
+  - `EvalConfig` (`interval`, `episodes`) and `_maybe_eval_and_save_best()` run full-6-round eval and overwrite `model/checkpoints/best.pt` whenever a new best mean score is reached.
+  - `--eval-interval` (default 50) and `--eval-episodes` (default 32) CLI flags on `train`.
+  - Best checkpoints store `best_eval_score` and `best_eval_iteration` on top of the standard Phase 3 metadata payload.
+  - `scripts/evaluate_rl.py:_find_latest_checkpoint()` prefers `best.pt` over the latest numeric checkpoint.
 
 - **Acceptance targets**
   - Short term: consistently exceed always-accept.

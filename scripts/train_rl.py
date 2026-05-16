@@ -50,16 +50,28 @@ class IOConfig:
 
 
 @dataclass
+class EvalConfig:
+    interval: int = 50
+    episodes: int = 32
+
+
+@dataclass
+class ModelConfig:
+    hidden1: int = 256
+    hidden2: int = 128
+
+
+@dataclass
 class TrainingConfig:
     iterations: int = 5000
     batch_size: int = 64
-    ppo: PPOConfig = field(default_factory=PPOConfig)
-    hidden1: int = 256
-    hidden2: int = 128
     num_workers: int = 0
+    ppo: PPOConfig = field(default_factory=PPOConfig)
+    model: ModelConfig = field(default_factory=ModelConfig)
     features: FeatureFlags = field(default_factory=FeatureFlags)
     io: IOConfig = field(default_factory=IOConfig)
     early_stop: EarlyStopConfig = field(default_factory=EarlyStopConfig)
+    eval: EvalConfig = field(default_factory=EvalConfig)
 
 
 @dataclass
@@ -108,11 +120,15 @@ def _training_loop(
         patience=config.early_stop.patience,
         smoothing=config.early_stop.smoothing,
     )
+    best_eval_score = float("-inf")
     last_iteration = start_iteration
     for iteration in range(start_iteration, config.iterations):
         result, metrics = _training_step(ctx, config, iteration)
         _log_iteration(writer, metrics, result)
         _maybe_checkpoint(ctx.policy, ctx.trainer, iteration, config)
+        best_eval_score = _maybe_eval_and_save_best(
+            ctx, config, iteration, best_eval_score, writer,
+        )
         last_iteration = iteration
         if _check_early_stop(tracker, metrics, ctx.policy, config):
             break
@@ -256,6 +272,51 @@ def _maybe_checkpoint(
         _save_checkpoint(policy, trainer, iteration, config)
 
 
+def _maybe_eval_and_save_best(
+    ctx: TrainingContext,
+    config: TrainingConfig,
+    iteration: int,
+    best_eval_score: float,
+    writer: SummaryWriter,
+) -> float:
+    if config.eval.interval <= 0 or (iteration + 1) % config.eval.interval != 0:
+        return best_eval_score
+    score = _evaluate_policy(ctx.policy, config)
+    writer.add_scalar("eval/mean_score", score, (iteration + 1) * config.batch_size)
+    logger.info(
+        "eval iter=%d  mean=%.1f  best=%.1f",
+        iteration, score, max(best_eval_score, score),
+    )
+    if score > best_eval_score:
+        _save_best_checkpoint(ctx.policy, ctx.trainer, iteration, score, config)
+        return score
+    return best_eval_score
+
+
+def _evaluate_policy(policy: PolicyNetwork, config: TrainingConfig) -> float:
+    _, scores = collect_batch(
+        policy, config.eval.episodes,
+        options=_episode_options(config, max_rounds=None),
+        num_workers=config.num_workers,
+    )
+    return sum(scores) / len(scores)
+
+
+def _save_best_checkpoint(
+    policy: PolicyNetwork,
+    trainer: PPOTrainer,
+    iteration: int,
+    eval_score: float,
+    config: TrainingConfig,
+) -> None:
+    path = os.path.join(config.io.checkpoint_dir, "best.pt")
+    payload = _checkpoint_payload(policy, trainer, iteration, config)
+    payload["best_eval_score"] = eval_score
+    payload["best_eval_iteration"] = iteration
+    torch.save(payload, path)
+    logger.info("Saved new best checkpoint (score=%.1f): %s", eval_score, path)
+
+
 def _save_checkpoint(
     policy: PolicyNetwork,
     trainer: PPOTrainer,
@@ -263,21 +324,30 @@ def _save_checkpoint(
     config: TrainingConfig,
 ) -> None:
     path = os.path.join(config.io.checkpoint_dir, f"checkpoint_{iteration:06d}.pt")
-    torch.save({
+    torch.save(_checkpoint_payload(policy, trainer, iteration, config), path)
+    logger.info("Saved checkpoint: %s", path)
+
+
+def _checkpoint_payload(
+    policy: PolicyNetwork,
+    trainer: PPOTrainer,
+    iteration: int,
+    config: TrainingConfig,
+) -> dict:
+    return {
         "iteration": iteration,
         "policy_state_dict": policy.state_dict(),
         "optimizer_state_dict": trainer.optimizer.state_dict(),
         "state_size": _compute_state_size(config.features.augmented),
         "augmented": config.features.augmented,
         "option_feature_size": OPTION_FEATURE_SIZE,
-        "hidden1": config.hidden1,
-        "hidden2": config.hidden2,
+        "hidden1": config.model.hidden1,
+        "hidden2": config.model.hidden2,
         "terminal_reward_scale": config.features.terminal_reward_scale,
         "gamma": config.ppo.gamma,
         "gae_lambda": config.ppo.gae_lambda,
         "shaped_rewards": config.features.shaped_rewards,
-    }, path)
-    logger.info("Saved checkpoint: %s", path)
+    }
 
 
 def _load_checkpoint(
@@ -316,7 +386,7 @@ def _setup_model(
 ) -> tuple[PolicyNetwork, PPOTrainer, int]:
     state_size = _compute_state_size(config.features.augmented)
     policy = PolicyNetwork(
-        state_size=state_size, hidden1=config.hidden1, hidden2=config.hidden2,
+        state_size=state_size, hidden1=config.model.hidden1, hidden2=config.model.hidden2,
     )
     trainer = PPOTrainer(policy, config.ppo)
     start_iteration = 0
@@ -357,16 +427,20 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
         patience=args.early_stop_patience,
         smoothing=args.early_stop_smoothing,
     )
+    eval_config = EvalConfig(
+        interval=args.eval_interval,
+        episodes=args.eval_episodes,
+    )
     return TrainingConfig(
         iterations=args.iterations,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         ppo=ppo,
-        hidden1=args.hidden1,
-        hidden2=args.hidden2,
+        model=ModelConfig(hidden1=args.hidden1, hidden2=args.hidden2),
         features=features,
         io=io_config,
         early_stop=early_stop,
+        eval=eval_config,
     )
 
 
@@ -414,6 +488,14 @@ def _add_io_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
     parser.add_argument("--early-stop-patience", type=int, default=0, help="Early stop patience in iterations (0=disabled)")
     parser.add_argument("--early-stop-smoothing", type=float, default=0.05, help="EMA smoothing factor for early stop score")
+    parser.add_argument(
+        "--eval-interval", type=int, default=50,
+        help="Iterations between best-by-eval checkpoints (0=disabled)",
+    )
+    parser.add_argument(
+        "--eval-episodes", type=int, default=32,
+        help="Full-round episodes per eval pass for best.pt",
+    )
 
 
 def _add_feature_args(parser: argparse.ArgumentParser) -> None:

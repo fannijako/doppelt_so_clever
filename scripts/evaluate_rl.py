@@ -7,6 +7,7 @@ import argparse
 import statistics
 
 from dataclasses import dataclass
+from typing import Callable
 
 import torch
 import matplotlib.pyplot as plt
@@ -21,11 +22,16 @@ from src.actions.action_handler import ActionHandler
 from src.game.logging_observer import LoggingObserver
 from src.input_handler import AutomaticInputHandler, InputHandler, RLInputHandler
 from src.input_handler.heuristics.always_accept import AlwaysAcceptInputHandler
+from src.input_handler.heuristics.fox_balancing import FoxBalancingInputHandler
+from src.input_handler.heuristics.greedy_immediate import GreedyImmediateInputHandler
+from src.input_handler.heuristics.resource_aware import ResourceAwareInputHandler
 
 from model.policy_network import PolicyNetwork
 from scripts.train_rl import require_phase3_metadata
 
 logger = logging.getLogger(__name__)
+
+HandlerFactory = Callable[[Board], InputHandler]
 
 
 @dataclass
@@ -52,10 +58,12 @@ def main() -> None:
 
     results = _run_all_baselines(args)
     _print_comparison_table(results)
+    _print_category_table(results)
 
     output_dir = args.output_dir
     os.makedirs(output_dir, exist_ok=True)
     _plot_overlaid_distributions(results, output_dir)
+    _plot_category_distribution(results, output_dir)
     _plot_learning_curve(args.log_dir, output_dir)
 
     logger.info("Evaluation complete. Plots saved to %s/", output_dir)
@@ -64,14 +72,21 @@ def main() -> None:
         _ci_gate(results)
 
 
+_BASELINES: list[tuple[str, "HandlerFactory"]] = [
+    ("Random", lambda _board: AutomaticInputHandler()),
+    ("Always-Accept", lambda _board: AlwaysAcceptInputHandler()),
+    ("Greedy", GreedyImmediateInputHandler),
+    ("Fox-Balancing", FoxBalancingInputHandler),
+    ("Resource-Aware", ResourceAwareInputHandler),
+]
+
+
 def _run_all_baselines(args: argparse.Namespace) -> list[BaselineResult]:
     results: list[BaselineResult] = []
 
-    logger.info("Running random baseline (%d games)...", args.num_games)
-    results.append(_run_baseline("Random", AutomaticInputHandler(), args.num_games))
-
-    logger.info("Running always-accept baseline (%d games)...", args.num_games)
-    results.append(_run_baseline("Always-Accept", AlwaysAcceptInputHandler(), args.num_games))
+    for name, factory in _BASELINES:
+        logger.info("Running %s baseline (%d games)...", name, args.num_games)
+        results.append(_run_baseline(name, factory, args.num_games))
 
     checkpoint = _resolve_checkpoint(args.checkpoint)
     if checkpoint is not None:
@@ -83,15 +98,15 @@ def _run_all_baselines(args: argparse.Namespace) -> list[BaselineResult]:
     return results
 
 
-def _run_baseline(name: str, handler: InputHandler, num_games: int) -> BaselineResult:
-    scores = [_play_standard_game(handler) for _ in range(num_games)]
+def _run_baseline(name: str, factory: "HandlerFactory", num_games: int) -> BaselineResult:
+    scores = [_play_standard_game(factory) for _ in range(num_games)]
     return BaselineResult(name=name, scores=scores)
 
 
-def _play_standard_game(handler: InputHandler) -> int:
+def _play_standard_game(factory: "HandlerFactory") -> int:
     board = Board()
     game = Game(
-        input_handler=handler,
+        input_handler=factory(board),
         board=board,
         observer=LoggingObserver(),
         action_handler=ActionHandler(board=board),
@@ -171,6 +186,64 @@ def _print_relative_improvements(results: list[BaselineResult]) -> None:
         print(f"  {r.name}: {improvement:+.1f}% mean score improvement")
 
 
+def _category_label(lower: int, upper: int | None) -> str:
+    if lower == 0:
+        return f"<{upper}"
+    if upper is None:
+        return f">={lower}"
+    return f"{lower}-{upper - 1}"
+
+
+_CATEGORY_LABELS: list[str] = [
+    _category_label(lower, upper) for lower, upper, _ in SCORE_CATEGORIES
+]
+
+
+def _category_distribution(scores: list[int]) -> list[float]:
+    if not scores:
+        return [0.0] * len(SCORE_CATEGORIES)
+    counts = [0] * len(SCORE_CATEGORIES)
+    for score in scores:
+        counts[_category_index(score)] += 1
+    return [c / len(scores) * 100.0 for c in counts]
+
+
+def _category_index(score: int) -> int:
+    for i, (lower, upper, _) in enumerate(SCORE_CATEGORIES):
+        if upper is None:
+            if score >= lower:
+                return i
+        elif lower <= score < upper:
+            return i
+    return len(SCORE_CATEGORIES) - 1
+
+
+def _print_category_table(results: list[BaselineResult]) -> None:
+    name_width = max(len("Agent"), *(len(r.name) for r in results))
+    cell_width = max(7, max(len(label) for label in _CATEGORY_LABELS) + 1)
+    header = _format_category_header(name_width, cell_width)
+    print("\n" + "=" * len(header))
+    print("Score-category distribution (% of games)")
+    print("-" * len(header))
+    print(header)
+    print("-" * len(header))
+    for r in results:
+        print(_format_category_row(r, name_width, cell_width))
+    print("=" * len(header))
+
+
+def _format_category_header(name_width: int, cell_width: int) -> str:
+    return f"{'Agent':<{name_width}} " + " ".join(
+        f"{label:>{cell_width}}" for label in _CATEGORY_LABELS
+    )
+
+
+def _format_category_row(result: BaselineResult, name_width: int, cell_width: int) -> str:
+    dist = _category_distribution(result.scores)
+    cells = " ".join(f"{pct:>{cell_width}.1f}" for pct in dist)
+    return f"{result.name:<{name_width}} {cells}"
+
+
 def _plot_overlaid_distributions(results: list[BaselineResult], output_dir: str) -> None:
     fig, ax = plt.subplots(figsize=(10, 6))
     colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
@@ -188,6 +261,38 @@ def _plot_overlaid_distributions(results: list[BaselineResult], output_dir: str)
     fig.tight_layout()
     fig.savefig(os.path.join(output_dir, "score_distributions_overlay.png"), dpi=150)
     plt.close(fig)
+
+
+_CATEGORY_PALETTE = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b"]
+
+
+def _plot_category_distribution(results: list[BaselineResult], output_dir: str) -> None:
+    fig, ax = plt.subplots(figsize=(12, 6))
+    bar_width = 0.8 / max(len(results), 1)
+    _draw_category_bars(ax, results, bar_width)
+    _apply_category_axis(ax, len(results), bar_width)
+    fig.tight_layout()
+    fig.savefig(os.path.join(output_dir, "score_categories.png"), dpi=150)
+    plt.close(fig)
+
+
+def _draw_category_bars(ax, results: list[BaselineResult], bar_width: float) -> None:
+    n_buckets = len(_CATEGORY_LABELS)
+    for i, result in enumerate(results):
+        offsets = [b + i * bar_width for b in range(n_buckets)]
+        ax.bar(
+            offsets, _category_distribution(result.scores), width=bar_width,
+            label=result.name, color=_CATEGORY_PALETTE[i % len(_CATEGORY_PALETTE)],
+        )
+
+
+def _apply_category_axis(ax, n_results: int, bar_width: float) -> None:
+    n_buckets = len(_CATEGORY_LABELS)
+    ax.set_xticks([b + bar_width * (n_results - 1) / 2 for b in range(n_buckets)])
+    ax.set_xticklabels(_CATEGORY_LABELS, rotation=45, ha="right")
+    ax.set_ylabel("Games (%)")
+    ax.set_title("Score-Category Distribution per Agent")
+    ax.legend()
 
 
 def _add_category_lines(ax) -> None:
@@ -255,6 +360,9 @@ def _find_latest_checkpoint() -> str | None:
     checkpoint_dir = "model/checkpoints"
     if not os.path.exists(checkpoint_dir):
         return None
+    best = os.path.join(checkpoint_dir, "best.pt")
+    if os.path.exists(best):
+        return best
     checkpoints = [f for f in os.listdir(checkpoint_dir) if f.endswith(".pt")]
     if not checkpoints:
         return None

@@ -26,7 +26,7 @@ src/
 │   ├── consol_input_handler.py    # Console (stdin) input
 │   ├── automatic_input_handler.py # Random/automatic input
 │   ├── pygame_input_handler.py    # Delegates input to PygameUI
-│   └── heuristics/                # Heuristic-based handlers
+│   └── heuristics/                # Rule-based baseline handlers (always-accept, greedy, fox-balancing, resource-aware)
 ├── dice/                  # Dice and color definitions
 ├── round/                 # Active and passive round logic
 ├── board/
@@ -65,7 +65,7 @@ scripts/
 | `Game` | `src/game/game.py` | Runs 6 active rounds, each followed by a passive round; grants round-specific bonus actions; triggers final scoring; notifies `GameObserver` on lifecycle events | `Board`, `ActionHandler`, `GameObserver`, `ActiveRound`, `PassiveRound`, `ReRollAction`, `ReUseAction`, `PlusOneAction`, `BlackQuestionMarkAction` |
 | *(module)* `monte_carlo` | `scripts/monte_carlo.py` | Runs Monte Carlo simulations with configurable rounds; uses a `GameFactory` callable to create per-game instances; RL mode wires a fresh `Board`/`RLObserver`/`RLInputHandler` per game matching the training setup | `Game`, `LoggingObserver`, `RLObserver`, `RLInputHandler`, `PolicyNetwork` |
 | *(module)* `train_rl` | `scripts/train_rl.py` | PPO training loop: collects episode batches via `RLInputHandler`, builds trajectory batches, runs PPO updates, logs to TensorBoard, saves periodic checkpoints | `Game`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `PPOTrainer`, `TrajectoryBatch` |
-| *(module)* `evaluate_rl` | `scripts/evaluate_rl.py` | Runs baseline agents (random, always-accept) and the trained RL agent; prints comparison table; plots score distributions and learning curves from TensorBoard logs; `--ci` flag exits non-zero if RL agent mean score is below Always-Accept | `Game`, `LoggingObserver`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `AutomaticInputHandler`, `AlwaysAcceptInputHandler` |
+| *(module)* `evaluate_rl` | `scripts/evaluate_rl.py` | Runs five baseline agents (random, always-accept, greedy, fox-balancing, resource-aware) and the trained RL agent; prints mean/std comparison and score-category distribution tables; plots overlay histogram, grouped category bars, and learning curves from TensorBoard logs; prefers `best.pt` when resolving the default checkpoint; `--ci` flag exits non-zero if RL agent mean score is below Always-Accept | `Game`, `LoggingObserver`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `AutomaticInputHandler`, `AlwaysAcceptInputHandler`, `GreedyImmediateInputHandler`, `FoxBalancingInputHandler`, `ResourceAwareInputHandler` |
 
 ### Observers
 
@@ -92,6 +92,10 @@ scripts/
 | `PygameInputHandler` | `src/input_handler/pygame_input_handler.py` | Delegates all input to `PygameUI.wait_for_input()` — blocks until the UI submits a result | `InputHandler`, `PygameUI` |
 | `ModelInputHandler` | `src/input_handler/model/model_input_handler.py` | Uses a trained model for decisions | `InputHandler` |
 | `RLInputHandler` | `src/input_handler/model/rl_input_handler.py` | Queries a `Policy` for actions; builds action masks; records `Transition`s (state, action, log_prob, value, action_mask) during training; skips recording in eval mode | `InputHandler`, `RLObserver`, `Policy` (protocol) |
+| `AlwaysAcceptInputHandler` | `src/input_handler/heuristics/always_accept.py` | Like random, but always confirms — never declines a placement, reroll, reuse, or plus-one | `AutomaticInputHandler` |
+| `GreedyImmediateInputHandler` | `src/input_handler/heuristics/greedy_immediate.py` | Always confirms placement and reuse; color picks favour the section with the most empty boxes | `AutomaticInputHandler`, `Board`, `classify_prompt`, `PromptType` |
+| `FoxBalancingInputHandler` | `src/input_handler/heuristics/fox_balancing.py` | Confirms placement; color picks favour the section with the currently lowest `evaluate()` score (since fox bonus multiplies the minimum part) | `AutomaticInputHandler`, `Board`, `classify_prompt`, `PromptType` |
+| `ResourceAwareInputHandler` | `src/input_handler/heuristics/resource_aware.py` | Confirms placement and reuse; uses reroll only when `usable_rerolls >= 2`; uses plus-one only when `foxes >= 2` | `AutomaticInputHandler`, `Board`, `classify_prompt`, `PromptType` |
 
 ### RL Model
 
@@ -106,9 +110,11 @@ scripts/
 | `PPOTrainer` | `model/ppo.py` | Runs PPO updates: minibatch splitting, clipped surrogate loss, value loss, entropy bonus, gradient clipping | `PolicyNetwork`, `TrajectoryBatch`, `PPOConfig` |
 | `EarlyStopConfig` | `model/early_stop.py` | Dataclass holding early stopping parameters: patience (iterations without improvement, 0=disabled) and EMA smoothing factor | — |
 | `EarlyStopTracker` | `model/early_stop.py` | Tracks exponential moving average of scores, snapshots best policy state, signals when to stop and provides best weights for restoration | — |
-| `TrainingConfig` | `scripts/train_rl.py` | Dataclass holding training loop parameters: iterations, batch size, num_workers, hidden layer sizes, and nested `PPOConfig`, `FeatureFlags`, `IOConfig`, `EarlyStopConfig` | `PPOConfig`, `FeatureFlags`, `IOConfig`, `EarlyStopConfig` |
+| `TrainingConfig` | `scripts/train_rl.py` | Dataclass holding training loop parameters: iterations, batch size, num_workers, and nested `PPOConfig`, `ModelConfig`, `FeatureFlags`, `IOConfig`, `EarlyStopConfig`, `EvalConfig` | `PPOConfig`, `ModelConfig`, `FeatureFlags`, `IOConfig`, `EarlyStopConfig`, `EvalConfig` |
 | `FeatureFlags` | `scripts/train_rl.py` | Dataclass holding feature toggles: observation augmentation, LR decay, curriculum (start/end rounds, eval episodes), shaped rewards on/off, custom reward config, terminal reward scale | `RewardConfig` |
 | `IOConfig` | `scripts/train_rl.py` | Dataclass holding I/O parameters: checkpoint interval/dir, log dir, resume path | — |
+| `EvalConfig` | `scripts/train_rl.py` | Dataclass holding best-by-eval cadence: interval (iterations between full-6-round eval passes, 0=disabled) and episodes per pass; drives `best.pt` saves | — |
+| `ModelConfig` | `scripts/train_rl.py` | Dataclass holding policy architecture: `hidden1` and `hidden2` layer sizes | — |
 | `TrainingContext` | `scripts/train_rl.py` | Dataclass bundling policy, trainer, and optional LR scheduler for the training loop | `PolicyNetwork`, `PPOTrainer` |
 | `IterationMetrics` | `scripts/train_rl.py` | Dataclass bundling per-iteration stats: iteration number, global episode count, scores, elapsed time | — |
 | `PBTConfig` | `scripts/pbt_train_rl.py` | Dataclass holding PBT parameters: population size, iterations, eval interval/episodes, batch size, num_workers, and nested `SharedHyperparams`, `ExploitConfig`, `PBTIOConfig` | `SharedHyperparams`, `ExploitConfig`, `PBTIOConfig` |
@@ -238,11 +244,11 @@ model/
 scripts/
 ├── train_rl.py ─→ rl_utils, PolicyNetwork, PPOTrainer, EarlyStopTracker
 │                 └── training loop: collect episodes → build batch → PPO update → log & checkpoint
-│                 └── features: observation augmentation, LR decay, curriculum (with full-round eval), shaped rewards, terminal reward scaling, early stopping
+│                 └── features: observation augmentation, LR decay, curriculum (with full-round eval), shaped rewards, terminal reward scaling, early stopping, best-by-eval `best.pt`
 ├── pbt_train_rl.py ─→ rl_utils, PolicyNetwork, PPOTrainer
 │                    └── population-based training: init agents → train step → evaluate → exploit/explore
-└── evaluate_rl.py ─→ Game, RLObserver, RLInputHandler, PolicyNetwork, AutomaticInputHandler, AlwaysAcceptInputHandler
-                    └── baseline comparison: run agents → score stats → distribution/learning-curve plots
+└── evaluate_rl.py ─→ Game, RLObserver, RLInputHandler, PolicyNetwork, AutomaticInputHandler, AlwaysAcceptInputHandler, GreedyImmediateInputHandler, FoxBalancingInputHandler, ResourceAwareInputHandler
+                    └── baseline comparison: run 5 baselines + RL → mean/std table → score-category table → distribution/category/learning-curve plots
 ```
 
 Both `ActiveRound` and `PassiveRound` depend on `Board`, `ActionHandler`, `GameObserver`, `Dice`, and `DiceColor`. Board parts depend on their respective box classes, `ActionMap`, `Dice`, and `DiceColor`.

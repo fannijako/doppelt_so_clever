@@ -154,10 +154,17 @@ Ablation: turn off **shaped rewards** (terminal-only, no per-step signal):
 python main.py train --no-shaped-rewards
 ```
 
-Evaluate the **RL agent** against baselines (random, always-accept):
+Train with **periodic full-round eval** that saves the best policy to `model/checkpoints/best.pt`:
+```bash
+python main.py train --eval-interval 50 --eval-episodes 32
+```
+
+Evaluate the **RL agent** against baselines (random, always-accept, greedy, fox-balancing, resource-aware):
 ```bash
 make evaluate-rl
 ```
+
+The evaluator prefers `model/checkpoints/best.pt` when present, otherwise falls back to the latest periodic checkpoint. It prints a mean/std comparison table and a score-category distribution table (`<140`, `140-159`, ..., `>=320`), plus three plots: overlaid histogram, grouped category bars, and the TensorBoard learning curve.
 
 Run evaluation with **CI gate** (exits non-zero if RL agent scores below Always-Accept):
 ```bash
