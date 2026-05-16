@@ -63,10 +63,15 @@ class RLObserver(GameObserver):
         self._augmented = augmented
         self._state = _ObserverState()
         self._score: int | None = None
+        self._failed_action_count = 0
 
     @property
     def score(self) -> int | None:
         return self._score
+
+    @property
+    def failed_action_count(self) -> int:
+        return self._failed_action_count
 
     def on_round_started(self, round_number: int) -> None:
         self._state.round_number = round_number
@@ -103,7 +108,8 @@ class RLObserver(GameObserver):
         self._score = score
 
     def on_action_executed(self, source: ActionSource, actions: list[Action]) -> None:
-        pass
+        if not actions:
+            self._failed_action_count += 1
 
     def get_context_tensor(self, decision_type: DecisionType, num_options: int) -> list[float]:
         return (

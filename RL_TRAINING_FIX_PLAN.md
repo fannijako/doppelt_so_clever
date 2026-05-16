@@ -6,6 +6,8 @@ Improve the reinforcement learning agent for Doppelt so clever by addressing the
 
 ## Phase 1: Fix environment correctness
 
+- **Status: complete**
+
 - **Fix immediate-action removal**
   - Update `ActionHandler.execute()` so it removes the selected action, not always the first action.
   - Add tests for selecting action index `0`, a middle index, and the last index.
