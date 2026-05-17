@@ -516,7 +516,7 @@ def _add_feature_args(parser: argparse.ArgumentParser) -> None:
 def _add_reward_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--terminal-reward-scale", type=float, default=DEFAULT_TERMINAL_REWARD_SCALE,
-        help="Multiplier applied to the terminal score reward (default 1/300)",
+        help="Multiplier applied to the terminal score reward (default 1/10)",
     )
     parser.add_argument(
         "--shaped-rewards", action=argparse.BooleanOptionalAction, default=True,

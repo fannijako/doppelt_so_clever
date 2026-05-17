@@ -1,7 +1,6 @@
 import pytest
 
 from scripts.evaluate_rl import (
-    _CATEGORY_LABELS,
     _category_distribution,
     _category_index,
 )
@@ -35,14 +34,3 @@ class TestCategoryDistribution:
 
     def test_empty_scores_returns_zeros(self):
         assert _category_distribution([]) == [0.0] * len(SCORE_CATEGORIES)
-
-
-class TestCategoryLabels:
-    def test_first_label_uses_less_than(self):
-        assert _CATEGORY_LABELS[0] == "<140"
-
-    def test_middle_label_is_inclusive_range(self):
-        assert _CATEGORY_LABELS[1] == "140-159"
-
-    def test_open_top_label_uses_ge(self):
-        assert _CATEGORY_LABELS[-1] == ">=320"

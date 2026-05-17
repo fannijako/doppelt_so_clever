@@ -345,7 +345,7 @@ def _add_pbt_shared_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--minibatch-size", type=int, default=256, help="PPO minibatch size")
     parser.add_argument(
         "--terminal-reward-scale", type=float, default=DEFAULT_TERMINAL_REWARD_SCALE,
-        help="Multiplier applied to the terminal score reward (default 1/300)",
+        help="Multiplier applied to the terminal score reward (default 1/10)",
     )
 
 
