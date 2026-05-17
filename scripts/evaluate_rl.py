@@ -63,7 +63,6 @@ def main() -> None:
     output_dir = args.output_dir
     os.makedirs(output_dir, exist_ok=True)
     _plot_overlaid_distributions(results, output_dir)
-    _plot_category_distribution(results, output_dir)
     _plot_learning_curve(args.log_dir, output_dir)
 
     logger.info("Evaluation complete. Plots saved to %s/", output_dir)
@@ -188,10 +187,10 @@ def _print_relative_improvements(results: list[BaselineResult]) -> None:
 
 def _category_label(lower: int, upper: int | None) -> str:
     if lower == 0:
-        return f"<{upper}"
+        return f"Under {upper}"
     if upper is None:
-        return f">={lower}"
-    return f"{lower}-{upper - 1}"
+        return f"{lower} and up"
+    return f"{lower}–{upper - 1}"
 
 
 _CATEGORY_LABELS: list[str] = [
@@ -248,50 +247,49 @@ _CATEGORY_PALETTE = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c
 
 
 def _plot_overlaid_distributions(results: list[BaselineResult], output_dir: str) -> None:
+    grouped = _group_results_for_overlay(results)
     fig, ax = plt.subplots(figsize=(10, 6))
-    for i, result in enumerate(results):
+    legend_handles = []
+    for i, result in enumerate(grouped):
+        color = _CATEGORY_PALETTE[i % len(_CATEGORY_PALETTE)]
         ax.hist(
-            result.scores, bins=30, alpha=0.45, label=f"{result.name} (μ={result.mean:.1f})",
-            color=_CATEGORY_PALETTE[i % len(_CATEGORY_PALETTE)], edgecolor="black", linewidth=0.5,
+            result.scores, bins=30, density=True, alpha=0.45,
+            color=color, edgecolor="black", linewidth=0.5,
+        )
+        legend_handles.append(
+            plt.Rectangle((0, 0), 1, 1, facecolor=color, edgecolor="black", linewidth=0.5,
+                          label=f"{result.name} (μ={result.mean:.1f})")
         )
     _add_category_lines(ax)
     ax.set_xlim(0, 350)
     ax.set_xlabel("Score")
-    ax.set_ylabel("Frequency")
-    ax.set_title("Score Distributions — All Agents")
-    ax.legend()
+    ax.set_ylabel("Density")
+    ax.set_title("Score Distributions — Random vs Heuristics vs RL")
+    ax.legend(handles=legend_handles)
     fig.tight_layout()
     fig.savefig(os.path.join(output_dir, "score_distributions_overlay.png"), dpi=150)
     plt.close(fig)
 
 
-def _plot_category_distribution(results: list[BaselineResult], output_dir: str) -> None:
-    fig, ax = plt.subplots(figsize=(12, 6))
-    bar_width = 0.8 / max(len(results), 1)
-    _draw_category_bars(ax, results, bar_width)
-    _apply_category_axis(ax, len(results), bar_width)
-    fig.tight_layout()
-    fig.savefig(os.path.join(output_dir, "score_categories.png"), dpi=150)
-    plt.close(fig)
+_HEURISTIC_NAMES = {"Always-Accept", "Greedy", "Fox-Balancing", "Resource-Aware"}
 
 
-def _draw_category_bars(ax, results: list[BaselineResult], bar_width: float) -> None:
-    n_buckets = len(_CATEGORY_LABELS)
-    for i, result in enumerate(results):
-        offsets = [b + i * bar_width for b in range(n_buckets)]
-        ax.bar(
-            offsets, _category_distribution(result.scores), width=bar_width,
-            label=result.name, color=_CATEGORY_PALETTE[i % len(_CATEGORY_PALETTE)],
-        )
+def _group_results_for_overlay(results: list[BaselineResult]) -> list[BaselineResult]:
+    random_result = _find_result(results, "Random")
+    rl_result = _find_result(results, "RL Agent")
+    heuristic_scores: list[int] = []
+    for r in results:
+        if r.name in _HEURISTIC_NAMES:
+            heuristic_scores.extend(r.scores)
 
-
-def _apply_category_axis(ax, n_results: int, bar_width: float) -> None:
-    n_buckets = len(_CATEGORY_LABELS)
-    ax.set_xticks([b + bar_width * (n_results - 1) / 2 for b in range(n_buckets)])
-    ax.set_xticklabels(_CATEGORY_LABELS, rotation=45, ha="right")
-    ax.set_ylabel("Games (%)")
-    ax.set_title("Score-Category Distribution per Agent")
-    ax.legend()
+    grouped: list[BaselineResult] = []
+    if random_result is not None:
+        grouped.append(random_result)
+    if heuristic_scores:
+        grouped.append(BaselineResult(name="Heuristics (combined)", scores=heuristic_scores))
+    if rl_result is not None:
+        grouped.append(rl_result)
+    return grouped
 
 
 def _add_category_lines(ax) -> None:
@@ -329,15 +327,68 @@ def _read_tensorboard_scores(log_dir: str) -> list[tuple[int, float]]:
     if not os.path.isdir(log_dir):
         return []
 
-    ea = EventAccumulator(log_dir)
-    ea.Reload()
+    event_files = sorted(
+        (
+            os.path.join(log_dir, name)
+            for name in os.listdir(log_dir)
+            if name.startswith("events.out.tfevents")
+        ),
+        key=os.path.getmtime,
+    )
+    files_with_events = [(f, _load_score_events(f)) for f in event_files]
+    files_with_events = [(f, ev) for f, ev in files_with_events if ev]
+    if not files_with_events:
+        return []
 
+    chain = _build_resume_chain(files_with_events)
+    return _concatenate_resume_chain(chain)
+
+
+def _load_score_events(path: str) -> list[tuple[int, float]]:
+    ea = EventAccumulator(path)
+    ea.Reload()
     tag = "score/mean"
     if tag not in ea.Tags().get("scalars", []):
         return []
+    return [(e.step, e.value) for e in ea.Scalars(tag)]
 
-    events = ea.Scalars(tag)
-    return [(e.step, e.value) for e in events]
+
+def _build_resume_chain(
+    files_with_events: list[tuple[str, list[tuple[int, float]]]],
+) -> list[list[tuple[int, float]]]:
+    latest_events = files_with_events[-1][1]
+    chain = [latest_events]
+    if _is_fresh_start(latest_events):
+        return chain
+    current_first_step = latest_events[0][0]
+    for _, events in reversed(files_with_events[:-1]):
+        first_step, last_step = events[0][0], events[-1][0]
+        if first_step < current_first_step <= last_step:
+            chain.insert(0, events)
+            current_first_step = first_step
+            if _is_fresh_start(events):
+                break
+    return chain
+
+
+def _is_fresh_start(events: list[tuple[int, float]]) -> bool:
+    if len(events) < 2:
+        return True
+    step_increment = events[1][0] - events[0][0]
+    return step_increment > 0 and events[0][0] == step_increment
+
+
+def _concatenate_resume_chain(
+    chain: list[list[tuple[int, float]]],
+) -> list[tuple[int, float]]:
+    result: list[tuple[int, float]] = []
+    for i, events in enumerate(chain):
+        next_first_step = chain[i + 1][0][0] if i + 1 < len(chain) else None
+        for step, value in events:
+            if next_first_step is not None and step >= next_first_step:
+                break
+            result.append((step, value))
+    return result
 
 
 def _smooth(values, window: int = 50) -> list[float]:

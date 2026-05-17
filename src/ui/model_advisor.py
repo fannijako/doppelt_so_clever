@@ -10,7 +10,7 @@ from model.policy_network import PolicyNetwork, apply_action_mask
 from scripts.train_rl import require_phase3_metadata
 
 
-_DEFAULT_CHECKPOINT = Path(__file__).resolve().parents[2] / "model" / "pbt_checkpoints" / "best_agent.pt"
+_DEFAULT_CHECKPOINT = Path(__file__).resolve().parents[2] / "model" / "checkpoints" / "best.pt"
 
 
 class ModelAdvisor:  # pylint: disable=too-few-public-methods

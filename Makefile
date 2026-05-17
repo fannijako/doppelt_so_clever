@@ -1,4 +1,4 @@
-.PHONY: venv build build-test build-monte-carlo build-interactive build-rl build-all lint test run run-auto run-monte-carlo run-interactive train-rl pbt-train-rl evaluate-rl monitor-rl clean docker-build docker-run docker-evaluate docker-clean tensorboard
+.PHONY: venv build build-test build-monte-carlo build-interactive build-rl build-all lint test run run-auto run-monte-carlo run-interactive train-rl pbt-train-rl evaluate-rl monitor-rl copy-ci-checkpoint clean docker-build docker-run docker-evaluate docker-clean tensorboard
 PYFILES = $(shell git ls-files '*.py')
 
 venv:
@@ -55,6 +55,9 @@ evaluate-rl:
 
 monitor-rl:
 	python scripts/monitor_rl.py $(MONITOR_ARGS)
+
+copy-ci-checkpoint:
+	cp model/checkpoints/best.pt model/ci_checkpoint.py
 
 clean:
 	rm -rf .venv

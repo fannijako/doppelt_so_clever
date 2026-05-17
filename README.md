@@ -166,6 +166,10 @@ make evaluate-rl
 
 The evaluator prefers `model/checkpoints/best.pt` when present, otherwise falls back to the latest periodic checkpoint. It prints a mean/std comparison table and a score-category distribution table (`<140`, `140-159`, ..., `>=320`), plus three plots: overlaid histogram, grouped category bars, and the TensorBoard learning curve.
 
+![Learning curve](evaluation_results/learning_curve.png)
+
+![Score distribution overlay](evaluation_results/score_distributions_overlay.png)
+
 Run evaluation with **CI gate** (exits non-zero if RL agent scores below Always-Accept):
 ```bash
 python main.py evaluate -n 200 --ci --checkpoint model/ci_checkpoint.pt
