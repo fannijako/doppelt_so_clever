@@ -31,6 +31,11 @@ python -m pytest --cov=src --cov-report=term-missing  # with coverage
 
 # Lint
 make lint   # pylint + flake8
+
+# Monitor a training run from the CLI (polls latest TB event file every 10 min)
+make monitor-rl
+make monitor-rl MONITOR_ARGS="--once"                           # one-shot snapshot
+make monitor-rl MONITOR_ARGS="--log-dir runs/pbt --interval 300"  # PBT runs, 5-min cadence
 ```
 
 ## Architecture
@@ -76,6 +81,7 @@ Training is CPU-only by design: the bottleneck is the Python game simulation, no
 | `scripts/pbt_train_rl.py` | Population-Based Training: multiple agents, exploit/explore, hyperparameter perturbation |
 | `scripts/evaluate_rl.py` | Compares RL agent against random and always-accept baselines; `--ci` exits non-zero if RL is below always-accept |
 | `scripts/monte_carlo.py` | Bulk simulation with configurable mode |
+| `scripts/monitor_rl.py` | Polls the latest TensorBoard event file and prints a one-line snapshot of key training scalars; supports `--once`, `--event-file`, `--log-dir`, `--interval` |
 
 TensorBoard logs go to `runs/`, checkpoints to `model/checkpoints/` (standard) or `model/pbt_checkpoints/` (PBT).
 

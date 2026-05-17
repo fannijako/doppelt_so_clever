@@ -10,6 +10,7 @@ from src.game.rl_observer import RLObserver
 _BASE = BoardSnapshot(
     filled_boxes=0, foxes=0,
     gained_rerolls=0, gained_plus_ones=0, gained_reuses=0,
+    gained_question_marks=0,
     failed_action_count=0, partial_score=None,
 )
 
@@ -46,13 +47,31 @@ class TestRewardShaperDeltas:
         reward = shaper.compute(_snapshot(foxes=0), _snapshot(foxes=2))
         assert reward == pytest.approx(2.0)
 
-    def test_resource_gain_positive_reward(self):
-        shaper = RewardShaper(RewardConfig(w_resource=0.5))
-        reward = shaper.compute(
-            _snapshot(),
-            _snapshot(gained_rerolls=1, gained_plus_ones=1, gained_reuses=1),
-        )
-        assert reward == pytest.approx(0.5 * 3)
+    def test_plus_one_gain_positive_reward(self):
+        shaper = RewardShaper(RewardConfig(w_plus_one=1.0))
+        reward = shaper.compute(_snapshot(), _snapshot(gained_plus_ones=2))
+        assert reward == pytest.approx(2.0)
+
+    def test_reroll_gain_positive_reward(self):
+        shaper = RewardShaper(RewardConfig(w_reroll=0.3))
+        reward = shaper.compute(_snapshot(), _snapshot(gained_rerolls=2))
+        assert reward == pytest.approx(0.6)
+
+    def test_reuse_gain_positive_reward(self):
+        shaper = RewardShaper(RewardConfig(w_reuse=0.3))
+        reward = shaper.compute(_snapshot(), _snapshot(gained_reuses=2))
+        assert reward == pytest.approx(0.6)
+
+    def test_question_mark_gain_positive_reward(self):
+        shaper = RewardShaper(RewardConfig(w_question_mark=1.0))
+        reward = shaper.compute(_snapshot(), _snapshot(gained_question_marks=3))
+        assert reward == pytest.approx(3.0)
+
+    def test_plus_one_outweighs_reroll_at_default_weights(self):
+        shaper = RewardShaper(RewardConfig())
+        plus_one_reward = shaper.compute(_snapshot(), _snapshot(gained_plus_ones=1))
+        reroll_reward = shaper.compute(_snapshot(), _snapshot(gained_rerolls=1))
+        assert plus_one_reward > reroll_reward
 
     def test_failed_action_yields_negative_reward(self):
         shaper = RewardShaper(RewardConfig(w_failed=2.0))

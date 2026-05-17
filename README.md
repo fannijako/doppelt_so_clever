@@ -146,7 +146,7 @@ python main.py train --curriculum --max-rounds-start 2 --max-rounds-end 6 --curr
 
 Train with **custom PPO hyperparameters** and a different terminal-reward scale:
 ```bash
-python main.py train --gamma 0.99 --gae-lambda 0.95 --minibatch-size 128 --terminal-reward-scale 0.005
+python main.py train --gamma 0.99 --gae-lambda 0.95 --minibatch-size 128 --terminal-reward-scale 0.1
 ```
 
 Ablation: turn off **shaped rewards** (terminal-only, no per-step signal):
@@ -197,6 +197,20 @@ Monitor training with **TensorBoard**:
 tensorboard --logdir runs
 ```
 
+Tail key training metrics from the command line (uses the most recent event file under `runs/doppelt_rl/` by default and polls every 10 minutes):
+```bash
+make monitor-rl
+```
+
+One-shot snapshot (no loop) or pinning to a specific event file or directory:
+```bash
+make monitor-rl MONITOR_ARGS="--once"
+make monitor-rl MONITOR_ARGS="--log-dir runs/pbt --interval 300"
+make monitor-rl MONITOR_ARGS="--event-file runs/doppelt_rl/events.out.tfevents.XXXX"
+```
+
+Each line reports the estimated iteration plus `score/mean`, `score/max`, `eval/mean_score`, `loss/entropy`, and `loss/value` so you can spot policy collapse (entropy crashing toward 0) or score regressions without opening TensorBoard.
+
 ---
 
 ## PBT Training Parameters
@@ -241,7 +255,7 @@ Population-Based Training runs multiple agents in parallel, periodically replaci
 | **minibatch_size** | `--minibatch-size` | 256 | Size of minibatches sampled from the batch during PPO updates. Smaller minibatches add noise that can help escape local optima. |
 | **gamma** | `--gamma` | 1.0 | Discount factor used by GAE. `1.0` treats the whole episode as one undiscounted return. |
 | **gae_lambda** | `--gae-lambda` | 0.95 | GAE bias/variance trade-off. Lower values reduce variance at the cost of bias. |
-| **terminal_reward_scale** | `--terminal-reward-scale` | 1/300 | Multiplier on the final game score before it is folded into the trajectory return. Keeps the terminal reward in roughly the same magnitude as per-step shaped rewards. |
+| **terminal_reward_scale** | `--terminal-reward-scale` | 1/10 | Multiplier on the final game score before it is folded into the trajectory return. Keeps the terminal reward in roughly the same magnitude as per-step shaped rewards. The previous default of `1/300` made the terminal signal effectively invisible against shaping — bumped to `1/10` so the agent actually optimizes for final game score, not just per-step shaping. |
 
 ### I/O Parameters
 

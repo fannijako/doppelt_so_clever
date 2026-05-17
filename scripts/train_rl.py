@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 NO_SHAPING_REWARD_CONFIG = RewardConfig(
-    w_box=0.0, w_fox=0.0, w_resource=0.0, w_failed=0.0, w_score=0.0,
+    w_box=0.0, w_fox=0.0, w_plus_one=0.0, w_reroll=0.0, w_reuse=0.0,
+    w_question_mark=0.0, w_failed=0.0, w_score=0.0,
     use_partial_score=False,
 )
 
@@ -473,7 +474,7 @@ def _add_core_args(parser: argparse.ArgumentParser) -> None:
 def _add_ppo_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--ppo-epochs", type=int, default=4)
-    parser.add_argument("--entropy-coef", type=float, default=0.01)
+    parser.add_argument("--entropy-coef", type=float, default=0.05)
     parser.add_argument("--value-coef", type=float, default=0.5)
     parser.add_argument("--gamma", type=float, default=1.0, help="Discount factor for GAE")
     parser.add_argument("--gae-lambda", type=float, default=0.95, help="GAE lambda")

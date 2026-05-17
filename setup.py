@@ -15,6 +15,7 @@ RL = [
     "torch>=2.2.0,<3.0",
     "numpy>=1.26.0,<3.0",
     "tensorboard>=2.16.0,<3.0",
+    "matplotlib>=3.10,<4.0",
 ]
 
 TEST = [

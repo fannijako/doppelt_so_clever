@@ -1,4 +1,4 @@
-.PHONY: venv build build-test build-monte-carlo build-interactive build-rl build-all lint test run run-auto run-monte-carlo run-interactive train-rl pbt-train-rl evaluate-rl clean docker-build docker-run docker-clean
+.PHONY: venv build build-test build-monte-carlo build-interactive build-rl build-all lint test run run-auto run-monte-carlo run-interactive train-rl pbt-train-rl evaluate-rl monitor-rl clean docker-build docker-run docker-evaluate docker-clean
 PYFILES = $(shell git ls-files '*.py')
 
 venv:
@@ -51,7 +51,10 @@ pbt-train-rl:
 	python main.py pbt-train
 
 evaluate-rl:
-	python main.py evaluate -n 1000 --checkpoint model/pbt_checkpoints/best_agent.pt
+	python main.py evaluate -n 1000 --checkpoint model/checkpoints/best.pt
+
+monitor-rl:
+	python scripts/monitor_rl.py $(MONITOR_ARGS)
 
 clean:
 	rm -rf .venv
@@ -64,7 +67,19 @@ docker-build:
 	docker build -t doppelt-so-clever-pbt .
 
 docker-run:
-	docker run -e ITERATIONS=$(or $(ITERATIONS),5) -e NUM_WORKERS=$(or $(NUM_WORKERS),0) -v $(PWD)/model/pbt_checkpoints:/app/model/pbt_checkpoints -v $(PWD)/runs:/app/runs doppelt-so-clever-pbt
+	mkdir -p $(PWD)/model/checkpoints $(PWD)/runs
+	docker run --rm \
+	  -v $(PWD)/model/checkpoints:/app/model/checkpoints \
+	  -v $(PWD)/runs:/app/runs \
+	  doppelt-so-clever-pbt \
+	  python main.py train --iterations $(or $(ITERATIONS),200) --num-workers $(or $(NUM_WORKERS),0) $(TRAIN_ARGS)
+
+docker-evaluate:
+	mkdir -p $(PWD)/model/checkpoints
+	docker run --rm \
+	  -v $(PWD)/model/checkpoints:/app/model/checkpoints \
+	  doppelt-so-clever-pbt \
+	  python main.py evaluate -n $(or $(EPISODES),1000) $(EVAL_ARGS)
 
 docker-clean:
 	docker rmi doppelt-so-clever-pbt

@@ -63,3 +63,10 @@ class TestActionHandlerSelectedActionRemoval:
         calls: list[str] = []
         ActionHandler(Board()).execute(_make_actions(calls), IndexedInputHandler(2))
         assert calls[0] == "last"
+
+
+class TestActionHandlerQuestionMarkCount:
+    def test_counts_each_immediate_action_consumed(self):
+        board = Board()
+        ActionHandler(board).execute(_make_actions([]), IndexedInputHandler(0))
+        assert board.gained_question_marks == 3

@@ -13,6 +13,6 @@ COPY model/ ./model/
 COPY scripts/ ./scripts/
 
 ENV PYTHONUNBUFFERED=1
-ENV ITERATIONS=5
-ENV NUM_WORKERS=4
-CMD ["sh", "-c", "NUM_W=${NUM_WORKERS:-0}; [ \"$NUM_W\" = \"0\" ] && NUM_W=$(nproc); python main.py pbt-train --iterations ${ITERATIONS} --num-workers ${NUM_W}"]
+ENV ITERATIONS=200
+ENV NUM_WORKERS=0
+CMD ["sh", "-c", "NUM_W=${NUM_WORKERS:-0}; [ \"$NUM_W\" = \"0\" ] && NUM_W=$(nproc); python main.py train --iterations ${ITERATIONS} --num-workers ${NUM_W}"]

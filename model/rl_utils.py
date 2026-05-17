@@ -14,7 +14,7 @@ from src.game.reward_shaper import RewardConfig
 from src.game.rl_observer import RLObserver
 from src.input_handler.model.rl_input_handler import RLInputHandler, Transition
 
-DEFAULT_TERMINAL_REWARD_SCALE = 1.0 / 300.0
+DEFAULT_TERMINAL_REWARD_SCALE = 1.0 / 10.0
 
 _WORKER_STATE: dict = {}
 

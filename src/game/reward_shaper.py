@@ -10,10 +10,13 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class RewardConfig:
-    w_box: float = 0.5
-    w_fox: float = 1.0
-    w_resource: float = 0.5
-    w_failed: float = 2.0
+    w_box: float = 0.25
+    w_fox: float = 0.25
+    w_plus_one: float = 0.5
+    w_reroll: float = 0.15
+    w_reuse: float = 0.15
+    w_question_mark: float = 0.5
+    w_failed: float = 1.0
     w_score: float = 0.1
     use_partial_score: bool = False
 
@@ -25,6 +28,7 @@ class BoardSnapshot:
     gained_rerolls: int
     gained_plus_ones: int
     gained_reuses: int
+    gained_question_marks: int
     failed_action_count: int
     partial_score: float | None = None
 
@@ -38,6 +42,7 @@ class BoardSnapshot:
             gained_rerolls=board.gained_rerolls,
             gained_plus_ones=board.gained_plus_ones,
             gained_reuses=board.gained_reuses,
+            gained_question_marks=board.gained_question_marks,
             failed_action_count=observer.failed_action_count,
             partial_score=board.partial_evaluate() if config.use_partial_score else None,
         )
@@ -56,20 +61,15 @@ class RewardShaper:
         reward = (
             cfg.w_box * (curr.filled_boxes - prev.filled_boxes)
             + cfg.w_fox * (curr.foxes - prev.foxes)
-            + cfg.w_resource * _resource_delta(prev, curr)
+            + cfg.w_plus_one * (curr.gained_plus_ones - prev.gained_plus_ones)
+            + cfg.w_reroll * (curr.gained_rerolls - prev.gained_rerolls)
+            + cfg.w_reuse * (curr.gained_reuses - prev.gained_reuses)
+            + cfg.w_question_mark * (curr.gained_question_marks - prev.gained_question_marks)
             - cfg.w_failed * (curr.failed_action_count - prev.failed_action_count)
         )
         if cfg.use_partial_score and prev.partial_score is not None and curr.partial_score is not None:
             reward += cfg.w_score * (curr.partial_score - prev.partial_score)
         return reward
-
-
-def _resource_delta(prev: BoardSnapshot, curr: BoardSnapshot) -> int:
-    return (
-        (curr.gained_rerolls - prev.gained_rerolls)
-        + (curr.gained_plus_ones - prev.gained_plus_ones)
-        + (curr.gained_reuses - prev.gained_reuses)
-    )
 
 
 def _count_filled_boxes(board: Board) -> int:

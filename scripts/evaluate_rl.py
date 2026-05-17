@@ -244,13 +244,15 @@ def _format_category_row(result: BaselineResult, name_width: int, cell_width: in
     return f"{result.name:<{name_width}} {cells}"
 
 
+_CATEGORY_PALETTE = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b"]
+
+
 def _plot_overlaid_distributions(results: list[BaselineResult], output_dir: str) -> None:
     fig, ax = plt.subplots(figsize=(10, 6))
-    colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
     for i, result in enumerate(results):
         ax.hist(
-            result.scores, bins=30, alpha=0.5, label=f"{result.name} (μ={result.mean:.1f})",
-            color=colors[i % len(colors)], edgecolor="black", linewidth=0.5,
+            result.scores, bins=30, alpha=0.45, label=f"{result.name} (μ={result.mean:.1f})",
+            color=_CATEGORY_PALETTE[i % len(_CATEGORY_PALETTE)], edgecolor="black", linewidth=0.5,
         )
     _add_category_lines(ax)
     ax.set_xlim(0, 350)
@@ -261,9 +263,6 @@ def _plot_overlaid_distributions(results: list[BaselineResult], output_dir: str)
     fig.tight_layout()
     fig.savefig(os.path.join(output_dir, "score_distributions_overlay.png"), dpi=150)
     plt.close(fig)
-
-
-_CATEGORY_PALETTE = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b"]
 
 
 def _plot_category_distribution(results: list[BaselineResult], output_dir: str) -> None:

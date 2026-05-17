@@ -17,8 +17,8 @@ def _options(scale: float) -> EpisodeOptions:
 
 
 class TestTerminalRewardScale:
-    def test_default_scale_is_one_over_300(self):
-        assert DEFAULT_TERMINAL_REWARD_SCALE == pytest.approx(1.0 / 300.0)
+    def test_default_scale_is_one_over_10(self):
+        assert DEFAULT_TERMINAL_REWARD_SCALE == pytest.approx(1.0 / 10.0)
 
     def test_terminal_reward_scaled_by_factor(self):
         random.seed(0)
