@@ -77,7 +77,7 @@ class PygameUI(GameObserver):
     def on_round_started(self, round_number: int) -> None:
         with self._lock:
             self._round_number = round_number
-            self._score = self.board.evaluate()
+            self._score = self.board.partial_evaluate()
 
     def on_round_completed(self, round_number: int) -> None:
         pass
@@ -113,7 +113,7 @@ class PygameUI(GameObserver):
 
     def on_board_updated(self) -> None:
         with self._lock:
-            self._score = self.board.evaluate()
+            self._score = self.board.partial_evaluate()
 
     def on_game_ended(self, score: int) -> None:
         with self._lock:

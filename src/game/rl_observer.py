@@ -7,6 +7,11 @@ from typing import TYPE_CHECKING
 from src.dice.dice_color import DiceColor
 from src.game.game_observer import GameObserver
 from src.actions.action_source import ActionSource
+from src.game.option_features import (
+    OPTION_BLOCK_SIZE,
+    featurize_options,
+    flatten_option_block,
+)
 
 if TYPE_CHECKING:
     from src.dice.dice import Dice
@@ -56,17 +61,26 @@ PROMPT_FEATURES_SIZE = len(PromptType)
 
 class RLObserver(GameObserver):
     CONTEXT_SIZE = 19
-    AUGMENTED_CONTEXT_SIZE = CONTEXT_SIZE + PROMPT_FEATURES_SIZE
+    AUGMENTED_CONTEXT_SIZE = CONTEXT_SIZE + PROMPT_FEATURES_SIZE + OPTION_BLOCK_SIZE
 
-    def __init__(self, board: Board, augmented: bool = False):
+    def __init__(self, board: Board, augmented: bool = True):
         self._board = board
         self._augmented = augmented
         self._state = _ObserverState()
         self._score: int | None = None
+        self._failed_action_count = 0
 
     @property
     def score(self) -> int | None:
         return self._score
+
+    @property
+    def failed_action_count(self) -> int:
+        return self._failed_action_count
+
+    @property
+    def board(self) -> Board:
+        return self._board
 
     def on_round_started(self, round_number: int) -> None:
         self._state.round_number = round_number
@@ -103,7 +117,8 @@ class RLObserver(GameObserver):
         self._score = score
 
     def on_action_executed(self, source: ActionSource, actions: list[Action]) -> None:
-        pass
+        if not actions:
+            self._failed_action_count += 1
 
     def get_context_tensor(self, decision_type: DecisionType, num_options: int) -> list[float]:
         return (
@@ -115,11 +130,16 @@ class RLObserver(GameObserver):
         )
 
     def get_state(
-        self, decision_type: DecisionType, num_options: int, prompt: str = "",
+        self,
+        decision_type: DecisionType,
+        num_options: int,
+        prompt: str = "",
+        options: list | None = None,
     ) -> list[float]:
         ctx = self.get_context_tensor(decision_type, num_options)
         if self._augmented:
             ctx += _prompt_type_one_hot(classify_prompt(prompt))
+            ctx += flatten_option_block(featurize_options(options))
         return self._board.to_tensor() + ctx
 
     @property

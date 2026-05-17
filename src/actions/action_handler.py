@@ -21,9 +21,14 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
         not_used_immediate_actions = self._get_immediate_actions(actions)
 
         while not_used_immediate_actions:
+            self.board.consumed_immediate_actions += 1
             logger.info("Executing", not_used_immediate_actions)
 
-            action_to_use = self._pick_action_to_use(not_used_immediate_actions, input_handler=input_handler)
+            action_index_to_use = self._pick_action_index_to_use(
+                not_used_immediate_actions,
+                input_handler=input_handler,
+            )
+            action_to_use = not_used_immediate_actions[action_index_to_use]
             logger.info("Action to use", action_to_use)
 
             actions_received = action_to_use.use(board=self.board, input_handler=input_handler)
@@ -34,10 +39,7 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
                 f"immediate: {immediate_actions_received}, not immediate: {not_immediate_actions_received}",
             )
 
-            if len(not_used_immediate_actions) > 1:
-                not_used_immediate_actions = not_used_immediate_actions[1:]
-            else:
-                not_used_immediate_actions = []
+            del not_used_immediate_actions[action_index_to_use]
             logger.info("Action list", "used action removed")
 
             if immediate_actions_received:
@@ -48,9 +50,12 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
                     if new_action:
                         not_used_immediate_actions.append(new_action)
 
-    def _pick_action_to_use(self, not_used_immediate_actions: list[Action], input_handler: InputHandler) -> Action:
-        index = input_handler.choose_index('Add the index of the action to use: ', not_used_immediate_actions)
-        return not_used_immediate_actions[index]
+    def _pick_action_index_to_use(
+        self,
+        not_used_immediate_actions: list[Action],
+        input_handler: InputHandler,
+    ) -> int:
+        return input_handler.choose_index('Add the index of the action to use: ', not_used_immediate_actions)
 
     def _get_number_of_actions_by_type(self, actions: list[Action], action_type: ActionType) -> int:
         return len([action for action in actions if action.action_type == action_type])

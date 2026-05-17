@@ -6,22 +6,39 @@ import torch
 
 from src.game.rl_observer import RLObserver, DecisionType, _MAX_OPTIONS
 
-from model.policy_network import PolicyNetwork, STATE_SIZE, apply_action_mask
+from model.policy_network import PolicyNetwork, apply_action_mask
+from scripts.train_rl import require_phase3_metadata
 
 
-_DEFAULT_CHECKPOINT = Path(__file__).resolve().parents[2] / "model" / "pbt_checkpoints" / "best_agent.pt"
+_DEFAULT_CHECKPOINT = Path(__file__).resolve().parents[2] / "model" / "checkpoints" / "best.pt"
 
 
 class ModelAdvisor:  # pylint: disable=too-few-public-methods
     def __init__(self, observer: RLObserver, checkpoint_path: Path | None = None):
         self._observer = observer
-        self._policy = self._load_policy(checkpoint_path or _DEFAULT_CHECKPOINT)
+        self._policy, self._augmented = self._load_policy(
+            checkpoint_path or _DEFAULT_CHECKPOINT,
+        )
 
-    def get_recommendation(self, num_options: int, prompt: str) -> int | None:
+    @staticmethod
+    def read_augmented_from_checkpoint(checkpoint_path: Path | None = None) -> bool:
+        path = checkpoint_path or _DEFAULT_CHECKPOINT
+        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+        require_phase3_metadata(checkpoint, str(path))
+        return checkpoint["augmented"]
+
+    @property
+    def augmented(self) -> bool:
+        return self._augmented
+
+    def get_recommendation(
+        self, num_options: int, prompt: str, options: list | None = None,
+    ) -> int | None:
         if num_options < 1:
             return None
         state = self._observer.get_state(
-            self._infer_decision_type(num_options, prompt), num_options, prompt,
+            self._infer_decision_type(num_options, prompt),
+            num_options, prompt, options,
         )
         mask = [i < num_options for i in range(_MAX_OPTIONS)]
         return self._predict(state, mask)
@@ -44,9 +61,14 @@ class ModelAdvisor:  # pylint: disable=too-few-public-methods
         return int(masked_logits.argmax(dim=-1).item())
 
     @staticmethod
-    def _load_policy(checkpoint_path: Path) -> PolicyNetwork:
-        policy = PolicyNetwork(state_size=STATE_SIZE)
+    def _load_policy(checkpoint_path: Path) -> tuple[PolicyNetwork, bool]:
         checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+        require_phase3_metadata(checkpoint, str(checkpoint_path))
+        policy = PolicyNetwork(
+            state_size=checkpoint["state_size"],
+            hidden1=checkpoint.get("hidden1", 256),
+            hidden2=checkpoint.get("hidden2", 128),
+        )
         policy.load_state_dict(checkpoint["policy_state_dict"])
         policy.eval()
-        return policy
+        return policy, checkpoint["augmented"]

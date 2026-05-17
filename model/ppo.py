@@ -18,6 +18,8 @@ class PPOConfig:
     value_loss_coefficient: float = 0.5
     max_grad_norm: float = 0.5
     minibatch_size: int = 256
+    gamma: float = 1.0
+    gae_lambda: float = 0.95
 
 
 @dataclass

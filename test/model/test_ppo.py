@@ -52,3 +52,11 @@ class TestPPOConfig:
     def test_default_learning_rate(self):
         config = PPOConfig()
         assert config.learning_rate == pytest.approx(3e-4)
+
+    def test_default_gamma(self):
+        config = PPOConfig()
+        assert config.gamma == pytest.approx(1.0)
+
+    def test_default_gae_lambda(self):
+        config = PPOConfig()
+        assert config.gae_lambda == pytest.approx(0.95)

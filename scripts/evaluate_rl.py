@@ -7,6 +7,7 @@ import argparse
 import statistics
 
 from dataclasses import dataclass
+from typing import Callable
 
 import torch
 import matplotlib.pyplot as plt
@@ -21,10 +22,16 @@ from src.actions.action_handler import ActionHandler
 from src.game.logging_observer import LoggingObserver
 from src.input_handler import AutomaticInputHandler, InputHandler, RLInputHandler
 from src.input_handler.heuristics.always_accept import AlwaysAcceptInputHandler
+from src.input_handler.heuristics.fox_balancing import FoxBalancingInputHandler
+from src.input_handler.heuristics.greedy_immediate import GreedyImmediateInputHandler
+from src.input_handler.heuristics.resource_aware import ResourceAwareInputHandler
 
 from model.policy_network import PolicyNetwork
+from scripts.train_rl import require_phase3_metadata
 
 logger = logging.getLogger(__name__)
+
+HandlerFactory = Callable[[Board], InputHandler]
 
 
 @dataclass
@@ -51,6 +58,7 @@ def main() -> None:
 
     results = _run_all_baselines(args)
     _print_comparison_table(results)
+    _print_category_table(results)
 
     output_dir = args.output_dir
     os.makedirs(output_dir, exist_ok=True)
@@ -63,14 +71,21 @@ def main() -> None:
         _ci_gate(results)
 
 
+_BASELINES: list[tuple[str, "HandlerFactory"]] = [
+    ("Random", lambda _board: AutomaticInputHandler()),
+    ("Always-Accept", lambda _board: AlwaysAcceptInputHandler()),
+    ("Greedy", GreedyImmediateInputHandler),
+    ("Fox-Balancing", FoxBalancingInputHandler),
+    ("Resource-Aware", ResourceAwareInputHandler),
+]
+
+
 def _run_all_baselines(args: argparse.Namespace) -> list[BaselineResult]:
     results: list[BaselineResult] = []
 
-    logger.info("Running random baseline (%d games)...", args.num_games)
-    results.append(_run_baseline("Random", AutomaticInputHandler(), args.num_games))
-
-    logger.info("Running always-accept baseline (%d games)...", args.num_games)
-    results.append(_run_baseline("Always-Accept", AlwaysAcceptInputHandler(), args.num_games))
+    for name, factory in _BASELINES:
+        logger.info("Running %s baseline (%d games)...", name, args.num_games)
+        results.append(_run_baseline(name, factory, args.num_games))
 
     checkpoint = _resolve_checkpoint(args.checkpoint)
     if checkpoint is not None:
@@ -82,15 +97,15 @@ def _run_all_baselines(args: argparse.Namespace) -> list[BaselineResult]:
     return results
 
 
-def _run_baseline(name: str, handler: InputHandler, num_games: int) -> BaselineResult:
-    scores = [_play_standard_game(handler) for _ in range(num_games)]
+def _run_baseline(name: str, factory: "HandlerFactory", num_games: int) -> BaselineResult:
+    scores = [_play_standard_game(factory) for _ in range(num_games)]
     return BaselineResult(name=name, scores=scores)
 
 
-def _play_standard_game(handler: InputHandler) -> int:
+def _play_standard_game(factory: "HandlerFactory") -> int:
     board = Board()
     game = Game(
-        input_handler=handler,
+        input_handler=factory(board),
         board=board,
         observer=LoggingObserver(),
         action_handler=ActionHandler(board=board),
@@ -99,15 +114,15 @@ def _play_standard_game(handler: InputHandler) -> int:
 
 
 def _run_rl_agent(checkpoint_path: str, num_games: int) -> BaselineResult:
-    policy = _load_policy(checkpoint_path)
+    policy, augmented = _load_policy(checkpoint_path)
     policy_fn = _create_policy_fn(policy)
-    scores = [_play_rl_game(policy_fn) for _ in range(num_games)]
+    scores = [_play_rl_game(policy_fn, augmented) for _ in range(num_games)]
     return BaselineResult(name="RL Agent", scores=scores)
 
 
-def _play_rl_game(policy_fn) -> int:
+def _play_rl_game(policy_fn, augmented: bool) -> int:
     board = Board()
-    observer = RLObserver(board)
+    observer = RLObserver(board, augmented=augmented)
     handler = RLInputHandler(observer, policy_fn, training=False)
     game = Game(
         input_handler=handler,
@@ -118,12 +133,17 @@ def _play_rl_game(policy_fn) -> int:
     return game.play()
 
 
-def _load_policy(checkpoint_path: str) -> PolicyNetwork:
-    policy = PolicyNetwork()
+def _load_policy(checkpoint_path: str) -> tuple[PolicyNetwork, bool]:
     checkpoint = torch.load(checkpoint_path, weights_only=True)
+    require_phase3_metadata(checkpoint, checkpoint_path)
+    policy = PolicyNetwork(
+        state_size=checkpoint["state_size"],
+        hidden1=checkpoint.get("hidden1", 256),
+        hidden2=checkpoint.get("hidden2", 128),
+    )
     policy.load_state_dict(checkpoint["policy_state_dict"])
     policy.eval()
-    return policy
+    return policy, checkpoint["augmented"]
 
 
 def _create_policy_fn(policy: PolicyNetwork):
@@ -165,23 +185,111 @@ def _print_relative_improvements(results: list[BaselineResult]) -> None:
         print(f"  {r.name}: {improvement:+.1f}% mean score improvement")
 
 
+def _category_label(lower: int, upper: int | None) -> str:
+    if lower == 0:
+        return f"Under {upper}"
+    if upper is None:
+        return f"{lower} and up"
+    return f"{lower}–{upper - 1}"
+
+
+_CATEGORY_LABELS: list[str] = [
+    _category_label(lower, upper) for lower, upper, _ in SCORE_CATEGORIES
+]
+
+
+def _category_distribution(scores: list[int]) -> list[float]:
+    if not scores:
+        return [0.0] * len(SCORE_CATEGORIES)
+    counts = [0] * len(SCORE_CATEGORIES)
+    for score in scores:
+        counts[_category_index(score)] += 1
+    return [c / len(scores) * 100.0 for c in counts]
+
+
+def _category_index(score: int) -> int:
+    for i, (lower, upper, _) in enumerate(SCORE_CATEGORIES):
+        if upper is None:
+            if score >= lower:
+                return i
+        elif lower <= score < upper:
+            return i
+    return len(SCORE_CATEGORIES) - 1
+
+
+def _print_category_table(results: list[BaselineResult]) -> None:
+    name_width = max(len("Agent"), *(len(r.name) for r in results))
+    cell_width = max(7, max(len(label) for label in _CATEGORY_LABELS) + 1)
+    header = _format_category_header(name_width, cell_width)
+    print("\n" + "=" * len(header))
+    print("Score-category distribution (% of games)")
+    print("-" * len(header))
+    print(header)
+    print("-" * len(header))
+    for r in results:
+        print(_format_category_row(r, name_width, cell_width))
+    print("=" * len(header))
+
+
+def _format_category_header(name_width: int, cell_width: int) -> str:
+    return f"{'Agent':<{name_width}} " + " ".join(
+        f"{label:>{cell_width}}" for label in _CATEGORY_LABELS
+    )
+
+
+def _format_category_row(result: BaselineResult, name_width: int, cell_width: int) -> str:
+    dist = _category_distribution(result.scores)
+    cells = " ".join(f"{pct:>{cell_width}.1f}" for pct in dist)
+    return f"{result.name:<{name_width}} {cells}"
+
+
+_CATEGORY_PALETTE = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b"]
+
+
 def _plot_overlaid_distributions(results: list[BaselineResult], output_dir: str) -> None:
+    grouped = _group_results_for_overlay(results)
     fig, ax = plt.subplots(figsize=(10, 6))
-    colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
-    for i, result in enumerate(results):
+    legend_handles = []
+    for i, result in enumerate(grouped):
+        color = _CATEGORY_PALETTE[i % len(_CATEGORY_PALETTE)]
         ax.hist(
-            result.scores, bins=30, alpha=0.5, label=f"{result.name} (μ={result.mean:.1f})",
-            color=colors[i % len(colors)], edgecolor="black", linewidth=0.5,
+            result.scores, bins=30, density=True, alpha=0.45,
+            color=color, edgecolor="black", linewidth=0.5,
+        )
+        legend_handles.append(
+            plt.Rectangle((0, 0), 1, 1, facecolor=color, edgecolor="black", linewidth=0.5,
+                          label=f"{result.name} (μ={result.mean:.1f})")
         )
     _add_category_lines(ax)
     ax.set_xlim(0, 350)
     ax.set_xlabel("Score")
-    ax.set_ylabel("Frequency")
-    ax.set_title("Score Distributions — All Agents")
-    ax.legend()
+    ax.set_ylabel("Density")
+    ax.set_title("Score Distributions — Random vs Heuristics vs RL")
+    ax.legend(handles=legend_handles)
     fig.tight_layout()
     fig.savefig(os.path.join(output_dir, "score_distributions_overlay.png"), dpi=150)
     plt.close(fig)
+
+
+_HEURISTIC_NAMES = {"Always-Accept", "Greedy", "Fox-Balancing", "Resource-Aware"}
+
+
+def _group_results_for_overlay(results: list[BaselineResult]) -> list[BaselineResult]:
+    random_result = _find_result(results, "Random")
+    rl_result = _find_result(results, "RL Agent")
+    heuristic_scores: list[int] = []
+    for r in results:
+        if r.name in _HEURISTIC_NAMES:
+            heuristic_scores.extend(r.scores)
+
+    grouped: list[BaselineResult] = []
+    if random_result is not None:
+        grouped.append(random_result)
+    if heuristic_scores:
+        grouped.append(BaselineResult(name="Heuristics (combined)", scores=heuristic_scores))
+    if rl_result is not None:
+        grouped.append(rl_result)
+    return grouped
 
 
 def _add_category_lines(ax) -> None:
@@ -219,15 +327,68 @@ def _read_tensorboard_scores(log_dir: str) -> list[tuple[int, float]]:
     if not os.path.isdir(log_dir):
         return []
 
-    ea = EventAccumulator(log_dir)
-    ea.Reload()
+    event_files = sorted(
+        (
+            os.path.join(log_dir, name)
+            for name in os.listdir(log_dir)
+            if name.startswith("events.out.tfevents")
+        ),
+        key=os.path.getmtime,
+    )
+    files_with_events = [(f, _load_score_events(f)) for f in event_files]
+    files_with_events = [(f, ev) for f, ev in files_with_events if ev]
+    if not files_with_events:
+        return []
 
+    chain = _build_resume_chain(files_with_events)
+    return _concatenate_resume_chain(chain)
+
+
+def _load_score_events(path: str) -> list[tuple[int, float]]:
+    ea = EventAccumulator(path)
+    ea.Reload()
     tag = "score/mean"
     if tag not in ea.Tags().get("scalars", []):
         return []
+    return [(e.step, e.value) for e in ea.Scalars(tag)]
 
-    events = ea.Scalars(tag)
-    return [(e.step, e.value) for e in events]
+
+def _build_resume_chain(
+    files_with_events: list[tuple[str, list[tuple[int, float]]]],
+) -> list[list[tuple[int, float]]]:
+    latest_events = files_with_events[-1][1]
+    chain = [latest_events]
+    if _is_fresh_start(latest_events):
+        return chain
+    current_first_step = latest_events[0][0]
+    for _, events in reversed(files_with_events[:-1]):
+        first_step, last_step = events[0][0], events[-1][0]
+        if first_step < current_first_step <= last_step:
+            chain.insert(0, events)
+            current_first_step = first_step
+            if _is_fresh_start(events):
+                break
+    return chain
+
+
+def _is_fresh_start(events: list[tuple[int, float]]) -> bool:
+    if len(events) < 2:
+        return True
+    step_increment = events[1][0] - events[0][0]
+    return step_increment > 0 and events[0][0] == step_increment
+
+
+def _concatenate_resume_chain(
+    chain: list[list[tuple[int, float]]],
+) -> list[tuple[int, float]]:
+    result: list[tuple[int, float]] = []
+    for i, events in enumerate(chain):
+        next_first_step = chain[i + 1][0][0] if i + 1 < len(chain) else None
+        for step, value in events:
+            if next_first_step is not None and step >= next_first_step:
+                break
+            result.append((step, value))
+    return result
 
 
 def _smooth(values, window: int = 50) -> list[float]:
@@ -249,6 +410,9 @@ def _find_latest_checkpoint() -> str | None:
     checkpoint_dir = "model/checkpoints"
     if not os.path.exists(checkpoint_dir):
         return None
+    best = os.path.join(checkpoint_dir, "best.pt")
+    if os.path.exists(best):
+        return best
     checkpoints = [f for f in os.listdir(checkpoint_dir) if f.endswith(".pt")]
     if not checkpoints:
         return None

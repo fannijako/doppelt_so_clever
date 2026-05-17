@@ -139,10 +139,36 @@ Train with **early stopping** (stops when score plateaus, restores best weights)
 python main.py train --early-stop-patience 300 --early-stop-smoothing 0.05
 ```
 
-Evaluate the **RL agent** against baselines (random, always-accept):
+Train with a **curriculum** (gradually increases the number of rounds, uses full-6-round eval for early-stop):
+```bash
+python main.py train --curriculum --max-rounds-start 2 --max-rounds-end 6 --curriculum-eval-episodes 16 --early-stop-patience 300
+```
+
+Train with **custom PPO hyperparameters** and a different terminal-reward scale:
+```bash
+python main.py train --gamma 0.99 --gae-lambda 0.95 --minibatch-size 128 --terminal-reward-scale 0.1
+```
+
+Ablation: turn off **shaped rewards** (terminal-only, no per-step signal):
+```bash
+python main.py train --no-shaped-rewards
+```
+
+Train with **periodic full-round eval** that saves the best policy to `model/checkpoints/best.pt`:
+```bash
+python main.py train --eval-interval 50 --eval-episodes 32
+```
+
+Evaluate the **RL agent** against baselines (random, always-accept, greedy, fox-balancing, resource-aware):
 ```bash
 make evaluate-rl
 ```
+
+The evaluator prefers `model/checkpoints/best.pt` when present, otherwise falls back to the latest periodic checkpoint. It prints a mean/std comparison table and a score-category distribution table (`<140`, `140-159`, ..., `>=320`), plus three plots: overlaid histogram, grouped category bars, and the TensorBoard learning curve.
+
+![Learning curve](evaluation_results/learning_curve.png)
+
+![Score distribution overlay](evaluation_results/score_distributions_overlay.png)
 
 Run evaluation with **CI gate** (exits non-zero if RL agent scores below Always-Accept):
 ```bash
@@ -174,6 +200,20 @@ Monitor training with **TensorBoard**:
 ```bash
 tensorboard --logdir runs
 ```
+
+Tail key training metrics from the command line (uses the most recent event file under `runs/doppelt_rl/` by default and polls every 10 minutes):
+```bash
+make monitor-rl
+```
+
+One-shot snapshot (no loop) or pinning to a specific event file or directory:
+```bash
+make monitor-rl MONITOR_ARGS="--once"
+make monitor-rl MONITOR_ARGS="--log-dir runs/pbt --interval 300"
+make monitor-rl MONITOR_ARGS="--event-file runs/doppelt_rl/events.out.tfevents.XXXX"
+```
+
+Each line reports the estimated iteration plus `score/mean`, `score/max`, `eval/mean_score`, `loss/entropy`, and `loss/value` so you can spot policy collapse (entropy crashing toward 0) or score regressions without opening TensorBoard.
 
 ---
 
@@ -210,13 +250,16 @@ Population-Based Training runs multiple agents in parallel, periodically replaci
 
 ### PPO Parameters (fixed across all agents)
 
-| Parameter | Value | Effect |
-|-----------|-------|--------|
-| **clip_epsilon** | 0.2 | Clamps the policy ratio in the PPO surrogate objective. Prevents destructively large policy updates. |
-| **epochs_per_batch** | 4 | Number of passes over the collected batch per PPO update. More epochs extract more signal from each batch but risk overfitting to stale data. |
-| **value_loss_coefficient** | 0.5 | Weight of the value-function MSE loss relative to the policy loss. |
-| **max_grad_norm** | 0.5 | Gradient clipping threshold. Prevents exploding gradients during optimization. |
-| **minibatch_size** | 256 | Size of minibatches sampled from the batch during PPO updates. Smaller minibatches add noise that can help escape local optima. |
+| Parameter | Flag | Default | Effect |
+|-----------|------|---------|--------|
+| **clip_epsilon** | (fixed) | 0.2 | Clamps the policy ratio in the PPO surrogate objective. Prevents destructively large policy updates. |
+| **epochs_per_batch** | (fixed) | 4 | Number of passes over the collected batch per PPO update. More epochs extract more signal from each batch but risk overfitting to stale data. |
+| **value_loss_coefficient** | (fixed) | 0.5 | Weight of the value-function MSE loss relative to the policy loss. |
+| **max_grad_norm** | (fixed) | 0.5 | Gradient clipping threshold. Prevents exploding gradients during optimization. |
+| **minibatch_size** | `--minibatch-size` | 256 | Size of minibatches sampled from the batch during PPO updates. Smaller minibatches add noise that can help escape local optima. |
+| **gamma** | `--gamma` | 1.0 | Discount factor used by GAE. `1.0` treats the whole episode as one undiscounted return. |
+| **gae_lambda** | `--gae-lambda` | 0.95 | GAE bias/variance trade-off. Lower values reduce variance at the cost of bias. |
+| **terminal_reward_scale** | `--terminal-reward-scale` | 1/10 | Multiplier on the final game score before it is folded into the trajectory return. Keeps the terminal reward in roughly the same magnitude as per-step shaped rewards. The previous default of `1/300` made the terminal signal effectively invisible against shaping — bumped to `1/10` so the agent actually optimizes for final game score, not just per-step shaping. |
 
 ### I/O Parameters
 

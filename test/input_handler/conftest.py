@@ -28,6 +28,11 @@ def _make_policy():
 
 
 @pytest.fixture()
+def board():
+    return Board()
+
+
+@pytest.fixture()
 def handler():
     policy = _make_policy()
     return RLInputHandler(_make_observer(), policy), policy

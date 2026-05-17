@@ -3,6 +3,7 @@ import pytest
 from src.board.board import Board
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
+from src.actions.action_source import ActionSource
 from src.game.rl_observer import RLObserver, DecisionType, _MAX_OPTIONS
 
 
@@ -122,3 +123,12 @@ class TestScore:
     def test_score_stored_on_game_ended(self, observer):
         observer.on_game_ended(142)
         assert observer.score == 142
+
+
+class TestFailedActionCount:
+    def test_failed_action_count_initially_zero(self, observer):
+        assert observer.failed_action_count == 0
+
+    def test_empty_action_execution_is_counted(self, observer):
+        observer.on_action_executed(ActionSource.PICK, [])
+        assert observer.failed_action_count == 1

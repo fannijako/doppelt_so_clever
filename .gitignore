@@ -209,6 +209,8 @@ __marimo__/
 # Custom
 monte_carlo_scores/
 logs/
-model/checkpoints/
+model/checkpoints/*
+!model/checkpoints/best.pt
 !model/ci_checkpoint.pt
 runs/
+*.DS_Store

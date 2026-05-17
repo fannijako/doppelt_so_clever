@@ -8,12 +8,12 @@ from src.game.rl_observer import RLObserver, DecisionType
 
 @pytest.fixture()
 def observer():
-    return RLObserver(Board())
+    return RLObserver(Board(), augmented=False)
 
 
 @pytest.fixture()
 def default_context():
-    return RLObserver(Board()).get_context_tensor(DecisionType.CHOOSE_INDEX, 5)
+    return RLObserver(Board(), augmented=False).get_context_tensor(DecisionType.CHOOSE_INDEX, 5)
 
 
 @pytest.fixture()

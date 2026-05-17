@@ -9,7 +9,7 @@ from model.trajectory_buffer import (
 )
 
 
-def _make_trajectory(n: int, reward: float) -> Trajectory:
+def _make_trajectory(n: int, reward: float, step_reward: float = 0.0) -> Trajectory:
     traj = Trajectory()
     for i in range(n):
         traj.append(Transition(
@@ -18,6 +18,7 @@ def _make_trajectory(n: int, reward: float) -> Trajectory:
             log_prob=-0.5,
             value=float(i),
             action_mask=[1.0, 1.0, 0.0],
+            reward=step_reward,
         ))
     traj.reward = reward
     return traj
@@ -81,3 +82,20 @@ class TestBuildBatch:
     def test_returns_length_matches_total_transitions(self):
         batch = build_batch([_make_trajectory(4, 10.0), _make_trajectory(6, 30.0)])
         assert batch.returns.shape[0] == 10
+
+    def test_per_step_rewards_propagate_through_build_batch(self):
+        zero_terminal = _make_trajectory(3, reward=0.0, step_reward=1.0)
+        no_step_reward = _make_trajectory(3, reward=0.0, step_reward=0.0)
+        batch_with = build_batch([zero_terminal])
+        batch_without = build_batch([no_step_reward])
+        assert batch_with.returns.sum().item() != pytest.approx(
+            batch_without.returns.sum().item()
+        )
+
+    def test_gamma_lambda_kwargs_change_returns(self):
+        traj = _make_trajectory(4, reward=10.0, step_reward=1.0)
+        batch_default = build_batch([traj])
+        batch_discounted = build_batch([traj], gamma=0.5, gae_lambda=0.5)
+        assert batch_default.returns.sum().item() != pytest.approx(
+            batch_discounted.returns.sum().item()
+        )
