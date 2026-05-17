@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 NO_SHAPING_REWARD_CONFIG = RewardConfig(
     w_box=0.0, w_fox=0.0, w_plus_one=0.0, w_reroll=0.0, w_reuse=0.0,
-    w_question_mark=0.0, w_failed=0.0, w_score=0.0,
+    w_consumed_immediate=0.0, w_failed=0.0, w_score=0.0,
     use_partial_score=False,
 )
 

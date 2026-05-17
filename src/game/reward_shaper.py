@@ -15,7 +15,7 @@ class RewardConfig:
     w_plus_one: float = 0.5
     w_reroll: float = 0.15
     w_reuse: float = 0.15
-    w_question_mark: float = 0.5
+    w_consumed_immediate: float = 0.5
     w_failed: float = 1.0
     w_score: float = 0.1
     use_partial_score: bool = False
@@ -28,7 +28,7 @@ class BoardSnapshot:
     gained_rerolls: int
     gained_plus_ones: int
     gained_reuses: int
-    gained_question_marks: int
+    consumed_immediate_actions: int
     failed_action_count: int
     partial_score: float | None = None
 
@@ -42,7 +42,7 @@ class BoardSnapshot:
             gained_rerolls=board.gained_rerolls,
             gained_plus_ones=board.gained_plus_ones,
             gained_reuses=board.gained_reuses,
-            gained_question_marks=board.gained_question_marks,
+            consumed_immediate_actions=board.consumed_immediate_actions,
             failed_action_count=observer.failed_action_count,
             partial_score=board.partial_evaluate() if config.use_partial_score else None,
         )
@@ -64,7 +64,7 @@ class RewardShaper:
             + cfg.w_plus_one * (curr.gained_plus_ones - prev.gained_plus_ones)
             + cfg.w_reroll * (curr.gained_rerolls - prev.gained_rerolls)
             + cfg.w_reuse * (curr.gained_reuses - prev.gained_reuses)
-            + cfg.w_question_mark * (curr.gained_question_marks - prev.gained_question_marks)
+            + cfg.w_consumed_immediate * (curr.consumed_immediate_actions - prev.consumed_immediate_actions)
             - cfg.w_failed * (curr.failed_action_count - prev.failed_action_count)
         )
         if cfg.use_partial_score and prev.partial_score is not None and curr.partial_score is not None:

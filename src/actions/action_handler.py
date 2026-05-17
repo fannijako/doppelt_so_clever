@@ -21,7 +21,7 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
         not_used_immediate_actions = self._get_immediate_actions(actions)
 
         while not_used_immediate_actions:
-            self.board.gained_question_marks += 1
+            self.board.consumed_immediate_actions += 1
             logger.info("Executing", not_used_immediate_actions)
 
             action_index_to_use = self._pick_action_index_to_use(

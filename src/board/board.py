@@ -33,7 +33,7 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
         self.usable_plus_ones = 0
         self.gained_reuses = 0
         self.usable_reuses = 0
-        self.gained_question_marks = 0
+        self.consumed_immediate_actions = 0
         self.game_over = False
 
     _COLOR_INDEX = {c.value: i for i, c in enumerate(DiceColor)}

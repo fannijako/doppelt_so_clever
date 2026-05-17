@@ -57,7 +57,7 @@ monitor-rl:
 	python scripts/monitor_rl.py $(MONITOR_ARGS)
 
 copy-ci-checkpoint:
-	cp model/checkpoints/best.pt model/ci_checkpoint.py
+	cp model/checkpoints/best.pt model/ci_checkpoint.pt
 
 clean:
 	rm -rf .venv
