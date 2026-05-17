@@ -65,7 +65,7 @@ class TestActionHandlerSelectedActionRemoval:
         assert calls[0] == "last"
 
 
-class TestActionHandlerQuestionMarkCount:
+class TestActionHandlerQuestionMarkCount:  # pylint: disable=too-few-public-methods
     def test_counts_each_immediate_action_consumed(self):
         board = Board()
         ActionHandler(board).execute(_make_actions([]), IndexedInputHandler(0))

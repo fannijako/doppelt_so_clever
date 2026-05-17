@@ -1,4 +1,4 @@
-.PHONY: venv build build-test build-monte-carlo build-interactive build-rl build-all lint test run run-auto run-monte-carlo run-interactive train-rl pbt-train-rl evaluate-rl monitor-rl clean docker-build docker-run docker-evaluate docker-clean
+.PHONY: venv build build-test build-monte-carlo build-interactive build-rl build-all lint test run run-auto run-monte-carlo run-interactive train-rl pbt-train-rl evaluate-rl monitor-rl clean docker-build docker-run docker-evaluate docker-clean tensorboard
 PYFILES = $(shell git ls-files '*.py')
 
 venv:
@@ -83,3 +83,6 @@ docker-evaluate:
 
 docker-clean:
 	docker rmi doppelt-so-clever-pbt
+
+tensorboard:
+	tensorboard --logdir runs
