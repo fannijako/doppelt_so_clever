@@ -61,13 +61,19 @@ make monitor-rl MONITOR_ARGS="--log-dir runs/pbt --interval 300"  # PBT runs, 5-
 ### RL Pipeline
 
 ```
-RLObserver  →  board tensor (372) + context tensor (19) = state (391)
+RLObserver  →  board tensor (372) + context tensor (19) = base state (391)
+                augmented adds prompt one-hot (11) + 30×12 option block (360) → 762
+                strategic_features adds derived board features (16) → 778
 RLInputHandler  →  queries PolicyNetwork, records Transition per step
-PolicyNetwork  →  shared MLP trunk (391→256→128) + policy head (→30 logits) + value head (→1)
+PolicyNetwork  →  shared MLP trunk (state→256→128) + policy head (→30 logits) + value head (→1)
 PPOTrainer  →  updates PolicyNetwork from TrajectoryBatch
 ```
 
-`RLObserver` (`src/game/rl_observer.py`) tracks game context (round, subround, dice state) and exposes `get_state()`. With `augmented=True` it appends an 11-float `PromptType` one-hot (state grows to 402). **The `augmented` flag must match between training and inference** — checkpoints should store this metadata.
+`RLObserver` (`src/game/rl_observer.py`) tracks game context (round, subround, dice state) and exposes `get_state()`. Two feature flags shape the state: `augmented` (prompt one-hot + option block) and `strategic_features` (`board.strategic_features()`: 5 normalized section scores, min-section value + one-hot, per-section distance-to-next-fox-box — computed from the same `part.evaluate()` internals as `board.evaluate()`).
+
+**Checkpoint parity contract:** checkpoints store `state_size`, `augmented`, `strategic_features`, and `strategic_features_version`. Every load site (train resume, `evaluate_rl`, `monte_carlo`, `ModelAdvisor`) builds the observer from this metadata and asserts `observer.state_size` equals the network input dim (`assert_observer_state_size` in `scripts/train_rl.py`) — a mismatch raises instead of silently skewing.
+
+**Reward modes** (`--reward-mode`, default `none`): `none` = sparse terminal reward only; `total` = legacy per-step breadth shaping (collapses entropy — kept for ablation); `min-section` = potential-based shaping on `min(section)` with γ=1. Curriculum requires a per-step mode (`total` or `min-section`).
 
 `RLInputHandler` (`src/input_handler/model/rl_input_handler.py`) builds action masks (max 30 actions) and records `Transition`s during training; recording is skipped in eval mode.
 
