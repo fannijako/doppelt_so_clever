@@ -3,7 +3,12 @@ from dataclasses import replace
 import pytest
 
 from src.board.board import Board
-from src.game.reward_shaper import BoardSnapshot, RewardConfig, RewardShaper
+from src.game.reward_shaper import (
+    MIN_SECTION_PBRS_REWARD_CONFIG,
+    BoardSnapshot,
+    RewardConfig,
+    RewardShaper,
+)
 from src.game.rl_observer import RLObserver
 
 
@@ -98,3 +103,45 @@ class TestPartialScoreFlag:
             _snapshot(partial_score=30.0),
         )
         assert reward == pytest.approx(0.1 * 20.0)
+
+
+class TestMinSectionShaping:
+    def test_min_section_gain_rewarded(self):
+        shaper = RewardShaper(MIN_SECTION_PBRS_REWARD_CONFIG)
+        reward = shaper.compute(
+            _snapshot(min_section_score=0),
+            _snapshot(min_section_score=4),
+        )
+        assert reward == pytest.approx(0.1 * 4)
+
+    def test_min_section_drop_penalized(self):
+        shaper = RewardShaper(MIN_SECTION_PBRS_REWARD_CONFIG)
+        reward = shaper.compute(
+            _snapshot(min_section_score=6),
+            _snapshot(min_section_score=2),
+        )
+        assert reward == pytest.approx(-0.1 * 4)
+
+    def test_breadth_progress_not_rewarded(self):
+        shaper = RewardShaper(MIN_SECTION_PBRS_REWARD_CONFIG)
+        reward = shaper.compute(
+            _snapshot(min_section_score=2),
+            _snapshot(filled_boxes=5, foxes=1, gained_plus_ones=2, min_section_score=2),
+        )
+        assert reward == pytest.approx(0.0)
+
+    def test_contributions_telescope_across_snapshot_chain(self):
+        shaper = RewardShaper(MIN_SECTION_PBRS_REWARD_CONFIG)
+        chain = [_snapshot(min_section_score=s) for s in (0, 3, 1, 1, 7, 5)]
+        total = sum(shaper.compute(prev, curr) for prev, curr in zip(chain, chain[1:]))
+        assert total == pytest.approx(0.1 * (5 - 0))
+
+    def test_capture_records_min_section_when_configured(self):
+        board = Board()
+        snapshot = BoardSnapshot.capture(board, RLObserver(board), MIN_SECTION_PBRS_REWARD_CONFIG)
+        assert snapshot.min_section_score == 0
+
+    def test_capture_skips_min_section_when_not_configured(self):
+        board = Board()
+        snapshot = BoardSnapshot.capture(board, RLObserver(board), RewardConfig())
+        assert snapshot.min_section_score is None

@@ -9,11 +9,17 @@ from scripts.train_rl import (
     _build_config,
     _check_early_stop,
     _curriculum_rounds,
+    _episode_options,
     _full_round_eval,
     _parse_arguments,
     FeatureFlags,
     IterationMetrics,
     TrainingConfig,
+)
+from src.game.reward_shaper import (
+    MIN_SECTION_PBRS_REWARD_CONFIG,
+    NO_SHAPING_REWARD_CONFIG,
+    RewardConfig,
 )
 
 
@@ -58,23 +64,41 @@ class TestCurriculumRoundsEnabled:
         assert _curriculum_rounds(0, _config(curriculum=True, iterations=1)) == 2
 
 
-class TestCurriculumRequiresShapedRewards:
-    def test_curriculum_with_no_shaped_rewards_raises(self):
-        args = _parse(["--curriculum", "--no-shaped-rewards"])
-        with pytest.raises(ValueError, match="curriculum requires shaped rewards"):
+class TestCurriculumRewardModeMatrix:
+    def test_curriculum_with_default_mode_raises(self):
+        args = _parse(["--curriculum"])
+        with pytest.raises(ValueError, match="per-step reward signal"):
             _build_config(args)
 
-    def test_curriculum_with_shaped_rewards_ok(self):
-        args = _parse(["--curriculum"])
-        config = _build_config(args)
-        assert config.features.curriculum
-        assert config.features.shaped_rewards
+    def test_curriculum_with_none_mode_raises(self):
+        args = _parse(["--curriculum", "--reward-mode", "none"])
+        with pytest.raises(ValueError, match="per-step reward signal"):
+            _build_config(args)
 
-    def test_no_curriculum_no_shaping_ok(self):
-        args = _parse(["--no-shaped-rewards"])
-        config = _build_config(args)
-        assert not config.features.shaped_rewards
-        assert config.features.reward_config is not None
+    def test_curriculum_with_total_mode_ok(self):
+        args = _parse(["--curriculum", "--reward-mode", "total"])
+        assert _build_config(args).features.curriculum
+
+    def test_curriculum_with_min_section_mode_ok(self):
+        args = _parse(["--curriculum", "--reward-mode", "min-section"])
+        assert _build_config(args).features.reward_mode == "min-section"
+
+
+class TestRewardModeSelection:
+    def test_default_mode_is_none(self):
+        assert _build_config(_parse([])).features.reward_mode == "none"
+
+    def test_default_selects_no_shaping_config(self):
+        config = _build_config(_parse([]))
+        assert _episode_options(config, None).reward_config is NO_SHAPING_REWARD_CONFIG
+
+    def test_cli_selects_min_section_config(self):
+        config = _build_config(_parse(["--reward-mode", "min-section"]))
+        assert _episode_options(config, None).reward_config is MIN_SECTION_PBRS_REWARD_CONFIG
+
+    def test_total_mode_selects_legacy_shaping(self):
+        config = _build_config(_parse(["--reward-mode", "total"]))
+        assert _episode_options(config, None).reward_config == RewardConfig()
 
 
 class TestEarlyStopUsesFullRoundEval:

@@ -51,6 +51,11 @@ class TestCheckpointMetadata:
             assert ckpt["augmented"] is False
             assert ckpt["state_size"] == Board.STATE_SIZE + RLObserver.CONTEXT_SIZE
 
+    def test_save_records_default_reward_mode(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = _make_checkpoint(tmpdir, augmented=True)
+            assert torch.load(path, weights_only=True)["reward_mode"] == "none"
+
 
 class TestLoaderRoundTrip:
     def test_evaluate_loader_returns_augmented(self):
