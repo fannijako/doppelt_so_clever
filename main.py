@@ -7,6 +7,7 @@ COMMANDS = {
     "train": "scripts.train_rl",
     "pbt-train": "scripts.pbt_train_rl",
     "evaluate": "scripts.evaluate_rl",
+    "section-report": "scripts.section_report",
 }
 
 
