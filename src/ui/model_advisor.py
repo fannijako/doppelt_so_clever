@@ -7,7 +7,11 @@ import torch
 from src.game.rl_observer import RLObserver, DecisionType, _MAX_OPTIONS
 
 from model.policy_network import PolicyNetwork, apply_action_mask
-from scripts.train_rl import require_phase3_metadata
+from scripts.train_rl import (
+    require_phase3_metadata,
+    checkpoint_strategic_features,
+    assert_observer_state_size,
+)
 
 
 _DEFAULT_CHECKPOINT = Path(__file__).resolve().parents[2] / "model" / "checkpoints" / "best.pt"
@@ -15,10 +19,10 @@ _DEFAULT_CHECKPOINT = Path(__file__).resolve().parents[2] / "model" / "checkpoin
 
 class ModelAdvisor:  # pylint: disable=too-few-public-methods
     def __init__(self, observer: RLObserver, checkpoint_path: Path | None = None):
+        path = checkpoint_path or _DEFAULT_CHECKPOINT
         self._observer = observer
-        self._policy, self._augmented = self._load_policy(
-            checkpoint_path or _DEFAULT_CHECKPOINT,
-        )
+        self._policy, self._augmented = self._load_policy(path)
+        assert_observer_state_size(observer, self._policy.trunk[0].in_features, str(path))
 
     @staticmethod
     def read_augmented_from_checkpoint(checkpoint_path: Path | None = None) -> bool:
@@ -26,6 +30,13 @@ class ModelAdvisor:  # pylint: disable=too-few-public-methods
         checkpoint = torch.load(path, map_location="cpu", weights_only=True)
         require_phase3_metadata(checkpoint, str(path))
         return checkpoint["augmented"]
+
+    @staticmethod
+    def read_strategic_features_from_checkpoint(checkpoint_path: Path | None = None) -> bool:
+        path = checkpoint_path or _DEFAULT_CHECKPOINT
+        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+        require_phase3_metadata(checkpoint, str(path))
+        return checkpoint_strategic_features(checkpoint)
 
     @property
     def augmented(self) -> bool:

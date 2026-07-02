@@ -6,6 +6,7 @@ from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
 from src.logging_config import GameLogger
 from src.actions.base_action import Action
+from src.actions.action_type import ActionType
 from src.board.board_parts.blue_board_part import BlueBoardPart
 from src.board.board_parts.grey_board_part import GreyBoardPart
 from src.board.board_parts.pink_board_part import PinkBoardPart
@@ -215,17 +216,69 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
         return self._score_from_parts()
 
     def _score_from_parts(self) -> int:
-        part_values = [
-            board_part.evaluate()
-            for board_part
-            in (
-                self.blue_board_part,
-                self.pink_board_part,
-                self.green_board_part,
-                self.yellow_board_part,
-                self.grey_board_part
-            )
-        ]
+        part_values = [part.evaluate() for part in self._ordered_parts()]
         result = sum(part_values) + self.foxes * min(part_values)
         logger.info("Score", result)
         return result
+
+    def _ordered_parts(self) -> tuple:
+        return (
+            self.blue_board_part,
+            self.pink_board_part,
+            self.green_board_part,
+            self.yellow_board_part,
+            self.grey_board_part,
+        )
+
+    STRATEGIC_FEATURES_VERSION = 1
+    STRATEGIC_FEATURES_SIZE = 16
+
+    _SECTION_SCORE_MAXES = (78, 72, 92, 165, 88)
+    _MIN_SECTION_SCORE_MAX = 72
+    _FOX_COLUMN = 3
+
+    def strategic_features(self) -> list[float]:
+        scores = [part.evaluate() for part in self._ordered_parts()]
+        return (
+            self._normalized_section_scores(scores)
+            + self._min_section_features(scores)
+            + self._fox_distance_features()
+        )
+
+    def _normalized_section_scores(self, scores: list[int]) -> list[float]:
+        return [score / maximum for score, maximum in zip(scores, self._SECTION_SCORE_MAXES)]
+
+    def _min_section_features(self, scores: list[int]) -> list[float]:
+        min_index = min(range(len(scores)), key=scores.__getitem__)
+        one_hot = [1.0 if i == min_index else 0.0 for i in range(len(scores))]
+        return [scores[min_index] / self._MIN_SECTION_SCORE_MAX] + one_hot
+
+    def _fox_distance_features(self) -> list[float]:
+        return [
+            self._linear_fox_distance(self.blue_board_part.boxes),
+            self._linear_fox_distance(self.pink_board_part.boxes),
+            self._linear_fox_distance(self.green_board_part.boxes),
+            self._column_fox_distance(
+                self.yellow_board_part.available_columns_for_action,
+                [box for box in self.yellow_board_part.boxes if box.column_position == self._FOX_COLUMN],
+                lambda box: box.is_circled,
+            ),
+            self._column_fox_distance(
+                self.grey_board_part.available_columns_for_action,
+                [box for box in self.grey_board_part.boxes if box.number == self._FOX_COLUMN],
+                lambda box: box.is_crossed,
+            ),
+        ]
+
+    @staticmethod
+    def _linear_fox_distance(boxes: list) -> float:
+        fox_position = next(i for i, box in enumerate(boxes) if box.action == ActionType.FOX)
+        filled = sum(1 for box in boxes if box.value_used is not None)
+        boxes_to_reach = fox_position + 1
+        return max(0, boxes_to_reach - filled) / boxes_to_reach
+
+    def _column_fox_distance(self, available_columns: dict, column_boxes: list, is_marked) -> float:
+        if self._FOX_COLUMN not in available_columns:
+            return 0.0
+        remaining = sum(1 for box in column_boxes if not is_marked(box))
+        return remaining / len(column_boxes)

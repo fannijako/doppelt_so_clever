@@ -63,7 +63,8 @@ def build_observer(arguments: argparse.Namespace, board: Board) -> tuple[GameObs
 
     if arguments.mode == "interactive":
         augmented = ModelAdvisor.read_augmented_from_checkpoint()
-        rl_observer = RLObserver(board, augmented=augmented)
+        strategic_features = ModelAdvisor.read_strategic_features_from_checkpoint()
+        rl_observer = RLObserver(board, augmented=augmented, strategic_features=strategic_features)
         advisor = ModelAdvisor(rl_observer)
         pygame_ui = PygameUI(board, model_advisor=advisor)
         observers.append(pygame_ui)

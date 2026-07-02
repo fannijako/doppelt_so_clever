@@ -63,9 +63,10 @@ class RLObserver(GameObserver):
     CONTEXT_SIZE = 19
     AUGMENTED_CONTEXT_SIZE = CONTEXT_SIZE + PROMPT_FEATURES_SIZE + OPTION_BLOCK_SIZE
 
-    def __init__(self, board: Board, augmented: bool = True):
+    def __init__(self, board: Board, augmented: bool = True, strategic_features: bool = False):
         self._board = board
         self._augmented = augmented
+        self._strategic_features = strategic_features
         self._state = _ObserverState()
         self._score: int | None = None
         self._failed_action_count = 0
@@ -140,13 +141,31 @@ class RLObserver(GameObserver):
         if self._augmented:
             ctx += _prompt_type_one_hot(classify_prompt(prompt))
             ctx += flatten_option_block(featurize_options(options))
-        return self._board.to_tensor() + ctx
+        state = self._board.to_tensor() + ctx
+        if self._strategic_features:
+            state += self._board.strategic_features()
+        return state
+
+    @property
+    def augmented(self) -> bool:
+        return self._augmented
+
+    @property
+    def strategic_features_enabled(self) -> bool:
+        return self._strategic_features
 
     @property
     def context_size(self) -> int:
         if self._augmented:
             return self.AUGMENTED_CONTEXT_SIZE
         return self.CONTEXT_SIZE
+
+    @property
+    def state_size(self) -> int:
+        size = self._board.STATE_SIZE + self.context_size
+        if self._strategic_features:
+            size += self._board.STRATEGIC_FEATURES_SIZE
+        return size
 
     def _round_and_phase_features(self) -> list[float]:
         return [

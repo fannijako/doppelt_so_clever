@@ -25,7 +25,11 @@ from src.game.rl_observer import RLObserver
 
 from model.model import DoppeltSoCleverModel
 from model.policy_network import PolicyNetwork
-from scripts.train_rl import require_phase3_metadata
+from scripts.train_rl import (
+    require_phase3_metadata,
+    checkpoint_strategic_features,
+    assert_observer_state_size,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -137,12 +141,13 @@ def get_input_handler(arguments: argparse.Namespace) -> InputHandler:
 def _create_rl_game_factory(checkpoint_path: str | None) -> GameFactory:
     if checkpoint_path is None:
         checkpoint_path = _find_latest_checkpoint()
-    policy, augmented = _load_policy(checkpoint_path)
+    policy, augmented, strategic_features = _load_policy(checkpoint_path)
     policy_fn = _create_policy_fn(policy)
 
     def factory() -> Game:
         board = Board()
-        observer = RLObserver(board, augmented=augmented)
+        observer = RLObserver(board, augmented=augmented, strategic_features=strategic_features)
+        assert_observer_state_size(observer, policy.trunk[0].in_features, source=checkpoint_path)
         handler = RLInputHandler(observer, policy_fn, training=False)
         return Game(
             input_handler=handler,
@@ -154,7 +159,7 @@ def _create_rl_game_factory(checkpoint_path: str | None) -> GameFactory:
     return factory
 
 
-def _load_policy(checkpoint_path: str) -> tuple[PolicyNetwork, bool]:
+def _load_policy(checkpoint_path: str) -> tuple[PolicyNetwork, bool, bool]:
     logger.info("Loading RL model from checkpoint: %s", checkpoint_path)
     checkpoint = torch.load(checkpoint_path, weights_only=True)
     require_phase3_metadata(checkpoint, checkpoint_path)
@@ -165,7 +170,7 @@ def _load_policy(checkpoint_path: str) -> tuple[PolicyNetwork, bool]:
     )
     policy.load_state_dict(checkpoint["policy_state_dict"])
     policy.eval()
-    return policy, checkpoint["augmented"]
+    return policy, checkpoint["augmented"], checkpoint_strategic_features(checkpoint)
 
 
 def _create_policy_fn(policy: PolicyNetwork):
