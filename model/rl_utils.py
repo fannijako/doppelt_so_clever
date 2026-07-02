@@ -25,6 +25,7 @@ class EpisodeOptions:
     max_rounds: int | None = None
     terminal_reward_scale: float = DEFAULT_TERMINAL_REWARD_SCALE
     reward_config: RewardConfig | None = None
+    strategic_features: bool = False
 
 
 def make_policy_fn(policy: PolicyNetwork):
@@ -63,7 +64,9 @@ def run_episode(
 ) -> tuple[Trajectory, int]:
     opts = options or EpisodeOptions()
     board = Board()
-    observer = RLObserver(board, augmented=opts.augmented)
+    observer = RLObserver(
+        board, augmented=opts.augmented, strategic_features=opts.strategic_features,
+    )
     handler = RLInputHandler(
         observer, policy_fn, training=training, reward_config=opts.reward_config,
     )

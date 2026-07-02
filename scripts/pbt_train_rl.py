@@ -38,6 +38,7 @@ class PBTIOConfig:
 @dataclass
 class SharedHyperparams:
     augmented: bool = True
+    strategic_features: bool = True
     terminal_reward_scale: float = DEFAULT_TERMINAL_REWARD_SCALE
     gamma: float = 1.0
     gae_lambda: float = 0.95
@@ -140,6 +141,7 @@ def _shared_episode_options(shared: SharedHyperparams) -> EpisodeOptions:
     return EpisodeOptions(
         augmented=shared.augmented,
         terminal_reward_scale=shared.terminal_reward_scale,
+        strategic_features=shared.strategic_features,
     )
 
 
@@ -199,7 +201,7 @@ def _create_agent(idx: int, config: PBTConfig) -> Agent:
         learning_rate=lr, entropy_coefficient=ent, shared=config.shared,
     )
     policy = PolicyNetwork(
-        state_size=_compute_pbt_state_size(config.shared.augmented),
+        state_size=_compute_pbt_state_size(config.shared),
         hidden1=agent_config.hidden1,
         hidden2=agent_config.hidden2,
     )
@@ -207,10 +209,13 @@ def _create_agent(idx: int, config: PBTConfig) -> Agent:
     return Agent(idx=idx, policy=policy, trainer=trainer, config=agent_config)
 
 
-def _compute_pbt_state_size(augmented: bool) -> int:
-    if augmented:
-        return Board.STATE_SIZE + RLObserver.AUGMENTED_CONTEXT_SIZE
-    return Board.STATE_SIZE + RLObserver.CONTEXT_SIZE
+def _compute_pbt_state_size(shared: SharedHyperparams) -> int:
+    size = Board.STATE_SIZE + (
+        RLObserver.AUGMENTED_CONTEXT_SIZE if shared.augmented else RLObserver.CONTEXT_SIZE
+    )
+    if shared.strategic_features:
+        size += Board.STRATEGIC_FEATURES_SIZE
+    return size
 
 
 def _sample_log_uniform(low: float, high: float) -> float:
@@ -267,8 +272,10 @@ def _save_best(population: list[Agent], checkpoint_dir: str) -> None:
             "hidden2": best.config.hidden2,
         },
         "mean_score": best.mean_score,
-        "state_size": _compute_pbt_state_size(best.config.shared.augmented),
+        "state_size": _compute_pbt_state_size(best.config.shared),
         "augmented": best.config.shared.augmented,
+        "strategic_features": best.config.shared.strategic_features,
+        "strategic_features_version": Board.STRATEGIC_FEATURES_VERSION,
         "option_feature_size": OPTION_FEATURE_SIZE,
         "hidden1": best.config.hidden1,
         "hidden2": best.config.hidden2,
@@ -289,6 +296,7 @@ def _build_pbt_config(args: argparse.Namespace) -> PBTConfig:
         num_workers=args.num_workers,
         shared=SharedHyperparams(
             augmented=args.augmented,
+            strategic_features=args.strategic_features,
             terminal_reward_scale=args.terminal_reward_scale,
             gamma=args.gamma,
             gae_lambda=args.gae_lambda,
@@ -339,6 +347,10 @@ def _add_pbt_shared_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--augmented", action=argparse.BooleanOptionalAction, default=True,
         help="Enable observation augmentation. Default on; use --no-augmented to disable.",
+    )
+    parser.add_argument(
+        "--strategic-features", action=argparse.BooleanOptionalAction, default=True,
+        help="Append derived strategic features (Phase 1). Default on; use --no-strategic-features for ablation.",
     )
     parser.add_argument("--gamma", type=float, default=1.0, help="Discount factor for GAE")
     parser.add_argument("--gae-lambda", type=float, default=0.95, help="GAE lambda")

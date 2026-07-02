@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-from model.policy_network import PolicyNetwork, LEGACY_STATE_SIZE
+from model.policy_network import PolicyNetwork
 from model.ppo import PPOConfig, PPOTrainer, PPOUpdateResult
 from model.trajectory_buffer import build_batch
 from model.early_stop import EarlyStopConfig, EarlyStopTracker
@@ -30,7 +30,7 @@ NO_SHAPING_REWARD_CONFIG = RewardConfig(
 
 
 @dataclass
-class FeatureFlags:
+class FeatureFlags:  # pylint: disable=too-many-instance-attributes
     augmented: bool = True
     lr_decay: bool = False
     curriculum: bool = False
@@ -40,6 +40,7 @@ class FeatureFlags:
     reward_config: RewardConfig | None = None
     curriculum_eval_episodes: int = 16
     terminal_reward_scale: float = DEFAULT_TERMINAL_REWARD_SCALE
+    strategic_features: bool = True
 
 
 @dataclass
@@ -180,6 +181,7 @@ def _episode_options(config: TrainingConfig, max_rounds: int | None) -> EpisodeO
         max_rounds=max_rounds,
         terminal_reward_scale=config.features.terminal_reward_scale,
         reward_config=config.features.reward_config,
+        strategic_features=config.features.strategic_features,
     )
 
 
@@ -339,8 +341,12 @@ def _checkpoint_payload(
         "iteration": iteration,
         "policy_state_dict": policy.state_dict(),
         "optimizer_state_dict": trainer.optimizer.state_dict(),
-        "state_size": _compute_state_size(config.features.augmented),
+        "state_size": _compute_state_size(
+            config.features.augmented, config.features.strategic_features,
+        ),
         "augmented": config.features.augmented,
+        "strategic_features": config.features.strategic_features,
+        "strategic_features_version": Board.STRATEGIC_FEATURES_VERSION,
         "option_feature_size": OPTION_FEATURE_SIZE,
         "hidden1": config.model.hidden1,
         "hidden2": config.model.hidden2,
@@ -355,9 +361,11 @@ def _load_checkpoint(
     path: str,
     policy: PolicyNetwork,
     trainer: PPOTrainer,
+    config: TrainingConfig,
 ) -> int:
     checkpoint = torch.load(path, weights_only=True)
     require_phase3_metadata(checkpoint, path)
+    _assert_resume_feature_parity(checkpoint, config, path)
     policy.load_state_dict(checkpoint["policy_state_dict"])
     trainer.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     start_iteration = checkpoint["iteration"] + 1
@@ -376,23 +384,53 @@ def require_phase3_metadata(checkpoint: dict, path: str) -> None:
         raise ValueError(f"{_PHASE3_METADATA_ERROR} Checkpoint: {path}")
 
 
-def _compute_state_size(augmented: bool) -> int:
-    if augmented:
-        return Board.STATE_SIZE + RLObserver.AUGMENTED_CONTEXT_SIZE
-    return LEGACY_STATE_SIZE
+def checkpoint_strategic_features(checkpoint: dict) -> bool:
+    return checkpoint.get("strategic_features", False)
+
+
+def assert_observer_state_size(observer: RLObserver, expected_state_size: int, source: str = "") -> None:
+    if observer.state_size != expected_state_size:
+        raise ValueError(
+            f"Observer state size {observer.state_size} does not match the loaded network "
+            f"input size {expected_state_size} (augmented={observer.augmented}, "
+            f"strategic_features={observer.strategic_features_enabled}). {source}".strip()
+        )
+
+
+def _assert_resume_feature_parity(checkpoint: dict, config: TrainingConfig, path: str) -> None:
+    expected = _compute_state_size(
+        config.features.augmented, config.features.strategic_features,
+    )
+    if checkpoint["state_size"] != expected:
+        raise ValueError(
+            f"Cannot resume: checkpoint state size {checkpoint['state_size']} does not match "
+            f"the configured state size {expected} (augmented={config.features.augmented}, "
+            f"strategic_features={config.features.strategic_features}). Checkpoint: {path}"
+        )
+
+
+def _compute_state_size(augmented: bool, strategic_features: bool) -> int:
+    size = Board.STATE_SIZE + (
+        RLObserver.AUGMENTED_CONTEXT_SIZE if augmented else RLObserver.CONTEXT_SIZE
+    )
+    if strategic_features:
+        size += Board.STRATEGIC_FEATURES_SIZE
+    return size
 
 
 def _setup_model(
     config: TrainingConfig,
 ) -> tuple[PolicyNetwork, PPOTrainer, int]:
-    state_size = _compute_state_size(config.features.augmented)
+    state_size = _compute_state_size(
+        config.features.augmented, config.features.strategic_features,
+    )
     policy = PolicyNetwork(
         state_size=state_size, hidden1=config.model.hidden1, hidden2=config.model.hidden2,
     )
     trainer = PPOTrainer(policy, config.ppo)
     start_iteration = 0
     if config.io.resume:
-        start_iteration = _load_checkpoint(config.io.resume, policy, trainer)
+        start_iteration = _load_checkpoint(config.io.resume, policy, trainer, config)
     return policy, trainer, start_iteration
 
 
@@ -417,6 +455,7 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
         reward_config=None if args.shaped_rewards else NO_SHAPING_REWARD_CONFIG,
         curriculum_eval_episodes=args.curriculum_eval_episodes,
         terminal_reward_scale=args.terminal_reward_scale,
+        strategic_features=args.strategic_features,
     )
     io_config = IOConfig(
         checkpoint_interval=args.checkpoint_interval,
@@ -503,6 +542,10 @@ def _add_feature_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--augmented", action=argparse.BooleanOptionalAction, default=True,
         help="Enable observation augmentation (prompt + option features). Default on; use --no-augmented to disable.",
+    )
+    parser.add_argument(
+        "--strategic-features", action=argparse.BooleanOptionalAction, default=True,
+        help="Append derived strategic features (Phase 1). Default on; use --no-strategic-features for ablation.",
     )
     parser.add_argument("--curriculum", action="store_true", help="Enable curriculum learning (gradual round increase)")
     parser.add_argument("--max-rounds-start", type=int, default=2, help="Starting number of rounds for curriculum")

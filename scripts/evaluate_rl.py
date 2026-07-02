@@ -27,7 +27,11 @@ from src.input_handler.heuristics.greedy_immediate import GreedyImmediateInputHa
 from src.input_handler.heuristics.resource_aware import ResourceAwareInputHandler
 
 from model.policy_network import PolicyNetwork
-from scripts.train_rl import require_phase3_metadata
+from scripts.train_rl import (
+    require_phase3_metadata,
+    checkpoint_strategic_features,
+    assert_observer_state_size,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -114,15 +118,20 @@ def _play_standard_game(factory: "HandlerFactory") -> int:
 
 
 def _run_rl_agent(checkpoint_path: str, num_games: int) -> BaselineResult:
-    policy, augmented = _load_policy(checkpoint_path)
+    policy, augmented, strategic_features = _load_policy(checkpoint_path)
     policy_fn = _create_policy_fn(policy)
-    scores = [_play_rl_game(policy_fn, augmented) for _ in range(num_games)]
+    expected_state_size = policy.trunk[0].in_features
+    scores = [
+        _play_rl_game(policy_fn, augmented, strategic_features, expected_state_size)
+        for _ in range(num_games)
+    ]
     return BaselineResult(name="RL Agent", scores=scores)
 
 
-def _play_rl_game(policy_fn, augmented: bool) -> int:
+def _play_rl_game(policy_fn, augmented: bool, strategic_features: bool, expected_state_size: int) -> int:
     board = Board()
-    observer = RLObserver(board, augmented=augmented)
+    observer = RLObserver(board, augmented=augmented, strategic_features=strategic_features)
+    assert_observer_state_size(observer, expected_state_size)
     handler = RLInputHandler(observer, policy_fn, training=False)
     game = Game(
         input_handler=handler,
@@ -133,7 +142,7 @@ def _play_rl_game(policy_fn, augmented: bool) -> int:
     return game.play()
 
 
-def _load_policy(checkpoint_path: str) -> tuple[PolicyNetwork, bool]:
+def _load_policy(checkpoint_path: str) -> tuple[PolicyNetwork, bool, bool]:
     checkpoint = torch.load(checkpoint_path, weights_only=True)
     require_phase3_metadata(checkpoint, checkpoint_path)
     policy = PolicyNetwork(
@@ -143,7 +152,7 @@ def _load_policy(checkpoint_path: str) -> tuple[PolicyNetwork, bool]:
     )
     policy.load_state_dict(checkpoint["policy_state_dict"])
     policy.eval()
-    return policy, checkpoint["augmented"]
+    return policy, checkpoint["augmented"], checkpoint_strategic_features(checkpoint)
 
 
 def _create_policy_fn(policy: PolicyNetwork):
