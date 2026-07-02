@@ -15,18 +15,11 @@ from model.trajectory_buffer import build_batch
 from model.early_stop import EarlyStopConfig, EarlyStopTracker
 from model.rl_utils import DEFAULT_TERMINAL_REWARD_SCALE, EpisodeOptions, collect_batch
 from src.board.board import Board
-from src.game.reward_shaper import RewardConfig
+from src.game.reward_shaper import REWARD_MODE_CONFIGS
 from src.game.rl_observer import RLObserver
 from src.game.option_features import OPTION_FEATURE_SIZE
 
 logger = logging.getLogger(__name__)
-
-
-NO_SHAPING_REWARD_CONFIG = RewardConfig(
-    w_box=0.0, w_fox=0.0, w_plus_one=0.0, w_reroll=0.0, w_reuse=0.0,
-    w_consumed_immediate=0.0, w_failed=0.0, w_score=0.0,
-    use_partial_score=False,
-)
 
 
 @dataclass
@@ -36,8 +29,7 @@ class FeatureFlags:  # pylint: disable=too-many-instance-attributes
     curriculum: bool = False
     max_rounds_start: int = 2
     max_rounds_end: int = 6
-    shaped_rewards: bool = True
-    reward_config: RewardConfig | None = None
+    reward_mode: str = "none"
     curriculum_eval_episodes: int = 16
     terminal_reward_scale: float = DEFAULT_TERMINAL_REWARD_SCALE
     strategic_features: bool = True
@@ -180,7 +172,7 @@ def _episode_options(config: TrainingConfig, max_rounds: int | None) -> EpisodeO
         augmented=config.features.augmented,
         max_rounds=max_rounds,
         terminal_reward_scale=config.features.terminal_reward_scale,
-        reward_config=config.features.reward_config,
+        reward_config=REWARD_MODE_CONFIGS[config.features.reward_mode],
         strategic_features=config.features.strategic_features,
     )
 
@@ -353,7 +345,7 @@ def _checkpoint_payload(
         "terminal_reward_scale": config.features.terminal_reward_scale,
         "gamma": config.ppo.gamma,
         "gae_lambda": config.ppo.gae_lambda,
-        "shaped_rewards": config.features.shaped_rewards,
+        "reward_mode": config.features.reward_mode,
     }
 
 
@@ -451,8 +443,7 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
         curriculum=args.curriculum,
         max_rounds_start=args.max_rounds_start,
         max_rounds_end=args.max_rounds_end,
-        shaped_rewards=args.shaped_rewards,
-        reward_config=None if args.shaped_rewards else NO_SHAPING_REWARD_CONFIG,
+        reward_mode=args.reward_mode,
         curriculum_eval_episodes=args.curriculum_eval_episodes,
         terminal_reward_scale=args.terminal_reward_scale,
         strategic_features=args.strategic_features,
@@ -485,10 +476,10 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
 
 
 def _validate_args(args: argparse.Namespace) -> None:
-    if args.curriculum and not args.shaped_rewards:
+    if args.curriculum and args.reward_mode == "none":
         raise ValueError(
-            "curriculum requires shaped rewards (per-step signal). "
-            "Drop --no-shaped-rewards or --curriculum.",
+            "curriculum requires a per-step reward signal. "
+            "Use --reward-mode total or --reward-mode min-section, or drop --curriculum.",
         )
 
 
@@ -562,8 +553,11 @@ def _add_reward_args(parser: argparse.ArgumentParser) -> None:
         help="Multiplier applied to the terminal score reward (default 1/10)",
     )
     parser.add_argument(
-        "--shaped-rewards", action=argparse.BooleanOptionalAction, default=True,
-        help="Enable per-step shaped rewards (Phase 2). Default on; use --no-shaped-rewards for ablation.",
+        "--reward-mode", choices=tuple(REWARD_MODE_CONFIGS), default="none",
+        help=(
+            "Per-step reward shaping: none (default, sparse terminal only), "
+            "total (legacy breadth shaping), min-section (PBRS on the weakest section)."
+        ),
     )
 
 

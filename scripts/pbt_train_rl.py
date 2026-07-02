@@ -17,6 +17,7 @@ from model.ppo import PPOConfig, PPOTrainer
 from model.trajectory_buffer import build_batch
 from model.rl_utils import DEFAULT_TERMINAL_REWARD_SCALE, EpisodeOptions, collect_batch
 from src.board.board import Board
+from src.game.reward_shaper import REWARD_MODE_CONFIGS
 from src.game.rl_observer import RLObserver
 from src.game.option_features import OPTION_FEATURE_SIZE
 
@@ -39,6 +40,7 @@ class PBTIOConfig:
 class SharedHyperparams:
     augmented: bool = True
     strategic_features: bool = True
+    reward_mode: str = "none"
     terminal_reward_scale: float = DEFAULT_TERMINAL_REWARD_SCALE
     gamma: float = 1.0
     gae_lambda: float = 0.95
@@ -142,6 +144,7 @@ def _shared_episode_options(shared: SharedHyperparams) -> EpisodeOptions:
         augmented=shared.augmented,
         terminal_reward_scale=shared.terminal_reward_scale,
         strategic_features=shared.strategic_features,
+        reward_config=REWARD_MODE_CONFIGS[shared.reward_mode],
     )
 
 
@@ -282,6 +285,7 @@ def _save_best(population: list[Agent], checkpoint_dir: str) -> None:
         "terminal_reward_scale": best.config.shared.terminal_reward_scale,
         "gamma": best.config.shared.gamma,
         "gae_lambda": best.config.shared.gae_lambda,
+        "reward_mode": best.config.shared.reward_mode,
     }, path)
     logger.info("Saved best agent (score=%.1f) to %s", best.mean_score, path)
 
@@ -297,6 +301,7 @@ def _build_pbt_config(args: argparse.Namespace) -> PBTConfig:
         shared=SharedHyperparams(
             augmented=args.augmented,
             strategic_features=args.strategic_features,
+            reward_mode=args.reward_mode,
             terminal_reward_scale=args.terminal_reward_scale,
             gamma=args.gamma,
             gae_lambda=args.gae_lambda,
@@ -351,6 +356,13 @@ def _add_pbt_shared_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--strategic-features", action=argparse.BooleanOptionalAction, default=True,
         help="Append derived strategic features (Phase 1). Default on; use --no-strategic-features for ablation.",
+    )
+    parser.add_argument(
+        "--reward-mode", choices=tuple(REWARD_MODE_CONFIGS), default="none",
+        help=(
+            "Per-step reward shaping: none (default, sparse terminal only), "
+            "total (legacy breadth shaping), min-section (PBRS on the weakest section)."
+        ),
     )
     parser.add_argument("--gamma", type=float, default=1.0, help="Discount factor for GAE")
     parser.add_argument("--gae-lambda", type=float, default=0.95, help="GAE lambda")

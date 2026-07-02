@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class RewardConfig:
+class RewardConfig:  # pylint: disable=too-many-instance-attributes
     w_box: float = 0.25
     w_fox: float = 0.25
     w_plus_one: float = 0.5
@@ -19,10 +19,30 @@ class RewardConfig:
     w_failed: float = 1.0
     w_score: float = 0.1
     use_partial_score: bool = False
+    w_min_section: float = 0.0
+
+
+NO_SHAPING_REWARD_CONFIG = RewardConfig(
+    w_box=0.0, w_fox=0.0, w_plus_one=0.0, w_reroll=0.0, w_reuse=0.0,
+    w_consumed_immediate=0.0, w_failed=0.0, w_score=0.0,
+    use_partial_score=False,
+)
+
+MIN_SECTION_PBRS_REWARD_CONFIG = RewardConfig(
+    w_box=0.0, w_fox=0.0, w_plus_one=0.0, w_reroll=0.0, w_reuse=0.0,
+    w_consumed_immediate=0.0, w_failed=0.0, w_score=0.0,
+    use_partial_score=False, w_min_section=0.1,
+)
+
+REWARD_MODE_CONFIGS = {
+    "none": NO_SHAPING_REWARD_CONFIG,
+    "total": RewardConfig(),
+    "min-section": MIN_SECTION_PBRS_REWARD_CONFIG,
+}
 
 
 @dataclass(frozen=True)
-class BoardSnapshot:
+class BoardSnapshot:  # pylint: disable=too-many-instance-attributes
     filled_boxes: int
     foxes: int
     gained_rerolls: int
@@ -31,6 +51,7 @@ class BoardSnapshot:
     consumed_immediate_actions: int
     failed_action_count: int
     partial_score: float | None = None
+    min_section_score: int | None = None
 
     @classmethod
     def capture(
@@ -45,6 +66,7 @@ class BoardSnapshot:
             consumed_immediate_actions=board.consumed_immediate_actions,
             failed_action_count=observer.failed_action_count,
             partial_score=board.partial_evaluate() if config.use_partial_score else None,
+            min_section_score=board.min_section_score() if config.w_min_section else None,
         )
 
 
@@ -69,6 +91,8 @@ class RewardShaper:
         )
         if cfg.use_partial_score and prev.partial_score is not None and curr.partial_score is not None:
             reward += cfg.w_score * (curr.partial_score - prev.partial_score)
+        if prev.min_section_score is not None and curr.min_section_score is not None:
+            reward += cfg.w_min_section * (curr.min_section_score - prev.min_section_score)
         return reward
 
 

@@ -139,9 +139,9 @@ Train with **early stopping** (stops when score plateaus, restores best weights)
 python main.py train --early-stop-patience 300 --early-stop-smoothing 0.05
 ```
 
-Train with a **curriculum** (gradually increases the number of rounds, uses full-6-round eval for early-stop):
+Train with a **curriculum** (gradually increases the number of rounds, uses full-6-round eval for early-stop; requires a per-step reward mode):
 ```bash
-python main.py train --curriculum --max-rounds-start 2 --max-rounds-end 6 --curriculum-eval-episodes 16 --early-stop-patience 300
+python main.py train --curriculum --reward-mode min-section --max-rounds-start 2 --max-rounds-end 6 --curriculum-eval-episodes 16 --early-stop-patience 300
 ```
 
 Train with **custom PPO hyperparameters** and a different terminal-reward scale:
@@ -149,9 +149,9 @@ Train with **custom PPO hyperparameters** and a different terminal-reward scale:
 python main.py train --gamma 0.99 --gae-lambda 0.95 --minibatch-size 128 --terminal-reward-scale 0.1
 ```
 
-Ablation: turn off **shaped rewards** (terminal-only, no per-step signal):
+Pick a **reward mode** (default `none` = terminal-only; `total` is the legacy breadth shaping; `min-section` is potential-based shaping on the weakest section):
 ```bash
-python main.py train --no-shaped-rewards
+python main.py train --reward-mode min-section
 ```
 
 Train with **periodic full-round eval** that saves the best policy to `model/checkpoints/best.pt`:

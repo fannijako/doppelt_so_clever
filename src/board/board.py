@@ -221,6 +221,9 @@ class Board:  # pylint: disable=too-few-public-methods,too-many-instance-attribu
         logger.info("Score", result)
         return result
 
+    def min_section_score(self) -> int:
+        return min(part.evaluate() for part in self._ordered_parts())
+
     def _ordered_parts(self) -> tuple:
         return (
             self.blue_board_part,
