@@ -88,26 +88,36 @@ but structurally excludes every high-score pathway:
 ## Compounding factors (ranked)
 
 1. **Observation gap (highest leverage).** The state encodes raw per-box fill
-   flags but **not** the 5 per-section scores, the min-section, or fox count. The
+   flags but **not** the 5 per-section scores, the min-section, or per-section
+   fox distance. (Correction: fox *count* is present — `to_tensor()` emits
+   `foxes/6.0`; the original claim that it was absent is drift.) The
    256→128 MLP must re-derive the whole weakest-link objective (5 nonlinear
    section curves + their min + the multiplicative fox term) from raw flags — it
    can't, so critic values are noisy and the policy defaults to the
-   highest-frequency signal (green).
+   highest-frequency signal (green). *Resolved by Phase 1:
+   `board.strategic_features()` appended behind the `strategic_features` flag
+   (state 762 → 778).*
 2. **Shaping is ON by default and harmful.** `--shaped-rewards` defaults `True`
    (`python main.py train` / `make docker-run` use it). Shaped runs collapse
    entropy to ~1e-10 and cap ~80 because rewarding "boxes filled" reinforces
    breadth-farming. The 108–116 results *require* the non-default
    `--no-shaped-rewards`. Training with defaults for days trains the collapsed policy.
+   *Resolved by Phase 2: `--reward-mode {none,total,min-section}` defaults to
+   `none`; the legacy total shaping is opt-in for ablation.*
 3. **Green scoring exploit / possible bug.** Green scores
    `Σeven-idx − Σodd-idx` with forced L→R fill — half of every green placement
    *subtracts*. Confirm this alternating rule is intended vs the real game's
-   cumulative track.
+   cumulative track. *Resolved by Phase 0: faithful — the rulebook's pairwise
+   `first − second` star rule is exactly this alternating sum
+   ([`PHASE0_ENGINE_FAITHFULNESS.md`](./PHASE0_ENGINE_FAITHFULNESS.md)). The
+   green-farm is a legal exploit of a faithful rule, not a bug.*
 4. **Capacity + flat option block.** 360 of 762 input dims are a
    positionally-flattened 30×12 option block; a 2-layer MLP can't cleanly attend
    over a variable option set for combinatorial planning. Secondary.
 
-Minor: `CLAUDE.md` documents the augmented state as **402**; it is actually
-**762** (option features added later). Doc drift.
+Minor: `CLAUDE.md` documented the augmented state as **402**; it was actually
+**762** (option features added later). Doc drift — fixed; `CLAUDE.md` now
+documents 391/762/778 and the checkpoint parity contract.
 
 ## Recommended fixes (leverage order)
 
@@ -122,6 +132,9 @@ Minor: `CLAUDE.md` documents the augmented state as **402**; it is actually
    keeps it policy-invariant in theory.
 3. **Confirm the fox / green economy is faithful to the real game.** ~0 foxes for
    all strategies is a game-implementation ceiling capping everyone — no RL fix
-   reaches 200+ until foxes are attainable.
+   reaches 200+ until foxes are attainable. *Resolved by Phase 0: engine faithful,
+   foxes reachable (green box 6, yellow col 3, grey col 3; `best.pt` earns
+   0.6/game). The starvation is policy-side shallow play, not an engine ceiling
+   ([`PHASE0_ENGINE_FAITHFULNESS.md`](./PHASE0_ENGINE_FAITHFULNESS.md)).*
 4. Bigger net / curriculum / PBT — helps capacity but won't alone escape the
    local optimum without #1.
