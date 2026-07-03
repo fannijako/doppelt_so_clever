@@ -36,6 +36,11 @@ make lint   # pylint + flake8
 make monitor-rl
 make monitor-rl MONITOR_ARGS="--once"                           # one-shot snapshot
 make monitor-rl MONITOR_ARGS="--log-dir runs/pbt --interval 300"  # PBT runs, 5-min cadence
+
+# Train on EC2 (needs AWS credentials; see docs/aws_training.md)
+scripts/aws/setup_aws.sh               # one-time: S3 bucket + IAM role/profile
+scripts/aws/launch_training.sh         # ship git archive HEAD to EC2, start training, auto-terminate
+scripts/aws/fetch_results.sh [run-id]  # sync checkpoints + TB logs back from S3
 ```
 
 ## Architecture
