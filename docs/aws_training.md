@@ -59,6 +59,15 @@ aws ssm start-session --target <instance-id>   # live: tail -f /var/log/rl-train
 
 Plus ~cents for the 20 GiB gp3 root volume and S3. Auto-terminate is on by default; a spot interruption loses at most 5 min of sync — relaunch with `RESUME_CHECKPOINT=model/checkpoints_ec2/<run-id>/<checkpoint>.pt`.
 
+## Smoke test (no AWS account needed)
+
+```bash
+pip install 'moto[server]'
+scripts/aws/moto_smoke.sh
+```
+
+Runs setup (twice, for idempotency), launch (on-demand / spot / resume), and fetch against a local moto mock; asserts rendered user-data, S3 objects, and instance state. Starts its own moto server if none is listening.
+
 ## Teardown
 
 Everything except the S3 bucket is free when idle. To remove:
