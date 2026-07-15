@@ -1,20 +1,19 @@
-# pylint: disable=too-many-instance-attributes
 from __future__ import annotations
 
 import time
 import threading
 from typing import Any, TYPE_CHECKING
 
-import pygame
+import arcade
 
 from src.dice.dice import Dice
 from src.board.board import Board
-from src.ui.theme import load_fonts
+from src.ui.pick import build_pick_map
 from src.ui.layout import Layout
 from src.ui.renderer import Renderer, RenderTargets
-from src.logging_config import GameLogger
-from src.ui.pick import build_pick_map
 from src.ui.animations import Animations
+from src.logging_config import GameLogger
+from src.ui.theme import load_ui_font, font_name_or_fallback
 from src.ui.constants import FRAMES_PER_SECOND
 from src.game.game_observer import GameObserver
 from src.ui.render_snapshot import RenderSnapshot
@@ -29,20 +28,53 @@ if TYPE_CHECKING:
 logger = GameLogger(__name__)
 
 DEFAULT_WINDOW_SIZE = (1280, 800)
+MIN_WINDOW_SIZE = (960, 640)
+WINDOW_TITLE = "Doppelt So Clever"
 
 
-class PygameUI(GameObserver):
+class GameWindow(arcade.Window):
+    def __init__(self, controller: "ArcadeUI", *, visible: bool = True) -> None:
+        super().__init__(*DEFAULT_WINDOW_SIZE, WINDOW_TITLE, resizable=True, visible=visible)
+        self.set_minimum_size(*MIN_WINDOW_SIZE)
+        self.set_update_rate(1 / FRAMES_PER_SECOND)
+        self._controller = controller
 
-    def __init__(self, board: Board, model_advisor: ModelAdvisor | None = None):
+    def on_draw(self) -> None:
+        self._controller.draw(self)
+
+    def on_mouse_motion(self, x: int, y: int, dx: int, dy: int) -> None:
+        self._controller.mouse_motion(self, x, y)
+
+    def on_mouse_press(self, x: int, y: int, button: int, modifiers: int) -> None:
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            self._controller.mouse_press(self, x, y)
+
+    def on_mouse_release(self, x: int, y: int, button: int, modifiers: int) -> None:
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            self._controller.mouse_release(self, x, y)
+
+    def on_key_press(self, symbol: int, modifiers: int) -> None:
+        self._controller.key_press(self, symbol)
+
+    def on_text(self, text: str) -> None:
+        self._controller.text(text)
+
+    def on_close(self) -> None:
+        self._controller.request_close(self)
+
+
+class ArcadeUI(GameObserver):  # pylint: disable=too-many-instance-attributes
+
+    def __init__(self, board: Board, model_advisor: ModelAdvisor | None = None, *, visible: bool = True) -> None:
         self.board = board
         self._model_advisor = model_advisor
         self.current_dice: list[Dice] = []
         self.available_dice: list[Dice] = []
         self._picked_dice: list[Dice] = []
         self._discarded_dice: list[Dice] = []
-        self._round_number: int = 0
-        self._is_active_round: bool = True
-        self._subround: int = 0
+        self._round_number = 0
+        self._is_active_round = True
+        self._subround = 0
         self._score: int | None = None
         self._game_over = False
         self._won_actions: list[dict] = []
@@ -51,45 +83,21 @@ class PygameUI(GameObserver):
         self._lock = threading.Lock()
         self._input_event = threading.Event()
         self._input_result: Any = None
-        self._prompt: str = ""
+        self._prompt = ""
         self._options: list[Any] = []
         self._waiting = False
         self._pick_map: dict[int, int] = {}
 
         self._animations = Animations()
-        self._renderer: Renderer | None = None
-        self._clock: pygame.time.Clock | None = None
+        self._window = GameWindow(self, visible=visible)
+        self._renderer = Renderer(font_name_or_fallback(load_ui_font()))
         self._targets = RenderTargets()
         self._pressed_index: int | None = None
         self._show_help = False
-        self._is_fullscreen = False
-        self._windowed_size = DEFAULT_WINDOW_SIZE
+        self._mouse = (-1, -1)
+        self._game_thread: threading.Thread | None = None
 
-    def init_display(self) -> None:
-        pygame.init()
-        info = pygame.display.Info()
-        self._windowed_size = (
-            min(DEFAULT_WINDOW_SIZE[0], info.current_w),
-            min(DEFAULT_WINDOW_SIZE[1], info.current_h),
-        )
-        screen = pygame.display.set_mode(self._windowed_size, pygame.RESIZABLE)
-        pygame.display.set_caption("Doppelt So Clever")
-        self._renderer = Renderer(screen, load_fonts(Layout.compute(*screen.get_size()).scale))
-        self._clock = pygame.time.Clock()
-
-    def _apply_display(self, size: tuple[int, int], flags: int) -> None:
-        screen = pygame.display.set_mode(size, flags)
-        if self._renderer is not None:
-            self._renderer.screen = screen
-            self._renderer.fonts = load_fonts(Layout.compute(*screen.get_size()).scale)
-
-    def _toggle_fullscreen(self) -> None:
-        self._is_fullscreen = not self._is_fullscreen
-        if self._is_fullscreen:
-            self._apply_display((0, 0), pygame.FULLSCREEN | pygame.SCALED)
-        else:
-            self._apply_display(self._windowed_size, pygame.RESIZABLE)
-
+    # ---------- observer events ----------
     def on_round_started(self, round_number: int) -> None:
         with self._lock:
             self._round_number = round_number
@@ -149,6 +157,7 @@ class PygameUI(GameObserver):
         if score is not None:
             self._animations.set_score(score)
 
+    # ---------- input bridge ----------
     def wait_for_input(self, prompt: str, options: list[Any]) -> int:
         logger.info("UI waiting for input", prompt, f"options={options}")
         with self._lock:
@@ -173,101 +182,22 @@ class PygameUI(GameObserver):
         self._input_event.set()
 
     def close(self) -> None:
-        logger.info("PygameUI closed")
+        logger.info("ArcadeUI observer close")
         self._input_event.set()
 
+    # ---------- run loop ----------
     def run_with_game(self, game: Game) -> None:
-        game_thread = threading.Thread(target=game.play, daemon=True)
-        game_thread.start()
-        self.run_loop()
-        game_thread.join(timeout=1)
+        self._game_thread = threading.Thread(target=game.play, daemon=True)
+        self._game_thread.start()
+        arcade.run()
+        self._game_thread.join(timeout=1)
 
-    def run_loop(self) -> None:
-        self.init_display()
-        running = True
-        while running:
-            for event in pygame.event.get():
-                running = self._handle_event(event)
-                if not running:
-                    break
-            self._render()
-            self._clock.tick(FRAMES_PER_SECOND)  # type: ignore[union-attr]
-        pygame.quit()
+    def draw(self, window: GameWindow) -> None:
+        window.clear()
+        self._renderer.mouse = self._mouse
+        self._targets = self._renderer.render(self._take_snapshot(), Layout.compute(*window.get_size()))
 
-    def _handle_event(self, event: pygame.event.Event) -> bool:
-        if event.type == pygame.QUIT:
-            self._input_event.set()
-            return False
-        if event.type == pygame.VIDEORESIZE and not self._is_fullscreen:
-            self._windowed_size = (event.w, event.h)
-            self._apply_display(self._windowed_size, pygame.RESIZABLE)
-        elif event.type == pygame.KEYDOWN:
-            return self._handle_key_press(event)
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            self._handle_mouse_down(event.pos)
-        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            self._handle_mouse_up(event.pos)
-        return True
-
-    def _handle_key_press(self, event: pygame.event.Event) -> bool:
-        if event.key == pygame.K_ESCAPE:
-            self._input_event.set()
-            return False
-        if event.key == pygame.K_F11:
-            self._toggle_fullscreen()
-            return True
-        if event.unicode == "?":
-            self._show_help = not self._show_help
-            return True
-
-        with self._lock:
-            waiting = self._waiting
-            options = self._options
-        if not waiting:
-            return True
-        if event.key == pygame.K_h:
-            self._request_hint()
-        elif pygame.K_0 <= event.key <= pygame.K_9:
-            index = event.key - pygame.K_0
-            if 0 <= index < len(options):
-                self.submit_input(index)
-        return True
-
-    def _request_hint(self) -> None:
-        if self._model_advisor is None:
-            return
-        with self._lock:
-            num_options = len(self._options)
-            prompt = self._prompt
-        if num_options < 1:
-            return
-        recommendation = self._model_advisor.get_recommendation(num_options, prompt)
-        with self._lock:
-            self._hint_index = recommendation
-
-    def _handle_mouse_down(self, position: tuple[int, int]) -> None:
-        with self._lock:
-            if not self._waiting:
-                return
-            pick_map = dict(self._pick_map)
-        for die, rect in self._targets.dice:
-            if rect.collidepoint(position) and id(die) in pick_map:
-                self.submit_input(pick_map[id(die)])
-                return
-        for index, rect in enumerate(self._targets.buttons):
-            if rect.collidepoint(position):
-                self._pressed_index = index
-                return
-
-    def _handle_mouse_up(self, position: tuple[int, int]) -> None:
-        pressed = self._pressed_index
-        self._pressed_index = None
-        if pressed is None or pressed >= len(self._targets.buttons):
-            return
-        if self._targets.buttons[pressed].collidepoint(position) and self._waiting:
-            self.submit_input(pressed)
-
-    def _take_render_snapshot(self) -> RenderSnapshot:
+    def _take_snapshot(self) -> RenderSnapshot:
         now = time.monotonic()
         with self._lock:
             self._animations.update(now)
@@ -297,8 +227,66 @@ class PygameUI(GameObserver):
                 show_help=self._show_help,
             )
 
-    def _render(self) -> None:
-        if self._renderer is None:
+    # ---------- interaction ----------
+    def mouse_motion(self, window: GameWindow, x: int, y: int) -> None:
+        self._mouse = (x, window.height - y)
+
+    def mouse_press(self, window: GameWindow, x: int, y: int) -> None:
+        position = (x, window.height - y)
+        with self._lock:
+            if not self._waiting:
+                return
+            pick_map = dict(self._pick_map)
+        for die, rect in self._targets.dice:
+            if rect.collidepoint(*position) and id(die) in pick_map:
+                self.submit_input(pick_map[id(die)])
+                return
+        for index, rect in enumerate(self._targets.buttons):
+            if rect.collidepoint(*position):
+                self._pressed_index = index
+                return
+
+    def mouse_release(self, window: GameWindow, x: int, y: int) -> None:
+        pressed = self._pressed_index
+        self._pressed_index = None
+        if pressed is None or pressed >= len(self._targets.buttons):
             return
-        layout = Layout.compute(*self._renderer.screen.get_size())
-        self._targets = self._renderer.render(self._take_render_snapshot(), layout)
+        if self._targets.buttons[pressed].collidepoint(x, window.height - y) and self._waiting:
+            self.submit_input(pressed)
+
+    def key_press(self, window: GameWindow, symbol: int) -> None:
+        if symbol == arcade.key.ESCAPE:
+            self.request_close(window)
+        elif symbol == arcade.key.F11:
+            window.set_fullscreen(not window.fullscreen)
+
+    def text(self, text: str) -> None:
+        char = text.lower()
+        if char == "?":
+            self._show_help = not self._show_help
+            return
+        with self._lock:
+            waiting = self._waiting
+            count = len(self._options)
+        if not waiting:
+            return
+        if char == "h":
+            self._request_hint()
+        elif text.isdigit() and 0 <= int(text) < count:
+            self.submit_input(int(text))
+
+    def _request_hint(self) -> None:
+        if self._model_advisor is None:
+            return
+        with self._lock:
+            num_options = len(self._options)
+            prompt = self._prompt
+        if num_options < 1:
+            return
+        recommendation = self._model_advisor.get_recommendation(num_options, prompt)
+        with self._lock:
+            self._hint_index = recommendation
+
+    def request_close(self, window: GameWindow) -> None:
+        self._input_event.set()
+        window.close()

@@ -1,19 +1,8 @@
-import os
-
 import pytest
-import pygame
+import arcade
 
 from src.dice.dice import Dice
 from src.dice.dice_color import DiceColor
-
-
-@pytest.fixture(scope="session")
-def display_screen():
-    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
-    pygame.init()
-    screen = pygame.display.set_mode((1280, 800))
-    yield screen
-    pygame.quit()
 
 
 @pytest.fixture
@@ -23,3 +12,13 @@ def build_die():
         die.set_value(value)
         return die
     return _build
+
+
+@pytest.fixture(scope="session")
+def arcade_window():
+    try:
+        window = arcade.Window(1280, 800, "test", visible=False)
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        pytest.skip(f"no OpenGL context available: {exc}")
+    yield window
+    window.close()

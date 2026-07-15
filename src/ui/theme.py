@@ -1,34 +1,35 @@
 from __future__ import annotations
 
 from pathlib import Path
-from dataclasses import dataclass
 
-import pygame
+import arcade
 
 FONT_PATH = Path(__file__).parent / "assets" / "fonts" / "Inter.ttf"
-FALLBACK_FAMILIES = "Inter,Helvetica Neue,Arial,DejaVu Sans"
+FONT_NAME = "Inter"
+FALLBACK_FONT = ("Helvetica Neue", "Arial", "DejaVu Sans")
 
 COLORS = {
-    "background":     (22, 24, 32),
-    "panel":          (36, 39, 52),
-    "panel_border":   (52, 56, 74),
-    "sunken":         (28, 30, 40),
-    "shadow":         (10, 11, 16),
+    "background_top": (18, 20, 28),
+    "background_bottom": (26, 29, 40),
+    "panel":          (35, 39, 52),
+    "panel_raised":   (43, 48, 64),
+    "panel_border":   (54, 59, 78),
+    "sunken":         (27, 30, 40),
+    "shadow":         (8, 9, 14),
     "text":           (232, 234, 242),
-    "dimmed":         (150, 156, 176),
+    "dimmed":         (152, 158, 178),
     "muted":          (104, 110, 132),
     "prompt":         (250, 205, 90),
     "score":          (108, 235, 190),
-    "crossed":        (224, 84, 84),
-    "circled":        (72, 202, 140),
-    "box_empty":      (46, 50, 66),
+    "crossed_mark":   (236, 238, 246),
+    "circled":        (108, 235, 190),
+    "box_empty":      (44, 48, 64),
     "button":         (52, 58, 80),
-    "button_hover":   (72, 82, 116),
-    "button_press":   (42, 48, 68),
+    "button_border":  (84, 94, 126),
     "button_text":    (236, 239, 250),
     "button_hint":    (112, 222, 255),
-    "overlay":        (12, 13, 20),
-    "white":          (232, 234, 242),
+    "overlay":        (10, 11, 18),
+    "highlight":      (255, 255, 255),
 }
 
 SECTION_COLORS = {
@@ -49,56 +50,58 @@ DICE_COLORS = {
 }
 
 ACTION_COLORS = {
-    "none":                (90, 94, 108),
-    "reroll":              (152, 166, 226),
-    "reuse":               (140, 212, 152),
-    "plus_one":            (250, 212, 112),
-    "fox":                 (236, 152, 72),
-    "black_question_mark": (206, 210, 222),
-    "blue_question_mark":  (86, 152, 240),
-    "green_question_mark": (86, 200, 120),
+    "none":                 (90, 94, 108),
+    "reroll":               (152, 166, 226),
+    "reuse":                (140, 212, 152),
+    "plus_one":             (250, 212, 112),
+    "fox":                  (236, 152, 72),
+    "black_question_mark":  (206, 210, 222),
+    "blue_question_mark":   (86, 152, 240),
+    "green_question_mark":  (86, 200, 120),
     "yellow_question_mark": (250, 206, 72),
-    "grey_question_mark":  (170, 177, 194),
-    "pink_question_mark":  (240, 122, 176),
+    "grey_question_mark":   (170, 177, 194),
+    "pink_question_mark":   (240, 122, 176),
 }
 
+TYPE = {
+    "display": 34,
+    "title":   30,
+    "heading": 24,
+    "body":    18,
+    "pill":    20,
+    "small":   15,
+    "label":   13,
+    "tiny":    12,
+}
 
-@dataclass(frozen=True)
-class Fonts:
-    tiny: pygame.font.Font
-    small: pygame.font.Font
-    body: pygame.font.Font
-    label: pygame.font.Font
-    heading: pygame.font.Font
-    display: pygame.font.Font
-
-
-def _load_font(size: int, *, bold: bool = False) -> pygame.font.Font:
-    if not pygame.font.get_init():
-        pygame.font.init()
-    if FONT_PATH.exists():
-        font = pygame.font.Font(str(FONT_PATH), size)
-        font.set_bold(bold)
-        return font
-    return pygame.font.SysFont(FALLBACK_FAMILIES, size, bold=bold)
+SPACE = {"xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "xxl": 32}
 
 
-def load_fonts(scale: float = 1.0) -> Fonts:
-    def sized(pixels: int) -> int:
-        return max(9, round(pixels * scale))
+def load_ui_font() -> str | None:
+    if not FONT_PATH.exists():
+        return None
+    arcade.load_font(str(FONT_PATH))
+    return FONT_NAME
 
-    return Fonts(
-        tiny=_load_font(sized(13)),
-        small=_load_font(sized(15)),
-        body=_load_font(sized(18)),
-        label=_load_font(sized(13), bold=True),
-        heading=_load_font(sized(26), bold=True),
-        display=_load_font(sized(34), bold=True),
-    )
+
+def font_name_or_fallback(loaded: str | None) -> str | tuple[str, ...]:
+    return loaded if loaded else FALLBACK_FONT
+
+
+def type_size(name: str, scale: float = 1.0) -> int:
+    return max(9, round(TYPE[name] * scale))
+
+
+def space(name: str, scale: float = 1.0) -> int:
+    return max(1, round(SPACE[name] * scale))
+
+
+def with_alpha(color: tuple, alpha: float) -> tuple:
+    return (color[0], color[1], color[2], max(0, min(255, round(alpha * 255))))
 
 
 def dim(color: tuple, amount: int = 80) -> tuple:
-    return tuple(max(channel - amount, 24) for channel in color[:3])
+    return tuple(max(channel - amount, 20) for channel in color[:3])
 
 
 def mix(color_a: tuple, color_b: tuple, ratio: float) -> tuple:

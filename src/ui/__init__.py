@@ -1,8 +1,8 @@
 try:
     from src.ui.renderer import Renderer
-    from src.ui.pygame_ui import PygameUI
+    from src.ui.arcade_ui import ArcadeUI
     from src.ui.render_snapshot import RenderSnapshot
 except ImportError:
     pass
 
-__all__ = ["PygameUI", "Renderer", "RenderSnapshot"]
+__all__ = ["ArcadeUI", "Renderer", "RenderSnapshot"]
