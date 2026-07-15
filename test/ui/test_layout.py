@@ -1,4 +1,6 @@
-from src.ui.layout import Layout, MARGIN, MIN_ROW_HEIGHT
+from src.ui.layout import (
+    Layout, MARGIN, MIN_ROW_HEIGHT, MAX_POPUPS, POPUP_HEIGHT, POPUP_GAP, MIN_SCALE, MAX_SCALE,
+)
 
 
 class TestTopPanels:
@@ -31,3 +33,20 @@ class TestResponsiveClamp:
     def test_prompt_below_status(self):
         layout = Layout.compute(1280, 800)
         assert layout.prompt_y > layout.status_y
+
+    def test_scale_clamped_high_on_huge_window(self):
+        assert Layout.compute(4000, 4000).scale == MAX_SCALE
+
+    def test_scale_clamped_low_on_tiny_window(self):
+        assert Layout.compute(200, 200).scale == MIN_SCALE
+
+
+class TestPopupPlacement:
+    def test_popup_origin_inside_won_actions(self):
+        layout = Layout.compute(1280, 800)
+        assert layout.won_actions.collidepoint(layout.popup_origin())
+
+    def test_popup_stack_fits_inside_won_actions(self):
+        layout = Layout.compute(1280, 800)
+        stack = MAX_POPUPS * round((POPUP_HEIGHT + POPUP_GAP) * layout.scale)
+        assert layout.popup_origin()[1] + stack <= layout.won_actions.bottom

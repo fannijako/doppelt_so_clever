@@ -74,13 +74,14 @@ class PygameUI(GameObserver):
         )
         screen = pygame.display.set_mode(self._windowed_size, pygame.RESIZABLE)
         pygame.display.set_caption("Doppelt So Clever")
-        self._renderer = Renderer(screen, load_fonts())
+        self._renderer = Renderer(screen, load_fonts(Layout.compute(*screen.get_size()).scale))
         self._clock = pygame.time.Clock()
 
     def _apply_display(self, size: tuple[int, int], flags: int) -> None:
         screen = pygame.display.set_mode(size, flags)
         if self._renderer is not None:
             self._renderer.screen = screen
+            self._renderer.fonts = load_fonts(Layout.compute(*screen.get_size()).scale)
 
     def _toggle_fullscreen(self) -> None:
         self._is_fullscreen = not self._is_fullscreen
