@@ -6,6 +6,7 @@ max-line-length=127
 
 [DESIGN]
 max-attributes=9
+max-args=8
 
 [MASTER]
 ignored-modules=setuptools
