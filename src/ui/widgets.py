@@ -168,7 +168,7 @@ class Painter:
             self._soft_shadow(rect, BUTTON_RADIUS, spread=6, strength=60)
         self.round_rect_border(rect, fill, border, BUTTON_RADIUS, self.px(2))
         self.text(label, rect.centerx, rect.centery, mix(COLORS["button_text"], accent, 0.25),
-                  max(12, self.px(size)), anchor_x="center", anchor_y="center", bold=True)
+                  max(9, self.px(size)), anchor_x="center", anchor_y="center", bold=True)
 
     def text(self, string: str, x: int, y: int, color: tuple, size: int, *,
              anchor_x: str = "left", anchor_y: str = "top", bold: bool = False) -> None:

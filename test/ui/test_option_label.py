@@ -1,6 +1,12 @@
 from src.dice.dice_color import DiceColor
 from src.board.board_parts.yellow_board_part import YellowBoardAction
+from src.ui.widgets import Painter
+from src.ui.theme import load_ui_font, font_name_or_fallback
 from src.ui.renderer import option_label, fit_size
+
+
+def _painter(window) -> Painter:
+    return Painter(window.height, 1.0, font_name_or_fallback(load_ui_font()))
 
 
 class TestOptionLabel:
@@ -24,8 +30,8 @@ class TestOptionLabel:
 
 
 class TestFitSize:
-    def test_long_label_shrinks_below_base(self):
-        assert fit_size("X" * 40, 100, 1.0) < 17
+    def test_long_label_shrinks_below_base(self, arcade_window):
+        assert fit_size(_painter(arcade_window), "X" * 40, 100) < 17
 
-    def test_short_label_keeps_base_size(self):
-        assert fit_size("3", 300, 1.0) == 17
+    def test_short_label_keeps_base_size(self, arcade_window):
+        assert fit_size(_painter(arcade_window), "3", 300) == 17

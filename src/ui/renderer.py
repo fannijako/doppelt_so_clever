@@ -54,10 +54,12 @@ def _placement_label(option: tuple) -> str:
     )
 
 
-def fit_size(label: str, button_w: int, scale: float) -> int:
-    available = button_w - round(18 * scale)
-    fit = int(available / (0.6 * scale * max(len(label), 1)))
-    return max(11, min(17, fit))
+def fit_size(painter: Painter, label: str, button_w: int) -> int:
+    available = button_w - painter.px(16)
+    width = painter.text_width(label, painter.px(17), bold=True)
+    if width <= available:
+        return 17
+    return max(9, int(17 * available / max(width, 1)))
 
 
 @dataclass
@@ -383,7 +385,7 @@ class Renderer:
         rects: list[Rect] = []
         for index, option in enumerate(options):
             rect = Rect(start_x + index * (button_w + gap), top, button_w, height)
-            self._option_button(painter, snapshot, option, index, rect, layout.scale)
+            self._option_button(painter, snapshot, option, index, rect)
             rects.append(rect)
         return rects
 
@@ -395,7 +397,7 @@ class Renderer:
         for index, option in enumerate(snapshot.options):
             rect = Rect(geo.start_x + (index % geo.cols) * (geo.button_w + geo.gap),
                         geo.grid_top + (index // geo.cols) * (geo.height + geo.row_gap), geo.button_w, geo.height)
-            self._option_button(painter, snapshot, option, index, rect, layout.scale)
+            self._option_button(painter, snapshot, option, index, rect)
             rects.append(rect)
         return rects
 
@@ -425,12 +427,12 @@ class Renderer:
                      COLORS["muted"], type_size("label", scale), anchor_x="right")
 
     def _option_button(self, painter: Painter, snapshot: RenderSnapshot, option, index: int,
-                       rect: Rect, scale: float) -> None:
+                       rect: Rect) -> None:
         label = option_label(option)
         painter.button(rect, label, SECTION_COLORS.get(str(option), COLORS["prompt"]),
                        state=self._button_state(rect, index, snapshot.pressed_index),
                        is_hint=snapshot.hint_index == index,
-                       size=fit_size(label, rect.w, scale))
+                       size=fit_size(painter, label, rect.w))
 
     def _button_state(self, rect: Rect, index: int, pressed_index: int | None) -> str:
         if pressed_index == index:
