@@ -37,11 +37,12 @@ def _pip_color(background: tuple) -> tuple:
 
 
 class Painter:
-    def __init__(self, window_height: int, scale: float, font: str | tuple[str, ...] | None) -> None:
+    def __init__(self, window_height: int, scale: float, font: str | tuple[str, ...] | None,
+                 text_cache: dict[tuple, arcade.Text] | None = None) -> None:
         self._h = window_height
         self._scale = scale
         self._font = font
-        self._texts: dict[tuple, arcade.Text] = {}
+        self._texts: dict[tuple, arcade.Text] = text_cache if text_cache is not None else {}
 
     def px(self, value: float) -> int:
         return max(1, round(value * self._scale))

@@ -86,11 +86,12 @@ class Renderer:
         self._font = font
         self._bg: shape_list.ShapeElementList | None = None
         self._bg_size: tuple[int, int] | None = None
+        self._text_cache: dict[tuple, object] = {}
         self.mouse: tuple[int, int] = (-1, -1)
 
     def render(self, snapshot: RenderSnapshot, layout: Layout) -> RenderTargets:
         self._draw_background(layout)
-        painter = Painter(layout.height, layout.scale, self._font)
+        painter = Painter(layout.height, layout.scale, self._font, self._text_cache)
         self._top_bar(painter, snapshot, layout)
         self._board(painter, snapshot.board_data, layout)
         targets = RenderTargets(dice=self._tray(painter, snapshot, layout))
@@ -148,7 +149,9 @@ class Renderer:
         top = layout.top_bar.y + painter.px(2)
         cursor = layout.top_bar.right
         for label, value, color, value_size in reversed(segments):
-            width = painter.px(max(len(label), len(value)) * 8 + 30)
+            label_w = painter.text_width(label, max(9, painter.px(10)))
+            value_w = painter.text_width(value, max(12, painter.px(value_size)), bold=True)
+            width = max(label_w, value_w) + painter.px(28)
             cursor -= width
             painter.pill(Rect(cursor, top, width, height), label, value, color, value_size)
             cursor -= gap
@@ -385,7 +388,7 @@ class Renderer:
         rects: list[Rect] = []
         for index, option in enumerate(options):
             rect = Rect(start_x + index * (button_w + gap), top, button_w, height)
-            self._option_button(painter, snapshot, option, index, rect)
+            self._option_button(painter, snapshot, option, index, rect, layout.scale)
             rects.append(rect)
         return rects
 
@@ -397,7 +400,7 @@ class Renderer:
         for index, option in enumerate(snapshot.options):
             rect = Rect(geo.start_x + (index % geo.cols) * (geo.button_w + geo.gap),
                         geo.grid_top + (index // geo.cols) * (geo.height + geo.row_gap), geo.button_w, geo.height)
-            self._option_button(painter, snapshot, option, index, rect)
+            self._option_button(painter, snapshot, option, index, rect, layout.scale)
             rects.append(rect)
         return rects
 
@@ -427,12 +430,15 @@ class Renderer:
                      COLORS["muted"], type_size("label", scale), anchor_x="right")
 
     def _option_button(self, painter: Painter, snapshot: RenderSnapshot, option, index: int,
-                       rect: Rect) -> None:
+                       rect: Rect, scale: float) -> None:
         label = option_label(option)
         painter.button(rect, label, SECTION_COLORS.get(str(option), COLORS["prompt"]),
                        state=self._button_state(rect, index, snapshot.pressed_index),
                        is_hint=snapshot.hint_index == index,
                        size=fit_size(painter, label, rect.w))
+        if index < 10:
+            painter.text(str(index), rect.x + painter.px(7), rect.y + painter.px(5),
+                         COLORS["muted"], type_size("tiny", scale), bold=True)
 
     def _button_state(self, rect: Rect, index: int, pressed_index: int | None) -> str:
         if pressed_index == index:
@@ -456,9 +462,9 @@ class Renderer:
     def _toasts(self, painter: Painter, popups: list[dict], layout: Layout) -> None:
         slots = layout.toast_slots(len(popups))
         for popup, rect in zip(popups[-len(slots):], slots):
-            self._toast(painter, popup, rect)
+            self._toast(painter, popup, rect, layout.scale)
 
-    def _toast(self, painter: Painter, popup: dict, rect: Rect) -> None:
+    def _toast(self, painter: Painter, popup: dict, rect: Rect, scale: float) -> None:
         alpha = popup["alpha"]
         color = ACTION_COLORS.get(popup["action"], COLORS["dimmed"])
         action = POPUP_ACTION_NAMES.get(popup["action"], popup["action"])
@@ -466,9 +472,9 @@ class Renderer:
         painter.round_rect(rect, with_alpha(COLORS["panel_raised"], alpha), painter.px(9))
         painter.round_rect(Rect(rect.x, rect.y, painter.px(4), rect.h), with_alpha(color, alpha), painter.px(2))
         painter.text(f"Won {action}", rect.x + painter.px(14), rect.centery,
-                     with_alpha(COLORS["text"], alpha), type_size("small"), anchor_y="center")
+                     with_alpha(COLORS["text"], alpha), type_size("small", scale), anchor_y="center")
         painter.text(source, rect.right - painter.px(12), rect.centery,
-                     with_alpha(COLORS["muted"], alpha), type_size("tiny"), anchor_x="right", anchor_y="center")
+                     with_alpha(COLORS["muted"], alpha), type_size("tiny", scale), anchor_x="right", anchor_y="center")
 
     def _help(self, painter: Painter, layout: Layout) -> None:
         painter.veil(layout.width, (*COLORS["overlay"], 224))

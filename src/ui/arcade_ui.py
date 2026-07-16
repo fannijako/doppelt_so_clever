@@ -8,7 +8,7 @@ import arcade
 
 from src.dice.dice import Dice
 from src.board.board import Board
-from src.ui.pick import build_pick_map
+from src.ui.pick import build_pick_map, die_index_at, button_index_at
 from src.ui.layout import Layout
 from src.ui.renderer import Renderer, RenderTargets
 from src.ui.animations import Animations
@@ -94,6 +94,7 @@ class ArcadeUI(GameObserver):  # pylint: disable=too-many-instance-attributes
         self._renderer = Renderer(font_name_or_fallback(load_ui_font()))
         self._targets = RenderTargets()
         self._pressed_index: int | None = None
+        self._pressed_die_pick: int | None = None
         self._show_help = False
         self._mouse = (-1, -1)
         self._game_thread: threading.Thread | None = None
@@ -240,31 +241,38 @@ class ArcadeUI(GameObserver):  # pylint: disable=too-many-instance-attributes
         self._mouse = (x, window.height - y)
 
     def mouse_press(self, window: GameWindow, x: int, y: int) -> None:
+        if self._show_help:
+            return
         position = (x, window.height - y)
         with self._lock:
             if not self._waiting:
                 return
             pick_map = dict(self._pick_map)
-        for die, rect in self._targets.dice:
-            if rect.collidepoint(*position) and id(die) in pick_map:
-                self.submit_input(pick_map[id(die)])
-                return
-        for index, rect in enumerate(self._targets.buttons):
-            if rect.collidepoint(*position):
-                self._pressed_index = index
-                return
+        die_pick = die_index_at(self._targets.dice, pick_map, position)
+        if die_pick is not None:
+            self._pressed_die_pick = die_pick
+            return
+        self._pressed_index = button_index_at(self._targets.buttons, position)
 
     def mouse_release(self, window: GameWindow, x: int, y: int) -> None:
-        pressed = self._pressed_index
-        self._pressed_index = None
-        if pressed is None or pressed >= len(self._targets.buttons):
-            return
-        if self._targets.buttons[pressed].collidepoint(x, window.height - y) and self._waiting:
+        position = (x, window.height - y)
+        die_pick, self._pressed_die_pick = self._pressed_die_pick, None
+        pressed, self._pressed_index = self._pressed_index, None
+        with self._lock:
+            if not self._waiting:
+                return
+            pick_map = dict(self._pick_map)
+        if die_pick is not None and die_index_at(self._targets.dice, pick_map, position) == die_pick:
+            self.submit_input(die_pick)
+        elif pressed is not None and button_index_at(self._targets.buttons, position) == pressed:
             self.submit_input(pressed)
 
     def key_press(self, window: GameWindow, symbol: int) -> None:
         if symbol == arcade.key.ESCAPE:
-            self.request_close(window)
+            if self._show_help:
+                self._show_help = False
+            else:
+                self.request_close(window)
         elif symbol == arcade.key.F11:
             window.set_fullscreen(not window.fullscreen)
 
@@ -272,6 +280,8 @@ class ArcadeUI(GameObserver):  # pylint: disable=too-many-instance-attributes
         char = text.lower()
         if char == "?":
             self._show_help = not self._show_help
+            return
+        if self._show_help:
             return
         with self._lock:
             waiting = self._waiting
