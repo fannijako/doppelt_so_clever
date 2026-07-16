@@ -79,6 +79,7 @@ class ArcadeUI(GameObserver):  # pylint: disable=too-many-instance-attributes
         self._game_over = False
         self._won_actions: list[dict] = []
         self._hint_index: int | None = None
+        self._hint_uses = 0
 
         self._lock = threading.Lock()
         self._input_event = threading.Event()
@@ -157,6 +158,11 @@ class ArcadeUI(GameObserver):  # pylint: disable=too-many-instance-attributes
         if score is not None:
             self._animations.set_score(score)
 
+    def _hinted_die_id(self) -> int | None:
+        if self._hint_index is None:
+            return None
+        return next((die_id for die_id, index in self._pick_map.items() if index == self._hint_index), None)
+
     # ---------- input bridge ----------
     def wait_for_input(self, prompt: str, options: list[Any]) -> int:
         logger.info("UI waiting for input", prompt, f"options={options}")
@@ -220,6 +226,8 @@ class ArcadeUI(GameObserver):  # pylint: disable=too-many-instance-attributes
                 won_actions=list(self._won_actions),
                 popup_notifications=self._animations.active_popups(now),
                 hint_index=self._hint_index,
+                hint_die_id=self._hinted_die_id(),
+                hint_uses=self._hint_uses,
                 display_score=self._animations.displayed_score(),
                 die_pulses={key: value for key, value in pulses.items() if value > 0.0},
                 pressed_index=self._pressed_index,
@@ -286,6 +294,8 @@ class ArcadeUI(GameObserver):  # pylint: disable=too-many-instance-attributes
         recommendation = self._model_advisor.get_recommendation(num_options, prompt)
         with self._lock:
             self._hint_index = recommendation
+            if recommendation is not None:
+                self._hint_uses += 1
 
     def request_close(self, window: GameWindow) -> None:
         self._input_event.set()

@@ -112,15 +112,20 @@ class Painter:
         arcade.draw_line(rect.right - margin, y_top, rect.x + margin, y_bot, COLORS["crossed_mark"], width)
 
     def die(self, rect: Rect, color_name: str, value: int | None, *,
-            available: bool = True, selectable: bool = False, pulse: float = 0.0) -> None:
+            available: bool = True, selectable: bool = False, pulse: float = 0.0, hinted: bool = False) -> None:
         base = DICE_COLORS.get(color_name, (180, 180, 185))
         if not available:
             base = dim(base, 96)
-        if selectable or pulse > 0.0:
+        if hinted:
+            self._glow(rect, COLORS["hint"], DIE_RADIUS, spread=15, strength=170)
+        elif selectable or pulse > 0.0:
             self._glow(rect, COLORS["prompt"], DIE_RADIUS, spread=12,
                        strength=int(90 + 60 * pulse) if pulse > 0 else 70)
         elif available:
             self._soft_shadow(rect, DIE_RADIUS, spread=6, strength=90)
+        if hinted:
+            hint_ring = self.px(5)
+            self.round_rect(rect.inflate(2 * hint_ring, 2 * hint_ring), COLORS["hint"], DIE_RADIUS + hint_ring)
         if selectable:
             ring = self.px(3)
             self.round_rect(rect.inflate(2 * ring, 2 * ring), COLORS["prompt"], DIE_RADIUS + ring)
@@ -140,26 +145,30 @@ class Painter:
             cy = self._h - (rect.y + fy * rect.h)
             arcade.draw_circle_filled(cx, cy, radius, color, num_segments=20)
 
-    def pill(self, rect: Rect, label: str, value: str, accent: tuple, value_size: int = 17) -> None:
+    def pill(self, rect: Rect, label: str, value: str, accent: tuple, value_size: int = 15) -> None:
         self.round_rect_border(rect, COLORS["panel"], mix(COLORS["panel"], accent, 0.35), PILL_RADIUS, self.px(1))
-        self.text(label, rect.x + self.px(14), rect.y + self.px(8), COLORS["muted"],
-                  max(10, self.px(11)), anchor_y="top")
-        self.text(value, rect.x + self.px(14), rect.bottom - self.px(8), accent,
-                  max(12, self.px(value_size)), anchor_y="baseline", bold=True)
+        self.text(label, rect.centerx, rect.y + self.px(7), COLORS["muted"],
+                  max(9, self.px(10)), anchor_x="center", anchor_y="top")
+        self.text(value, rect.centerx, rect.bottom - self.px(9), accent,
+                  max(12, self.px(value_size)), anchor_x="center", anchor_y="baseline", bold=True)
 
     def button(self, rect: Rect, label: str, accent: tuple, *,
-               state: str = "normal", is_hint: bool = False) -> None:
+               state: str = "normal", is_hint: bool = False, size: int = 17) -> None:
         fill = COLORS["button"]
         if state == "hover":
             fill = mix(COLORS["button"], accent, 0.30)
         elif state == "press":
             fill = mix(COLORS["button"], COLORS["shadow"], 0.30)
-        border = COLORS["button_hint"] if is_hint else mix(fill, accent, 0.65)
-        if state != "press":
+        if is_hint:
+            fill = mix(fill, COLORS["hint"], 0.42)
+        border = COLORS["hint"] if is_hint else mix(fill, accent, 0.65)
+        if is_hint:
+            self._glow(rect, COLORS["hint"], BUTTON_RADIUS, spread=11, strength=130)
+        elif state != "press":
             self._soft_shadow(rect, BUTTON_RADIUS, spread=6, strength=60)
         self.round_rect_border(rect, fill, border, BUTTON_RADIUS, self.px(2))
         self.text(label, rect.centerx, rect.centery, mix(COLORS["button_text"], accent, 0.25),
-                  max(12, self.px(17)), anchor_x="center", anchor_y="center", bold=True)
+                  max(12, self.px(size)), anchor_x="center", anchor_y="center", bold=True)
 
     def text(self, string: str, x: int, y: int, color: tuple, size: int, *,
              anchor_x: str = "left", anchor_y: str = "top", bold: bool = False) -> None:
@@ -172,3 +181,11 @@ class Painter:
         label.x = x
         label.y = self._h - y
         label.draw()
+
+    def text_width(self, string: str, size: int, bold: bool = False) -> int:
+        key = ("_w", string, size, bold)
+        label = self._texts.get(key)
+        if label is None:
+            label = arcade.Text(string, 0, 0, COLORS["text"], size, font_name=self._font, bold=bold)
+            self._texts[key] = label
+        return round(label.content_width)

@@ -27,7 +27,7 @@ COLORS = {
     "button":         (52, 58, 80),
     "button_border":  (84, 94, 126),
     "button_text":    (236, 239, 250),
-    "button_hint":    (112, 222, 255),
+    "hint":           (120, 224, 255),
     "overlay":        (10, 11, 18),
     "highlight":      (255, 255, 255),
 }
