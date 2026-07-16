@@ -193,6 +193,7 @@ _PROMPT_PATTERNS: list[tuple[str, PromptType]] = [
     ("substitute", PromptType.PICK_COLOR_SUBSTITUTE),
     ("play white as", PromptType.PICK_COLOR_SUBSTITUTE),
     ("die color to reuse", PromptType.PICK_DIE_COLOR),
+    ("Pick a die", PromptType.PICK_DIE_INDEX),
     ("Pick an available color", PromptType.PICK_DIE_COLOR),
     ("Place die", PromptType.PLACE_DIE),
     ("reroll", PromptType.USE_REROLL),

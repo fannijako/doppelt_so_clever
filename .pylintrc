@@ -6,7 +6,12 @@ max-line-length=127
 
 [DESIGN]
 max-attributes=9
+max-args=9
+max-positional-arguments=9
+max-locals=18
+max-public-methods=21
+min-public-methods=1
 
 [MASTER]
 ignored-modules=setuptools
-extension-pkg-allow-list=pygame
+extension-pkg-allow-list=arcade

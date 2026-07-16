@@ -50,7 +50,7 @@ class PassiveRound:  # pylint: disable=too-few-public-methods
             logger.info("Eligible dice", "none")
             return
 
-        index = self.input_handler.choose_index('Pick a die index: ', eligible_dice)
+        index = self.input_handler.choose_index('Pick a die: ', eligible_dice)
         picked = eligible_dice[index]
 
         self.observer.on_die_picked(picked, [], [])

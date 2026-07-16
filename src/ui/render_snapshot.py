@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from src.board.board_types import BoardDict
 
@@ -23,3 +23,10 @@ class RenderSnapshot:  # pylint: disable=too-many-instance-attributes
     won_actions: list[dict]
     popup_notifications: list[dict]
     hint_index: int | None = None
+    hint_die_id: int | None = None
+    hint_uses: int = 0
+    display_score: int | None = None
+    die_pulses: dict[int, float] = field(default_factory=dict)
+    pressed_index: int | None = None
+    selectable_die_ids: set = field(default_factory=set)
+    show_help: bool = False

@@ -8,7 +8,7 @@ MONTE_CARLO = [
 ]
 
 INTERACTIVE = [
-    "pygame>=2.5.0,<3.0",
+    "arcade>=3.1.0,<4.0",
 ]
 
 RL = [

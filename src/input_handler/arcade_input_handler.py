@@ -5,11 +5,11 @@ from typing import Any, TYPE_CHECKING
 from src.input_handler.base_input_handler import InputHandler
 
 if TYPE_CHECKING:
-    from src.ui.pygame_ui import PygameUI
+    from src.ui.arcade_ui import ArcadeUI
 
 
-class PygameInputHandler(InputHandler):
-    def __init__(self, ui: PygameUI):
+class ArcadeInputHandler(InputHandler):
+    def __init__(self, ui: ArcadeUI):
         self._ui = ui
 
     def choose_index(self, prompt: str, options: list[Any]) -> int:

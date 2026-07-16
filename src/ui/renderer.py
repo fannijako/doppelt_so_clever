@@ -1,639 +1,503 @@
-# pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
 from __future__ import annotations
 
-from typing import Any
+from enum import Enum
+from dataclasses import dataclass, field
 
-import pygame
+from arcade import shape_list
 
+from src.dice.dice import Dice
 from src.board.board_types import (
-    BoardDict, BlueBoxDict, GreenBoxDict, PinkBoxDict,
-    YellowBoxDict, GreyBoxDict, PositionalActionDict,
+    BoardDict, BlueBoxDict, GreenBoxDict, PinkBoxDict, YellowBoxDict, GreyBoxDict,
 )
-from src.ui.constants import (
-    COLORS, DICE_COLORS, ACTION_LABELS, ACTION_LABEL_COLORS,
-    TITLE_TOP_MARGIN, TITLE_SECTION_HEIGHT, PANEL_LEFT_MARGIN, PANEL_GAP,
-    PANEL_TOTAL_HORIZONTAL_MARGIN, PANEL_BOTTOM_RESERVE, PANEL_MIN_HEIGHT,
-    STATUS_BAR_TOP_MARGIN, PANEL_PADDING_X, PANEL_HEADER_OFFSET_Y,
-    PANEL_CONTENT_OFFSET_Y, PANEL_BORDER_RADIUS, BOX_BORDER_RADIUS,
-    GREY_BOX_BORDER_RADIUS, BUTTON_BORDER_RADIUS, DIE_BORDER_RADIUS,
-    PILL_BORDER_RADIUS, DIE_SIZE, DIE_GAP, DIE_SECTION_LABEL_OFFSET_Y,
-    DIE_SECTION_BOTTOM_PADDING, DIE_TEXT_OFFSET_Y, BOX_ROW_MAX_SIZE,
-    BOX_ROW_GAP, BOX_ROW_CONTENT_OFFSET_Y, BOX_ROW_MARGIN,
-    BOX_ROW_TEXT_OFFSET_Y, BOX_ROW_ACTION_OFFSET_Y, YELLOW_GRID_GAP,
-    YELLOW_GRID_COLS, YELLOW_GRID_ROWS, YELLOW_GRID_MARGIN_H,
-    YELLOW_GRID_MARGIN_V, YELLOW_GRID_ACTION_MARGIN,
-    YELLOW_ROW_ACTION_X_OFFSET, YELLOW_ACTION_Y_OFFSET,
-    YELLOW_CELL_TEXT_OFFSET_Y, GREY_BOX_GAP, GREY_GRID_COLS, GREY_GRID_ROWS,
-    GREY_GRID_MARGIN_H, GREY_GRID_MARGIN_V, GREY_ACTION_Y_OFFSET,
-    GREY_CELL_TEXT_OFFSET_Y, PILL_HEIGHT, PILL_GAP, PILL_TEXT_PADDING,
-    PILL_TEXT_OFFSET_X, PILL_TEXT_OFFSET_Y, PILL_BOTTOM_MARGIN,
-    WON_ACTIONS_EMPTY_OFFSET_Y, BUTTON_HEIGHT, BUTTON_GAP, BUTTON_MAX_WIDTH,
-    BUTTON_AREA_MARGIN, BUTTON_TEXT_OFFSET_Y, BUTTON_HINT_BORDER_WIDTH,
-    STATUS_BAR_HEIGHT,
-    PROMPT_TEXT_HEIGHT, GAME_OVER_BANNER_HEIGHT, SCORE_RATING_HEIGHT,
-    POPUP_WIDTH, POPUP_HEIGHT, POPUP_GAP, POPUP_MARGIN_RIGHT,
-    POPUP_MARGIN_TOP, POPUP_BORDER_RADIUS, POPUP_TEXT_OFFSET_X,
-    POPUP_TEXT_OFFSET_Y, POPUP_ACTION_NAMES, POPUP_SOURCE_NAMES,
-)
-from src.game.score_rating import get_score_rating
+from src.ui.geometry import Rect
+from src.ui.widgets import Painter
+from src.ui.layout import Layout
+from src.ui.theme import COLORS, SECTION_COLORS, ACTION_COLORS, with_alpha, mix, dim, type_size
+from src.ui.constants import ACTION_LABELS, POPUP_ACTION_NAMES, POPUP_SOURCE_NAMES
 from src.ui.render_snapshot import RenderSnapshot
+from src.game.score_rating import get_score_rating
+
+PAD = 14
+HEADER_H = 40
+GRID_GAP = 5
+INK = (24, 26, 34)
+
+LEGEND = [("R", "reroll", "reroll"), ("U", "reuse", "reuse"), ("+1", "plus one", "plus_one"),
+          ("?", "question", "black_question_mark"), ("F", "fox", "fox")]
 
 
-class Renderer:  # pylint: disable=too-few-public-methods
+def option_label(option) -> str:
+    if isinstance(option, str):
+        return option.title()
+    if isinstance(option, Dice):
+        color = option.color.value.title() if option.color else ""
+        if option.value is None:
+            return color or "?"
+        return f"{color}  {option.value}".strip()
+    if isinstance(option, tuple):
+        return _placement_label(option)
+    action_type = getattr(option, "action_type", None)
+    if action_type is not None:
+        return POPUP_ACTION_NAMES.get(action_type.value, str(action_type.value))
+    return str(option).title()
 
-    def __init__(
-        self,
-        screen: pygame.Surface,
-        font_regular: pygame.font.Font,
-        font_small: pygame.font.Font,
-        font_large: pygame.font.Font,
-    ) -> None:
-        self._screen = screen
-        self._font_regular = font_regular
-        self._font_small = font_small
-        self._font_large = font_large
 
-    def render(self, snapshot: RenderSnapshot) -> list[pygame.Rect]:
-        self._screen.fill(COLORS["background"])
-        screen_width, screen_height = self._screen.get_size()
+def _placement_label(option: tuple) -> str:
+    if len(option) >= 3 and isinstance(option[-1], Enum) and isinstance(option[-1].value, str):
+        cell = f"R{option[-3] + 1}·C{option[-2] + 1}"
+        prefix = f"{option[0]}→" if len(option) == 4 else ""
+        mark = " ○" if option[-1].value == "circle" else ""
+        return f"{prefix}{cell}{mark}"
+    return "  ".join(
+        value.title() if isinstance(value := getattr(item, "value", item), str) else str(value)
+        for item in option
+    )
 
-        vertical_offset = self._render_title(
-            snapshot.round_number, snapshot.is_active_round, snapshot.subround,
-            screen_width, vertical_offset=TITLE_TOP_MARGIN,
-        )
 
-        panel_width, panel_height = self._calculate_panel_dimensions(screen_width, screen_height, vertical_offset)
-        self._render_board_panels(snapshot, vertical_offset, panel_width, panel_height)
+def fit_size(painter: Painter, label: str, button_w: int) -> int:
+    available = button_w - painter.px(16)
+    width = painter.text_width(label, painter.px(17), bold=True)
+    if width <= available:
+        return 17
+    return max(9, int(17 * available / max(width, 1)))
 
-        status_vertical_offset = vertical_offset + 2 * (panel_height + PANEL_GAP) + STATUS_BAR_TOP_MARGIN
-        status_vertical_offset = self._render_status_bar(
-            snapshot.board_data,
-            snapshot.score,
-            screen_width,
-            status_vertical_offset,
-        )
+
+@dataclass
+class RenderTargets:
+    buttons: list[Rect] = field(default_factory=list)
+    dice: list[tuple] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class _GridGeo:  # pylint: disable=too-many-instance-attributes
+    cols: int
+    button_w: int
+    gap: int
+    row_gap: int
+    height: int
+    start_x: int
+    grid_top: int
+    bottom: int
+    prompt_y: int
+
+
+class Renderer:
+    def __init__(self, font: str | tuple[str, ...]) -> None:
+        self._font = font
+        self._bg: shape_list.ShapeElementList | None = None
+        self._bg_size: tuple[int, int] | None = None
+        self._text_cache: dict[tuple, object] = {}
+        self.mouse: tuple[int, int] = (-1, -1)
+
+    def render(self, snapshot: RenderSnapshot, layout: Layout) -> RenderTargets:
+        self._draw_background(layout)
+        painter = Painter(layout.height, layout.scale, self._font, self._text_cache)
+        self._top_bar(painter, snapshot, layout)
+        self._board(painter, snapshot.board_data, layout)
+        targets = RenderTargets(dice=self._tray(painter, snapshot, layout))
 
         if snapshot.is_game_over and snapshot.score is not None:
-            status_vertical_offset = self._render_game_over_banner(snapshot.score, screen_width, status_vertical_offset)
+            self._game_over(painter, snapshot, layout)
+        elif snapshot.is_waiting and snapshot.options:
+            targets.buttons = self._action_bar(painter, snapshot, layout)
 
-        button_rects: list[pygame.Rect] = []
-        if snapshot.is_waiting and snapshot.options:
-            button_rects = self._render_prompt_with_buttons(
-                snapshot.prompt,
-                snapshot.options,
-                screen_width,
-                status_vertical_offset,
-                snapshot.hint_index,
-            )
+        self._toasts(painter, snapshot.popup_notifications, layout)
+        if snapshot.show_help:
+            self._help(painter, layout)
+        return targets
 
-        if snapshot.popup_notifications:
-            self._render_popups(snapshot.popup_notifications, screen_width)
+    def _draw_background(self, layout: Layout) -> None:
+        size = (layout.width, layout.height)
+        if self._bg is None or self._bg_size != size:
+            width, height = size
+            points = [(0, 0), (width, 0), (width, height), (0, height)]
+            bottom, top = COLORS["background_bottom"], COLORS["background_top"]
+            self._bg = shape_list.ShapeElementList()
+            self._bg.append(shape_list.create_rectangle_filled_with_colors(points, [bottom, bottom, top, top]))
+            self._bg_size = size
+        self._bg.draw()
 
-        pygame.display.flip()
-        return button_rects
+    # ---------- top bar ----------
+    def _top_bar(self, painter: Painter, snapshot: RenderSnapshot, layout: Layout) -> None:
+        top_bar = layout.top_bar
+        painter.text("Doppelt so clever", top_bar.x, top_bar.y, COLORS["text"],
+                     type_size("heading", layout.scale), bold=True)
+        painter.text(self._round_caption(snapshot), top_bar.x, top_bar.y + painter.px(38),
+                     COLORS["dimmed"], type_size("small", layout.scale))
+        self._resource_rail(painter, snapshot, layout)
 
-    def _render_title(
-        self, round_number: int, is_active_round: bool, subround: int,
-        screen_width: int, vertical_offset: int,
-    ) -> int:
-        round_type = "Active" if is_active_round else "Passive"
-        title = f"Doppelt So Clever  —  Round {round_number}  [{round_type}"
-        if is_active_round and subround > 0:
-            title += f" #{subround}"
-        title += "]"
-        self._draw_text(title, (screen_width // 2, vertical_offset), COLORS["text"], self._font_large, center_x=True)
-        return vertical_offset + TITLE_SECTION_HEIGHT
+    @staticmethod
+    def _round_caption(snapshot: RenderSnapshot) -> str:
+        kind = "Active" if snapshot.is_active_round else "Passive"
+        caption = f"Round {snapshot.round_number}   ·   {kind}"
+        if snapshot.is_active_round and snapshot.subround > 0:
+            caption += f"   ·   Turn {snapshot.subround}"
+        return caption
 
-    def _render_dice_panel(self, snapshot: RenderSnapshot, panel: pygame.Rect) -> None:
-        pygame.draw.rect(self._screen, COLORS["panel"], panel, border_radius=PANEL_BORDER_RADIUS)
-        self._draw_text(
-            "DICE",
-            (panel.x + PANEL_PADDING_X, panel.y + PANEL_HEADER_OFFSET_Y),
-            COLORS["dimmed"],
-            self._font_small,
-        )
-        y_offset = panel.y + PANEL_CONTENT_OFFSET_Y
-        y_offset = self._render_dice_section(
-            "Remaining", snapshot.dice, snapshot.available_dice,
-            panel.x, panel.w, y_offset, dim_unavailable=True,
-        )
-        if snapshot.picked_dice:
-            y_offset = self._render_dice_section(
-                "Chosen", snapshot.picked_dice, snapshot.picked_dice,
-                panel.x, panel.w, y_offset, dim_unavailable=False,
-            )
-        if snapshot.discarded_dice:
-            self._render_dice_section(
-                "Discarded", snapshot.discarded_dice, [],
-                panel.x, panel.w, y_offset, dim_unavailable=True,
-            )
-
-    def _render_dice_section(
-        self, label: str, dice: list, highlighted_dice: list,
-        area_x: int, area_width: int, vertical_offset: int, *, dim_unavailable: bool,
-    ) -> int:
-        if not dice:
-            return vertical_offset
-        self._draw_text(
-            label,
-            (area_x + PANEL_PADDING_X, vertical_offset + DIE_SECTION_LABEL_OFFSET_Y),
-            COLORS["dimmed"],
-            self._font_small,
-        )
-        total_width = len(dice) * DIE_SIZE + (len(dice) - 1) * DIE_GAP
-        start_x = area_x + (area_width - total_width) // 2
-        for index, die in enumerate(dice):
-            die_x = start_x + index * (DIE_SIZE + DIE_GAP)
-            is_highlighted = any(die is h for h in highlighted_dice)
-            self._render_single_die(die, die_x, vertical_offset, DIE_SIZE, is_highlighted or not dim_unavailable)
-
-        return vertical_offset + DIE_SIZE + DIE_SECTION_BOTTOM_PADDING
-
-    def _render_single_die(self, die: Any, x_position: int, y_position: int, size: int, is_available: bool) -> None:
-        color_name = die.color.value if die.color else "white"
-        background = DICE_COLORS.get(color_name, (180, 180, 180))
-        if not is_available:
-            background = tuple(max(channel - 80, 30) for channel in background)
-
-        rect = pygame.Rect(x_position, y_position, size, size)
-        pygame.draw.rect(self._screen, background, rect, border_radius=DIE_BORDER_RADIUS)
-
-        value_text = str(die.value) if die.value is not None else "?"
-        text_color = (20, 20, 20) if color_name in ("white", "yellow") else (240, 240, 240)
-        self._draw_text(
-            value_text,
-            (x_position + size // 2, y_position + DIE_TEXT_OFFSET_Y),
-            text_color,
-            self._font_large,
-            center_x=True,
-        )
-
-    def _calculate_panel_dimensions(self, screen_width: int, screen_height: int, vertical_offset: int) -> tuple[int, int]:
-        panel_width = (screen_width - PANEL_TOTAL_HORIZONTAL_MARGIN) // 3
-        panel_height = (screen_height - vertical_offset - PANEL_BOTTOM_RESERVE) // 2
-        panel_height = max(panel_height, PANEL_MIN_HEIGHT)
-        return panel_width, panel_height
-
-    def _render_board_panels(
-        self, snapshot: RenderSnapshot, vertical_offset: int, panel_width: int, panel_height: int,
-    ) -> None:
-        board_data = snapshot.board_data
-        panels = [
-            ("YELLOW", self._render_yellow_panel, {
-                "boxes": board_data["yellow"],
-                "row_actions": board_data["yellow_row_actions"],
-                "col_actions": board_data["yellow_col_actions"],
-            }),
-            (None, self._render_combined_panel, {
-                "green": board_data["green"],
-                "blue": board_data["blue"],
-                "pink": board_data["pink"],
-            }),
-            ("GREY", self._render_grey_panel, {
-                "boxes": board_data["grey"],
-                "col_actions": board_data["grey_col_actions"],
-            }),
-        ]
-
-        for index, (name, draw_function, data) in enumerate(panels):
-            panel_x = PANEL_LEFT_MARGIN + index * (panel_width + PANEL_GAP)
-            panel_y = vertical_offset
-            panel_rect = pygame.Rect(panel_x, panel_y, panel_width, panel_height)
-            pygame.draw.rect(self._screen, COLORS["panel"], panel_rect, border_radius=PANEL_BORDER_RADIUS)
-            if name:
-                self._draw_text(
-                    name,
-                    (panel_x + PANEL_PADDING_X, panel_y + PANEL_HEADER_OFFSET_Y),
-                    COLORS["dimmed"],
-                    self._font_small,
-                )
-            draw_function(data, panel_rect)
-
-        second_row_y = vertical_offset + (panel_height + PANEL_GAP)
-
-        won_actions_width = 2 * panel_width + PANEL_GAP
-        won_actions_rect = pygame.Rect(PANEL_LEFT_MARGIN, second_row_y, won_actions_width, panel_height)
-        self._render_won_actions_panel(snapshot.won_actions, won_actions_rect)
-
-        dice_panel_x = PANEL_LEFT_MARGIN + 2 * (panel_width + PANEL_GAP)
-        dice_panel_rect = pygame.Rect(dice_panel_x, second_row_y, panel_width, panel_height)
-        self._render_dice_panel(snapshot, dice_panel_rect)
-
-    def _render_status_bar(self, board_data: BoardDict, score: int | None, screen_width: int, vertical_offset: int) -> int:
+    def _resource_rail(self, painter: Painter, snapshot: RenderSnapshot, layout: Layout) -> None:
+        board = snapshot.board_data
+        score = snapshot.display_score if snapshot.display_score is not None else snapshot.score
         segments = [
-            (f"Score: {score if score is not None else '-'}", COLORS["score"]),
-            (f"Foxes ({ACTION_LABELS['fox']}): {board_data['foxes']}", ACTION_LABEL_COLORS["fox"]),
-            (f"Rerolls ({ACTION_LABELS['reroll']}): {board_data['rerolls']['usable']}/{board_data['rerolls']['gained']}",
-             ACTION_LABEL_COLORS["reroll"]),
-            (f"Reuses ({ACTION_LABELS['reuse']}): {board_data['reuses']['usable']}/{board_data['reuses']['gained']}",
-             ACTION_LABEL_COLORS["reuse"]),
-            (f"+1s ({ACTION_LABELS['plus_one']}): {board_data['plus_ones']['usable']}/{board_data['plus_ones']['gained']}",
-             ACTION_LABEL_COLORS["plus_one"]),
+            ("SCORE", str(score) if score is not None else "–", COLORS["score"], 18),
+            ("FOXES", str(board["foxes"]), ACTION_COLORS["fox"], 15),
+            ("REROLL", self._ratio(board["rerolls"]), ACTION_COLORS["reroll"], 15),
+            ("REUSE", self._ratio(board["reuses"]), ACTION_COLORS["reuse"], 15),
+            ("PLUS-ONE", self._ratio(board["plus_ones"]), ACTION_COLORS["plus_one"], 15),
         ]
-        separator = "   |   "
-        surfaces = [(self._font_regular.render(text, True, color), color) for text, color in segments]
-        sep_surface = self._font_regular.render(separator, True, COLORS["dimmed"])
-        total_width = sum(s.get_width() for s, _ in surfaces) + sep_surface.get_width() * (len(surfaces) - 1)
-        x_position = (screen_width - total_width) // 2
+        height = painter.px(54)
+        gap = painter.px(9)
+        top = layout.top_bar.y + painter.px(2)
+        cursor = layout.top_bar.right
+        for label, value, color, value_size in reversed(segments):
+            label_w = painter.text_width(label, max(9, painter.px(10)))
+            value_w = painter.text_width(value, max(12, painter.px(value_size)), bold=True)
+            width = max(label_w, value_w) + painter.px(28)
+            cursor -= width
+            painter.pill(Rect(cursor, top, width, height), label, value, color, value_size)
+            cursor -= gap
 
-        for index, (surface, _) in enumerate(surfaces):
-            self._screen.blit(surface, (x_position, vertical_offset))
-            x_position += surface.get_width()
-            if index < len(surfaces) - 1:
-                self._screen.blit(sep_surface, (x_position, vertical_offset))
-                x_position += sep_surface.get_width()
+    @staticmethod
+    def _ratio(counter: dict) -> str:
+        return f"{counter['usable']}/{counter['gained']}"
 
-        return vertical_offset + STATUS_BAR_HEIGHT
+    # ---------- board ----------
+    def _board(self, painter: Painter, board: BoardDict, layout: Layout) -> None:
+        yellow, mid, grey = layout.board_columns
+        painter.card(yellow, accent=SECTION_COLORS["yellow"])
+        self._card_header(painter, "YELLOW", yellow, SECTION_COLORS["yellow"], layout.scale)
+        self._yellow(painter, board, yellow, layout.scale)
 
-    def _render_game_over_banner(self, score: int, screen_width: int, vertical_offset: int) -> int:
-        rating = get_score_rating(score)
-        self._draw_text(
-            f"GAME OVER  —  Score: {score}",
-            (screen_width // 2, vertical_offset),
-            COLORS["score"],
-            self._font_large,
-            center_x=True,
-        )
-        if rating:
-            self._draw_text(
-                rating,
-                (screen_width // 2, vertical_offset + GAME_OVER_BANNER_HEIGHT),
-                COLORS["prompt"],
-                self._font_regular,
-                center_x=True,
-            )
-        return vertical_offset + GAME_OVER_BANNER_HEIGHT + SCORE_RATING_HEIGHT
+        painter.card(mid)
+        self._mid_sections(painter, board, mid, layout.scale)
 
-    def _render_prompt_with_buttons(
-        self, prompt: str, options: list, screen_width: int, vertical_offset: int,
-        hint_index: int | None = None,
-    ) -> list[pygame.Rect]:
-        hint_label = "  [H] Ask model" if hint_index is None else ""
-        self._draw_text(
-            prompt + hint_label,
-            (screen_width // 2, vertical_offset),
-            COLORS["prompt"],
-            self._font_regular,
-            center_x=True,
-        )
-        vertical_offset += PROMPT_TEXT_HEIGHT
+        painter.card(grey, accent=SECTION_COLORS["grey"])
+        self._card_header(painter, "GREY", grey, SECTION_COLORS["grey"], layout.scale)
+        self._grey(painter, board, grey, layout.scale)
 
-        button_width = min(BUTTON_MAX_WIDTH, (screen_width - BUTTON_AREA_MARGIN) // max(len(options), 1) - BUTTON_GAP)
-        total_width = len(options) * button_width + (len(options) - 1) * BUTTON_GAP
-        start_x = (screen_width - total_width) // 2
+    def _card_header(self, painter: Painter, name: str, panel: Rect, accent: tuple, scale: float) -> None:
+        chip = Rect(panel.x + painter.px(PAD), panel.y + painter.px(16), painter.px(11), painter.px(11))
+        painter.round_rect(chip, accent, painter.px(3))
+        painter.text(name, chip.right + painter.px(8), panel.y + painter.px(14),
+                     COLORS["dimmed"], type_size("label", scale), bold=True)
 
-        mouse_position = pygame.mouse.get_pos()
-        button_rects: list[pygame.Rect] = []
+    def _content_top(self, painter: Painter, panel: Rect) -> int:
+        return panel.y + painter.px(HEADER_H)
 
-        for index, option in enumerate(options):
-            button_x = start_x + index * (button_width + BUTTON_GAP)
-            button_rect = pygame.Rect(button_x, vertical_offset, button_width, BUTTON_HEIGHT)
-            is_hovered = button_rect.collidepoint(mouse_position)
-            background = COLORS["button_hover"] if is_hovered else COLORS["button"]
-            pygame.draw.rect(self._screen, background, button_rect, border_radius=BUTTON_BORDER_RADIUS)
-            if hint_index == index:
-                pygame.draw.rect(
-                    self._screen, COLORS["button_hint"], button_rect,
-                    width=BUTTON_HINT_BORDER_WIDTH, border_radius=BUTTON_BORDER_RADIUS,
-                )
-            label = f"[{index}] {option}"
-            self._draw_text(
-                label,
-                (button_x + button_width // 2, vertical_offset + BUTTON_TEXT_OFFSET_Y),
-                COLORS["button_text"],
-                self._font_small,
-                center_x=True,
-            )
-            button_rects.append(button_rect)
+    def _yellow(self, painter: Painter, board: BoardDict, panel: Rect, scale: float) -> None:
+        grid = {(box["row"], box["col"]): box for box in board["yellow"]}
+        gap = painter.px(GRID_GAP)
+        box_size = min((panel.w - painter.px(64)) // 4, (panel.h - painter.px(70)) // 5)
+        grid_w = 4 * (box_size + gap)
+        origin_x = panel.x + (panel.w - grid_w - painter.px(20)) // 2
+        block_h = 5 * (box_size + gap)
+        top = self._content_top(painter, panel)
+        origin_y = top + max(0, (panel.bottom - top - block_h) // 2)
 
-        return button_rects
+        for row in range(5):
+            for col in range(4):
+                rect = Rect(origin_x + col * (box_size + gap), origin_y + row * (box_size + gap), box_size, box_size)
+                self._yellow_cell(painter, grid.get((row, col)), rect)
+        for row, info in board["yellow_row_actions"].items():
+            if info:
+                self._action_glyph(painter, info, origin_x + grid_w + painter.px(2),
+                                   origin_y + row * (box_size + gap) + box_size // 3, scale, centered=False)
+        for col, info in board["yellow_col_actions"].items():
+            if info:
+                self._action_glyph(painter, info, origin_x + col * (box_size + gap) + box_size // 2,
+                                   origin_y + block_h + painter.px(2), scale)
 
-    def _draw_text(
-        self, text: str, position: tuple[int, int], colour: tuple, font: pygame.font.Font | None = None,
-        *, center_x: bool = False,
-    ) -> None:
-        font = font or self._font_regular
-        surface = font.render(text, True, colour)
-        text_rect = surface.get_rect()
-        if center_x:
-            text_rect.midtop = position  # type: ignore[assignment]
-        else:
-            text_rect.topleft = position  # type: ignore[assignment]
-        self._screen.blit(surface, text_rect)
+    def _yellow_cell(self, painter: Painter, box: YellowBoxDict | None, rect: Rect) -> None:
+        if box is None:
+            painter.round_rect(rect, COLORS["sunken"], painter.px(6))
+            return
+        marked = box["crossed"] or box["circled"]
+        fill = SECTION_COLORS["yellow"] if marked else mix(SECTION_COLORS["yellow"], COLORS["panel"], 0.55)
+        painter.box(rect, fill, label=str(box["value"]),
+                    label_color=INK if marked else mix(SECTION_COLORS["yellow"], COLORS["text"], 0.5),
+                    crossed=box["crossed"], circled=box["circled"])
 
-    def _render_action_label(self, action: str, center_x: int, y_position: int) -> None:
+    def _mid_sections(self, painter: Painter, board: BoardDict, panel: Rect, scale: float) -> None:
+        rows = [
+            ("GREEN", "green", board["green"], self._green_label),
+            ("BLUE", "blue", board["blue"], self._blue_label),
+            ("PINK", "pink", board["pink"], self._pink_label),
+        ]
+        row_h = panel.h // 3
+        for index, (name, key, data, label_fn) in enumerate(rows):
+            sub = Rect(panel.x, panel.y + index * row_h, panel.w, row_h)
+            chip = Rect(sub.x + painter.px(PAD), sub.y + painter.px(14), painter.px(10), painter.px(10))
+            painter.round_rect(chip, SECTION_COLORS[key], painter.px(2))
+            painter.text(name, chip.right + painter.px(8), sub.y + painter.px(11),
+                         COLORS["dimmed"], type_size("label", scale), bold=True)
+            self._mid_row(painter, data, SECTION_COLORS[key], sub, label_fn, scale)
+
+    def _mid_row(self, painter: Painter, data: list, accent: tuple, sub: Rect, label_fn, scale: float) -> None:
+        count = len(data)
+        gap = painter.px(GRID_GAP)
+        box_w = min((sub.w - 2 * painter.px(PAD) - (count - 1) * gap) // count, painter.px(52))
+        box_h = box_w - painter.px(4)
+        grid_w = count * box_w + (count - 1) * gap
+        origin_x = sub.x + (sub.w - grid_w) // 2
+        origin_y = sub.y + painter.px(34)
+        for index, box in enumerate(data):
+            rect = Rect(origin_x + index * (box_w + gap), origin_y, box_w, box_h)
+            filled = box["value_used"] is not None
+            painter.box(rect, accent if filled else COLORS["box_empty"],
+                        border=None if filled else COLORS["panel_border"],
+                        label=label_fn(box, index), label_color=INK if filled else COLORS["muted"])
+            self._action_glyph(painter, box["action"], rect.centerx, rect.bottom + painter.px(1), scale)
+
+    @staticmethod
+    def _green_label(box: GreenBoxDict, index: int) -> str:
+        if box["value_used"] is not None:
+            return str(box["value_used"])
+        return f"{'+' if index % 2 == 0 else '-'}{box['multiplier']}"
+
+    @staticmethod
+    def _blue_label(box: BlueBoxDict, _: int) -> str:
+        return str(box["value_used"]) if box["value_used"] is not None else f"≤{box['max_limit']}"
+
+    @staticmethod
+    def _pink_label(box: PinkBoxDict, _: int) -> str:
+        if box["value_used"] is not None:
+            return str(box["value_used"])
+        return f"≥{box['filter_limit']}" if box["filter_limit"] else "—"
+
+    GREY_ORDER = ["yellow", "blue", "green", "pink"]
+
+    def _grey(self, painter: Painter, board: BoardDict, panel: Rect, scale: float) -> None:
+        gap = painter.px(GRID_GAP)
+        left_pad = painter.px(PAD + 8)
+        avail_w = panel.w - left_pad - painter.px(PAD)
+        box_size = min((avail_w - 5 * gap) // 6, (panel.h - painter.px(74)) // 4)
+        block_h = 4 * (box_size + gap)
+        grid_w = 6 * box_size + 5 * gap
+        origin_x = panel.x + left_pad + (avail_w - grid_w) // 2
+        top = self._content_top(painter, panel)
+        origin_y = top + max(0, (panel.bottom - top - block_h) // 2)
+        self._grey_cells(painter, board["grey"], (origin_x, origin_y), (box_size, gap))
+        for number, info in board["grey_col_actions"].items():
+            if info:
+                self._action_glyph(painter, info, origin_x + (number - 1) * (box_size + gap) + box_size // 2,
+                                   origin_y + block_h + painter.px(2), scale)
+
+    def _grey_cells(self, painter: Painter, boxes: list, origin: tuple, cell: tuple) -> None:
+        origin_x, origin_y = origin
+        box_size, gap = cell
+        by_color: dict[str, list[GreyBoxDict]] = {color: [] for color in self.GREY_ORDER}
+        for box in boxes:
+            by_color[box["color"]].append(box)
+        for row, color in enumerate(self.GREY_ORDER):
+            for col, box in enumerate(sorted(by_color[color], key=lambda item: item["number"])):
+                rect = Rect(origin_x + col * (box_size + gap), origin_y + row * (box_size + gap), box_size, box_size)
+                painter.box(rect, mix(SECTION_COLORS[color], COLORS["panel"], 0.35),
+                            label=str(box["number"]), label_color=INK, crossed=box["crossed"])
+
+    def _action_glyph(self, painter: Painter, action, x: int, y: int, scale: float, *, centered: bool = True) -> None:
+        available = True
+        if isinstance(action, dict):
+            available = action["available"]
+            action = action["action"]
         label = ACTION_LABELS.get(action, "")
         if not label:
             return
-        color = ACTION_LABEL_COLORS.get(action, COLORS["dimmed"])
-        self._draw_text(label, (center_x, y_position), color, self._font_small, center_x=True)
+        color = ACTION_COLORS.get(action, COLORS["dimmed"])
+        if not available:
+            color = dim(color, 90)
+        painter.text(label, x, y, color, type_size("tiny", scale), anchor_x="center" if centered else "left")
 
-    def _render_yellow_panel(self, data: dict, panel: pygame.Rect) -> None:
-        grid: dict[tuple[int, int], YellowBoxDict] = {}
-        for box in data["boxes"]:
-            grid[(box["row"], box["col"])] = box
-        box_size = min(
-            (panel.w - YELLOW_GRID_MARGIN_H) // YELLOW_GRID_COLS,
-            (panel.h - YELLOW_GRID_MARGIN_V) // YELLOW_GRID_ROWS,
-        )
-        grid_width = YELLOW_GRID_COLS * (box_size + YELLOW_GRID_GAP)
-        origin_x = panel.x + (panel.w - grid_width - YELLOW_GRID_ACTION_MARGIN) // 2
-        origin_y = panel.y + PANEL_CONTENT_OFFSET_Y
-
-        for row in range(YELLOW_GRID_ROWS):
-            for column in range(YELLOW_GRID_COLS):
-                self._render_yellow_cell(grid, row, column, origin_x, origin_y, box_size)
-
-        self._render_yellow_row_actions(data["row_actions"], origin_x, origin_y, grid_width, box_size)
-        self._render_yellow_col_actions(data["col_actions"], origin_x, origin_y, box_size)
-
-    def _render_yellow_row_actions(
-        self, row_actions: dict, origin_x: int, origin_y: int, grid_width: int, box_size: int,
-    ) -> None:
-        for row in range(YELLOW_GRID_ROWS):
-            action_info = row_actions.get(row, {})
-            if not action_info:
-                continue
-            action_x = origin_x + grid_width + YELLOW_ROW_ACTION_X_OFFSET
-            action_y = origin_y + row * (box_size + YELLOW_GRID_GAP) + YELLOW_ACTION_Y_OFFSET
-            self._render_positional_action(action_info, action_x, action_y, center_x=False)
-
-    def _render_yellow_col_actions(
-        self, col_actions: dict, origin_x: int, origin_y: int, box_size: int,
-    ) -> None:
-        for column in range(YELLOW_GRID_COLS):
-            action_info = col_actions.get(column, {})
-            if not action_info:
-                continue
-            action_x = origin_x + column * (box_size + YELLOW_GRID_GAP) + box_size // 2
-            action_y = origin_y + YELLOW_GRID_ROWS * (box_size + YELLOW_GRID_GAP) + YELLOW_ACTION_Y_OFFSET
-            self._render_positional_action(action_info, action_x, action_y, center_x=True)
-
-    def _render_positional_action(
-        self, action_info: PositionalActionDict, x_position: int, y_position: int, *, center_x: bool,
-    ) -> None:
-        label = ACTION_LABELS.get(action_info["action"], "")
-        if not label:
-            return
-        color = ACTION_LABEL_COLORS.get(action_info["action"], COLORS["dimmed"])
-        if not action_info["available"]:
-            color = tuple(max(c - 80, 40) for c in color)
-        self._draw_text(label, (x_position, y_position), color, self._font_small, center_x=center_x)
-
-    def _render_yellow_cell(
-        self, grid: dict[tuple[int, int], YellowBoxDict], row: int, column: int,
-        origin_x: int, origin_y: int, box_size: int,
-    ) -> None:
-        box_x = origin_x + column * (box_size + YELLOW_GRID_GAP)
-        box_y = origin_y + row * (box_size + YELLOW_GRID_GAP)
-        rect = pygame.Rect(box_x, box_y, box_size, box_size)
-        box = grid.get((row, column))
-
-        if box is None:
-            pygame.draw.rect(self._screen, COLORS["background"], rect, border_radius=BOX_BORDER_RADIUS)
-            return
-
-        background = self._get_yellow_box_color(box)
-        pygame.draw.rect(self._screen, background, rect, border_radius=BOX_BORDER_RADIUS)
-        self._draw_text(
-            str(box["value"]),
-            (box_x + box_size // 2, box_y + YELLOW_CELL_TEXT_OFFSET_Y),
-            (20, 20, 20),
-            self._font_small,
-            center_x=True,
-        )
-
-    @staticmethod
-    def _get_yellow_box_color(box: YellowBoxDict) -> tuple:
-        if box["crossed"]:
-            return COLORS["crossed"]
-        if box["circled"]:
-            return COLORS["circled"]
-        return COLORS["yellow"]
-
-    def _render_combined_panel(self, data: dict, panel: pygame.Rect) -> None:
-        sections = [
-            ("GREEN", self._render_green_panel, data["green"]),
-            ("BLUE", self._render_blue_panel, data["blue"]),
-            ("PINK", self._render_pink_panel, data["pink"]),
+    # ---------- dice tray ----------
+    def _tray(self, painter: Painter, snapshot: RenderSnapshot, layout: Layout) -> list[tuple]:
+        panel = layout.tray
+        painter.card(panel)
+        painter.text("DICE", panel.x + painter.px(PAD), panel.y + painter.px(12),
+                     COLORS["dimmed"], type_size("label", layout.scale), bold=True)
+        die_size = min(panel.h - painter.px(66), painter.px(52))
+        zones = [
+            ("Available", snapshot.dice, snapshot.available_dice),
+            ("Chosen", snapshot.picked_dice, snapshot.picked_dice),
+            ("Discarded", snapshot.discarded_dice, []),
         ]
-        section_height = panel.h // len(sections)
-        for i, (name, render_fn, section_data) in enumerate(sections):
-            sub_y = panel.y + i * section_height
-            sub_rect = pygame.Rect(panel.x, sub_y, panel.w, section_height)
-            self._draw_text(
-                name,
-                (sub_rect.x + PANEL_PADDING_X, sub_y + PANEL_HEADER_OFFSET_Y),
-                COLORS["dimmed"],
-                self._font_small,
-            )
-            render_fn(section_data, sub_rect)
+        targets: list[tuple] = []
+        cursor = panel.x + painter.px(PAD + 6)
+        for index, zone in enumerate(zones):
+            zone_targets, cursor = self._tray_zone(painter, snapshot, panel, zone, cursor, die_size, layout.scale)
+            targets.extend(zone_targets)
+            if index < len(zones) - 1:
+                painter.line(cursor - painter.px(18), panel.y + painter.px(28), cursor - painter.px(18),
+                             panel.bottom - painter.px(16), COLORS["panel_border"], painter.px(1))
+        return targets
 
-    def _render_blue_panel(self, data: list[BlueBoxDict], panel: pygame.Rect) -> None:
-        count = len(data)
-        box_width = min((panel.w - BOX_ROW_MARGIN) // count, BOX_ROW_MAX_SIZE)
-        origin_x = panel.x + PANEL_PADDING_X
-        origin_y = panel.y + BOX_ROW_CONTENT_OFFSET_Y
+    def _tray_zone(self, painter: Painter, snapshot: RenderSnapshot, panel: Rect, zone: tuple,
+                   cursor: int, die_size: int, scale: float) -> tuple[list[tuple], int]:
+        label, dice, bright = zone
+        painter.text(label, cursor, panel.y + painter.px(30), COLORS["muted"], type_size("tiny", scale))
+        row_y = panel.y + painter.px(56)
+        targets: list[tuple] = []
+        for die_index, die in enumerate(dice):
+            rect = Rect(cursor + die_index * (die_size + painter.px(10)), row_y, die_size, die_size)
+            self._draw_tray_die(painter, die, rect, bright, snapshot, scale)
+            targets.append((die, rect))
+        span = max(len(dice) * (die_size + painter.px(10)), painter.px(110))
+        return targets, cursor + span + painter.px(28)
 
-        for index, box in enumerate(data):
-            box_x = origin_x + index * (box_width + BOX_ROW_GAP)
-            rect = pygame.Rect(box_x, origin_y, box_width, box_width)
-            background = COLORS["blue"] if box["value_used"] is not None else COLORS["box_empty"]
-            pygame.draw.rect(self._screen, background, rect, border_radius=BOX_BORDER_RADIUS)
-            label = str(box["value_used"]) if box["value_used"] is not None else f"≤{box['max_limit']}"
-            self._draw_text(
-                label,
-                (box_x + box_width // 2, origin_y + BOX_ROW_TEXT_OFFSET_Y),
-                COLORS["text"],
-                self._font_small,
-                center_x=True,
-            )
-            self._render_action_label(box["action"], box_x + box_width // 2, origin_y + box_width + BOX_ROW_ACTION_OFFSET_Y)
+    def _draw_tray_die(self, painter: Painter, die, rect: Rect, bright: list,
+                       snapshot: RenderSnapshot, scale: float) -> None:
+        is_bright = any(die is other for other in bright)
+        selectable = id(die) in snapshot.selectable_die_ids
+        hinted = id(die) == snapshot.hint_die_id
+        color_name = die.color.value if die.color else "white"
+        painter.die(rect, color_name, die.value, available=is_bright or selectable,
+                    selectable=selectable, pulse=snapshot.die_pulses.get(id(die), 0.0), hinted=hinted)
+        if hinted:
+            painter.text("HINT", rect.centerx, rect.y - painter.px(5), COLORS["hint"],
+                         type_size("tiny", scale), anchor_x="center", anchor_y="bottom", bold=True)
 
-    def _render_green_panel(self, data: list[GreenBoxDict], panel: pygame.Rect) -> None:
-        count = len(data)
-        box_width = min((panel.w - BOX_ROW_MARGIN) // count, BOX_ROW_MAX_SIZE)
-        origin_x = panel.x + PANEL_PADDING_X
-        origin_y = panel.y + BOX_ROW_CONTENT_OFFSET_Y
+    # ---------- action bar ----------
+    def _action_bar(self, painter: Painter, snapshot: RenderSnapshot, layout: Layout) -> list[Rect]:
+        action_bar = layout.action
+        count = len(snapshot.options)
+        gap = painter.px(10)
+        prompt_w = painter.text_width(snapshot.prompt, type_size("body", layout.scale), bold=True)
+        right_space = action_bar.right - (action_bar.x + prompt_w + painter.px(28))
+        single_w = min(painter.px(168), (right_space - (count - 1) * gap) // max(count, 1))
+        if single_w >= painter.px(84):
+            painter.text(snapshot.prompt, action_bar.x, action_bar.y + painter.px(6), COLORS["prompt"],
+                         type_size("body", layout.scale), bold=True)
+            self._hint_hint(painter, snapshot, action_bar, layout.scale)
+            return self._single_row(painter, snapshot, layout, single_w)
+        return self._button_grid(painter, snapshot, layout)
 
-        for index, box in enumerate(data):
-            box_x = origin_x + index * (box_width + BOX_ROW_GAP)
-            rect = pygame.Rect(box_x, origin_y, box_width, box_width)
-            background = COLORS["green"] if box["value_used"] is not None else COLORS["box_empty"]
-            pygame.draw.rect(self._screen, background, rect, border_radius=BOX_BORDER_RADIUS)
-            label = self._get_green_box_label(box, index)
-            self._draw_text(
-                label,
-                (box_x + box_width // 2, origin_y + BOX_ROW_TEXT_OFFSET_Y),
-                COLORS["text"],
-                self._font_small,
-                center_x=True,
-            )
-            self._render_action_label(box["action"], box_x + box_width // 2, origin_y + box_width + BOX_ROW_ACTION_OFFSET_Y)
+    def _hint_hint(self, painter: Painter, snapshot: RenderSnapshot, action_bar: Rect, scale: float) -> None:
+        line_y = action_bar.y + painter.px(34)
+        painter.text("H  hint", action_bar.x, line_y, COLORS["muted"], type_size("label", scale))
+        help_x = action_bar.x + painter.px(104)
+        if snapshot.hint_uses > 0:
+            painter.text(f"used {snapshot.hint_uses}×", help_x, line_y, COLORS["hint"], type_size("label", scale))
+            help_x += painter.px(84)
+        painter.text("?  help", help_x, line_y, COLORS["muted"], type_size("label", scale))
+
+    def _single_row(self, painter: Painter, snapshot: RenderSnapshot, layout: Layout, button_w: int) -> list[Rect]:
+        action_bar = layout.action
+        options = snapshot.options
+        count = len(options)
+        gap = painter.px(10)
+        height = painter.px(52)
+        start_x = action_bar.right - (count * button_w + (count - 1) * gap)
+        top = action_bar.y + (action_bar.h - height) // 2
+        rects: list[Rect] = []
+        for index, option in enumerate(options):
+            rect = Rect(start_x + index * (button_w + gap), top, button_w, height)
+            self._option_button(painter, snapshot, option, index, rect, layout.scale)
+            rects.append(rect)
+        return rects
+
+    def _button_grid(self, painter: Painter, snapshot: RenderSnapshot, layout: Layout) -> list[Rect]:
+        action_bar = layout.action
+        geo = self._grid_geometry(painter, action_bar, len(snapshot.options))
+        self._grid_header(painter, snapshot, action_bar, geo.prompt_y, geo.bottom, layout.scale)
+        rects: list[Rect] = []
+        for index, option in enumerate(snapshot.options):
+            rect = Rect(geo.start_x + (index % geo.cols) * (geo.button_w + geo.gap),
+                        geo.grid_top + (index // geo.cols) * (geo.height + geo.row_gap), geo.button_w, geo.height)
+            self._option_button(painter, snapshot, option, index, rect, layout.scale)
+            rects.append(rect)
+        return rects
 
     @staticmethod
-    def _get_green_box_label(box: GreenBoxDict, index: int) -> str:
-        if box["value_used"] is not None:
-            return str(box["value_used"])
-        sign = "+" if index % 2 == 0 else "-"
-        return f"{sign}{box['multiplier']}x"
+    def _grid_geometry(painter: Painter, action_bar: Rect, count: int) -> "_GridGeo":
+        gap = painter.px(10)
+        row_gap = painter.px(8)
+        height = painter.px(44)
+        inner = action_bar.w
+        cols = min(count, max(1, (inner + gap) // (painter.px(90) + gap)))
+        rows = -(-count // cols)
+        button_w = min(painter.px(168), (inner - (cols - 1) * gap) // cols)
+        start_x = action_bar.x + (inner - (cols * button_w + (cols - 1) * gap)) // 2
+        bottom = action_bar.bottom - painter.px(8)
+        grid_top = bottom - rows * height - (rows - 1) * row_gap
+        return _GridGeo(cols, button_w, gap, row_gap, height, start_x, grid_top, bottom, grid_top - painter.px(30))
 
-    def _render_pink_panel(self, data: list[PinkBoxDict], panel: pygame.Rect) -> None:
-        count = len(data)
-        box_width = min((panel.w - BOX_ROW_MARGIN) // count, BOX_ROW_MAX_SIZE)
-        origin_x = panel.x + PANEL_PADDING_X
-        origin_y = panel.y + BOX_ROW_CONTENT_OFFSET_Y
+    def _grid_header(self, painter: Painter, snapshot: RenderSnapshot, action_bar: Rect,
+                     prompt_y: int, bottom: int, scale: float) -> None:
+        backdrop = Rect(action_bar.x - painter.px(6), prompt_y - painter.px(10),
+                        action_bar.w + painter.px(12), bottom + painter.px(8) - (prompt_y - painter.px(10)))
+        painter.round_rect(backdrop, with_alpha(COLORS["panel_raised"], 0.97), painter.px(12))
+        painter.text(snapshot.prompt, action_bar.x + painter.px(4), prompt_y, COLORS["prompt"],
+                     type_size("body", scale), bold=True)
+        used = f"   (used {snapshot.hint_uses}×)" if snapshot.hint_uses > 0 else ""
+        painter.text(f"H hint{used}     ?  help", action_bar.right - painter.px(4), prompt_y + painter.px(3),
+                     COLORS["muted"], type_size("label", scale), anchor_x="right")
 
-        for index, box in enumerate(data):
-            box_x = origin_x + index * (box_width + BOX_ROW_GAP)
-            rect = pygame.Rect(box_x, origin_y, box_width, box_width)
-            background = COLORS["pink"] if box["value_used"] is not None else COLORS["box_empty"]
-            pygame.draw.rect(self._screen, background, rect, border_radius=BOX_BORDER_RADIUS)
-            label = self._get_pink_box_label(box)
-            self._draw_text(
-                label,
-                (box_x + box_width // 2, origin_y + BOX_ROW_TEXT_OFFSET_Y),
-                COLORS["text"],
-                self._font_small,
-                center_x=True,
-            )
-            self._render_action_label(box["action"], box_x + box_width // 2, origin_y + box_width + BOX_ROW_ACTION_OFFSET_Y)
+    def _option_button(self, painter: Painter, snapshot: RenderSnapshot, option, index: int,
+                       rect: Rect, scale: float) -> None:
+        label = option_label(option)
+        painter.button(rect, label, SECTION_COLORS.get(str(option), COLORS["prompt"]),
+                       state=self._button_state(rect, index, snapshot.pressed_index),
+                       is_hint=snapshot.hint_index == index,
+                       size=fit_size(painter, label, rect.w))
+        if index < 10:
+            painter.text(str(index), rect.x + painter.px(7), rect.y + painter.px(5),
+                         COLORS["muted"], type_size("tiny", scale), bold=True)
 
-    @staticmethod
-    def _get_pink_box_label(box: PinkBoxDict) -> str:
-        if box["value_used"] is not None:
-            return str(box["value_used"])
-        if box["filter_limit"]:
-            return f"≥{box['filter_limit']}"
-        return "—"
+    def _button_state(self, rect: Rect, index: int, pressed_index: int | None) -> str:
+        if pressed_index == index:
+            return "press"
+        return "hover" if rect.collidepoint(*self.mouse) else "normal"
 
-    def _render_grey_panel(self, data: dict, panel: pygame.Rect) -> None:
-        color_names = ["yellow", "blue", "green", "pink"]
-        rows_by_color: dict[str, list[GreyBoxDict]] = {color: [] for color in color_names}
-        for box in data["boxes"]:
-            rows_by_color[box["color"]].append(box)
-        col_actions = data["col_actions"]
+    # ---------- overlays ----------
+    def _game_over(self, painter: Painter, snapshot: RenderSnapshot, layout: Layout) -> None:
+        painter.veil(layout.width, (*COLORS["overlay"], 205))
+        center_x = layout.width // 2
+        middle = layout.height // 2
+        painter.text("GAME OVER", center_x, middle - painter.px(60), COLORS["text"],
+                     type_size("display", layout.scale), anchor_x="center", bold=True)
+        painter.text(f"Score  {snapshot.score}", center_x, middle - painter.px(6),
+                     COLORS["score"], type_size("display", layout.scale), anchor_x="center", bold=True)
+        rating = get_score_rating(snapshot.score)
+        if rating:
+            painter.text(rating, center_x, middle + painter.px(48), COLORS["prompt"],
+                         type_size("body", layout.scale), anchor_x="center")
 
-        box_size = min((panel.w - GREY_GRID_MARGIN_H) // GREY_GRID_COLS, (panel.h - GREY_GRID_MARGIN_V) // GREY_GRID_ROWS)
-        origin_x = panel.x + PANEL_PADDING_X
-        origin_y = panel.y + PANEL_CONTENT_OFFSET_Y
+    def _toasts(self, painter: Painter, popups: list[dict], layout: Layout) -> None:
+        slots = layout.toast_slots(len(popups))
+        for popup, rect in zip(popups[-len(slots):], slots):
+            self._toast(painter, popup, rect, layout.scale)
 
-        for row_index, color_name in enumerate(color_names):
-            sorted_boxes = sorted(rows_by_color[color_name], key=lambda box: box["number"])
-            for column_index, box in enumerate(sorted_boxes):
-                self._render_grey_cell(box, color_name, origin_x, origin_y, row_index, column_index, box_size)
+    def _toast(self, painter: Painter, popup: dict, rect: Rect, scale: float) -> None:
+        alpha = popup["alpha"]
+        color = ACTION_COLORS.get(popup["action"], COLORS["dimmed"])
+        action = POPUP_ACTION_NAMES.get(popup["action"], popup["action"])
+        source = POPUP_SOURCE_NAMES.get(popup["source"], popup["source"])
+        painter.round_rect(rect, with_alpha(COLORS["panel_raised"], alpha), painter.px(9))
+        painter.round_rect(Rect(rect.x, rect.y, painter.px(4), rect.h), with_alpha(color, alpha), painter.px(2))
+        painter.text(f"Won {action}", rect.x + painter.px(14), rect.centery,
+                     with_alpha(COLORS["text"], alpha), type_size("small", scale), anchor_y="center")
+        painter.text(source, rect.right - painter.px(12), rect.centery,
+                     with_alpha(COLORS["muted"], alpha), type_size("tiny", scale), anchor_x="right", anchor_y="center")
 
-        action_y = origin_y + GREY_GRID_ROWS * (box_size + GREY_BOX_GAP) + GREY_ACTION_Y_OFFSET
-        for number in range(1, GREY_GRID_COLS + 1):
-            action_info = col_actions.get(number, {})
-            if not action_info:
-                continue
-            action_x = origin_x + (number - 1) * (box_size + GREY_BOX_GAP) + box_size // 2
-            self._render_positional_action(action_info, action_x, action_y, center_x=True)
+    def _help(self, painter: Painter, layout: Layout) -> None:
+        painter.veil(layout.width, (*COLORS["overlay"], 224))
+        lines = [
+            ("Controls", COLORS["prompt"]),
+            ("Click a highlighted die  —  pick it", COLORS["text"]),
+            ("0 – 9  —  choose the numbered option", COLORS["text"]),
+            ("H  —  ask the model for a hint", COLORS["text"]),
+            ("F11  toggle fullscreen        Esc  quit", COLORS["dimmed"]),
+        ]
+        start_y = layout.height // 2 - painter.px(120)
+        for index, (line, color) in enumerate(lines):
+            size = type_size("heading" if index == 0 else "body", layout.scale)
+            painter.text(line, layout.width // 2, start_y + index * painter.px(44), color, size,
+                         anchor_x="center", bold=index == 0)
+        self._help_legend(painter, layout, start_y + len(lines) * painter.px(44) + painter.px(24))
 
-    def _render_won_actions_panel(self, won_actions: list[dict], panel: pygame.Rect) -> None:
-        pygame.draw.rect(self._screen, COLORS["panel"], panel, border_radius=PANEL_BORDER_RADIUS)
-        self._draw_text(
-            "WON ACTIONS",
-            (panel.x + PANEL_PADDING_X, panel.y + PANEL_HEADER_OFFSET_Y),
-            COLORS["dimmed"],
-            self._font_small,
-        )
-
-        if not won_actions:
-            self._draw_text(
-                "No actions won yet",
-                (panel.x + panel.w // 2, panel.y + panel.h // 2 - WON_ACTIONS_EMPTY_OFFSET_Y),
-                COLORS["dimmed"], self._font_small, center_x=True,
-            )
-            return
-
-        y_start = panel.y + PANEL_CONTENT_OFFSET_Y
-        x_cursor = panel.x + PANEL_PADDING_X
-        y_cursor = y_start
-        max_x = panel.x + panel.w - PANEL_PADDING_X
-
-        for entry in won_actions:
-            action = entry["action"]
-            label = ACTION_LABELS.get(action, action)
-            if not label:
-                continue
-            color = ACTION_LABEL_COLORS.get(action, COLORS["dimmed"])
-            text_surface = self._font_small.render(label, True, color)
-            pill_width = text_surface.get_width() + PILL_TEXT_PADDING
-
-            if x_cursor + pill_width > max_x:
-                x_cursor = panel.x + PANEL_PADDING_X
-                y_cursor += PILL_HEIGHT + PILL_GAP
-                if y_cursor + PILL_HEIGHT > panel.y + panel.h - PILL_BOTTOM_MARGIN:
-                    break
-
-            pill_rect = pygame.Rect(x_cursor, y_cursor, pill_width, PILL_HEIGHT)
-            bg = tuple(max(c // 4, 20) for c in color)
-            pygame.draw.rect(self._screen, bg, pill_rect, border_radius=PILL_BORDER_RADIUS)
-            pygame.draw.rect(self._screen, color, pill_rect, width=1, border_radius=PILL_BORDER_RADIUS)
-            self._screen.blit(text_surface, (x_cursor + PILL_TEXT_OFFSET_X, y_cursor + PILL_TEXT_OFFSET_Y))
-            x_cursor += pill_width + PILL_GAP
-
-    def _render_popups(self, popups: list[dict], screen_width: int) -> None:
-        x_position = screen_width - POPUP_WIDTH - POPUP_MARGIN_RIGHT
-        y_position = POPUP_MARGIN_TOP
-
-        for popup in popups:
-            alpha = popup["alpha"]
-            action = popup["action"]
-            source = popup["source"]
-            action_name = POPUP_ACTION_NAMES.get(action, action)
-            source_name = POPUP_SOURCE_NAMES.get(source, source)
-            color = ACTION_LABEL_COLORS.get(action, COLORS["dimmed"])
-
-            bg_base = (70, 70, 90)
-            bg = tuple(
-                int(bg_base[i] * alpha + COLORS["background"][i] * (1 - alpha))
-                for i in range(3)
-            )
-            border_color = tuple(
-                int(c * alpha + COLORS["background"][i] * (1 - alpha))
-                for i, c in enumerate(color)
-            )
-            text_color = tuple(
-                int(240 * alpha + COLORS["background"][i] * (1 - alpha))
-                for i in range(3)
-            )
-
-            popup_rect = pygame.Rect(x_position, y_position, POPUP_WIDTH, POPUP_HEIGHT)
-            pygame.draw.rect(self._screen, bg, popup_rect, border_radius=POPUP_BORDER_RADIUS)
-            pygame.draw.rect(self._screen, border_color, popup_rect, width=2, border_radius=POPUP_BORDER_RADIUS)
-
-            text = f"Won {action_name}  ({source_name})"
-            self._draw_text(
-                text,
-                (x_position + POPUP_TEXT_OFFSET_X, y_position + POPUP_TEXT_OFFSET_Y),
-                text_color,
-                self._font_regular,
-            )
-
-            y_position += POPUP_HEIGHT + POPUP_GAP
-
-    def _render_grey_cell(
-        self, box: GreyBoxDict, color_name: str,
-        origin_x: int, origin_y: int, row_index: int, column_index: int, box_size: int,
-    ) -> None:
-        box_x = origin_x + column_index * (box_size + GREY_BOX_GAP)
-        box_y = origin_y + row_index * (box_size + GREY_BOX_GAP)
-        rect = pygame.Rect(box_x, box_y, box_size, box_size)
-
-        if box["crossed"]:
-            background = COLORS["crossed"]
-        else:
-            base_color = DICE_COLORS.get(color_name, COLORS["box_empty"])
-            background = tuple(max(channel - 40, 20) for channel in base_color)
-
-        pygame.draw.rect(self._screen, background, rect, border_radius=GREY_BOX_BORDER_RADIUS)
-        self._draw_text(
-            str(box["number"]),
-            (box_x + box_size // 2, box_y + GREY_CELL_TEXT_OFFSET_Y),
-            COLORS["text"],
-            self._font_small,
-            center_x=True,
-        )
+    def _help_legend(self, painter: Painter, layout: Layout, y: int) -> None:
+        widths = [painter.px(len(glyph) * 9 + len(name) * 7 + 24) for glyph, name, _ in LEGEND]
+        cursor = layout.width // 2 - sum(widths) // 2
+        for (glyph, name, action), width in zip(LEGEND, widths):
+            color = ACTION_COLORS.get(action, COLORS["dimmed"])
+            painter.text(glyph, cursor, y, color, type_size("small", layout.scale), bold=True)
+            painter.text(name, cursor + painter.px(len(glyph) * 9 + 6), y,
+                         COLORS["muted"], type_size("tiny", layout.scale))
+            cursor += width

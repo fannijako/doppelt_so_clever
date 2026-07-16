@@ -3,7 +3,7 @@ from typing import Optional
 
 from src.game.game import Game
 from src.board.board import Board
-from src.ui.pygame_ui import PygameUI
+from src.ui.arcade_ui import ArcadeUI
 from src.game.rl_observer import RLObserver
 from src.ui.model_advisor import ModelAdvisor
 from src.game.game_observer import GameObserver
@@ -11,7 +11,7 @@ from src.actions.action_handler import ActionHandler
 from src.game.logging_observer import LoggingObserver
 from src.game.composite_observer import CompositeObserver
 from src.logging_config import setup_logging, GameLogger
-from src.input_handler.pygame_input_handler import PygameInputHandler
+from src.input_handler.arcade_input_handler import ArcadeInputHandler
 from src.input_handler.heuristics.always_accept import AlwaysAcceptInputHandler
 from src.input_handler import (
     InputHandler,
@@ -31,16 +31,16 @@ def main() -> None:
     logger.info("Args", arguments)
 
     board = Board()
-    observer, pygame_ui = build_observer(arguments, board)
+    observer, arcade_ui = build_observer(arguments, board)
     game = Game(
         board=board,
         observer=observer,
-        input_handler=get_input_handler(arguments, pygame_ui),
+        input_handler=get_input_handler(arguments, arcade_ui),
         action_handler=ActionHandler(board=board),
     )
 
     if arguments.mode == "interactive":
-        pygame_ui.run_with_game(game)
+        arcade_ui.run_with_game(game)
     else:
         game.play()
 
@@ -57,32 +57,32 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def build_observer(arguments: argparse.Namespace, board: Board) -> tuple[GameObserver, Optional[PygameUI]]:
+def build_observer(arguments: argparse.Namespace, board: Board) -> tuple[GameObserver, Optional[ArcadeUI]]:
     observers: list[GameObserver] = [LoggingObserver()]
-    pygame_ui: Optional[PygameUI] = None
+    arcade_ui: Optional[ArcadeUI] = None
 
     if arguments.mode == "interactive":
         augmented = ModelAdvisor.read_augmented_from_checkpoint()
         strategic_features = ModelAdvisor.read_strategic_features_from_checkpoint()
         rl_observer = RLObserver(board, augmented=augmented, strategic_features=strategic_features)
         advisor = ModelAdvisor(rl_observer)
-        pygame_ui = PygameUI(board, model_advisor=advisor)
-        observers.append(pygame_ui)
+        arcade_ui = ArcadeUI(board, model_advisor=advisor)
+        observers.append(arcade_ui)
         observers.append(rl_observer)
 
     if len(observers) == 1:
-        return observers[0], pygame_ui
-    return CompositeObserver(observers), pygame_ui
+        return observers[0], arcade_ui
+    return CompositeObserver(observers), arcade_ui
 
 
-def get_input_handler(arguments: argparse.Namespace, pygame_ui: Optional[PygameUI]) -> InputHandler:
+def get_input_handler(arguments: argparse.Namespace, arcade_ui: Optional[ArcadeUI]) -> InputHandler:
     # pylint: disable=unnecessary-lambda
     handlers = {
         "console": lambda: ConsoleInputHandler(),
         "always-accept": lambda: AlwaysAcceptInputHandler(),
         "model": lambda: ModelInputHandler(DoppeltSoCleverModel()),
         "automatic": lambda: AutomaticInputHandler(),
-        "interactive": lambda: PygameInputHandler(pygame_ui),  # type: ignore[arg-type]
+        "interactive": lambda: ArcadeInputHandler(arcade_ui),  # type: ignore[arg-type]
     }
 
     handler_factory = handlers.get(arguments.mode)
