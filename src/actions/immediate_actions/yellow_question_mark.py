@@ -26,6 +26,8 @@ class YellowQuestionMarkAction(ImmediateActions):
     def use(self, board: Board, input_handler: InputHandler) -> list[Action]:
         yellow_dice = Dice(DiceColor.YELLOW)
         possible_placements = board.yellow_board_part.all_possible_dice_placements(yellow_dice)
+        if not possible_placements:
+            return []
         (
             selected_value,
             selected_row,

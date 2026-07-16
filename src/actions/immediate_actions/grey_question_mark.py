@@ -21,8 +21,12 @@ class GreyQuestionMarkAction(ImmediateActions):
         super().__init__(action_type=ActionType.GREY_QUESTION_MARK)
 
     def use(self, board: Board, input_handler: InputHandler) -> list[Action]:
+        possible_combinations = self._possible_combinations(board)
+        if not possible_combinations:
+            return []
+
         dice = Dice(DiceColor.GREY)
-        color, value = self._pick_color_and_value(board, input_handler)
+        color, value = self._pick_color_and_value(possible_combinations, input_handler)
         dice.set_value(value)
 
         try:
@@ -34,11 +38,18 @@ class GreyQuestionMarkAction(ImmediateActions):
         except ValueError:
             return []
 
-    def _pick_color_and_value(self, board: Board, input_handler: InputHandler) -> tuple[DiceColor, int]:
-        possible_combinations = [
+    @staticmethod
+    def _possible_combinations(board: Board) -> list[tuple[DiceColor, int]]:
+        return [
             (box.color, box.number)
             for box in board.grey_board_part.boxes
             if not box.is_crossed
         ]
+
+    @staticmethod
+    def _pick_color_and_value(
+        possible_combinations: list[tuple[DiceColor, int]],
+        input_handler: InputHandler,
+    ) -> tuple[DiceColor, int]:
         index = input_handler.choose_index("Enter index: ", possible_combinations)
         return possible_combinations[index]
