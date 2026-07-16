@@ -77,10 +77,5 @@ class Game:  # pylint: disable=too-few-public-methods
         if action is not None:
             action = action()
             logger.info("Action received", action.action_type.value, "round starting action")
-            if action.is_immediate:
-                self.action_handler.execute([action], input_handler=self.input_handler)
-            else:
-                new_action = action.save(board=self.board)
-                if new_action:
-                    self.action_handler.execute([new_action], input_handler=self.input_handler)
+            self.action_handler.execute([action], input_handler=self.input_handler)
             self.observer.on_action_executed(ActionSource.ROUND_START, [action])

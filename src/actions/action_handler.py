@@ -19,6 +19,7 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
 
     def execute(self, actions: list[Action], input_handler: InputHandler) -> None:
         not_used_immediate_actions = self._get_immediate_actions(actions)
+        self._save_actions(self._get_not_immediate_actions(actions), not_used_immediate_actions)
 
         while not_used_immediate_actions:
             self.board.consumed_immediate_actions += 1
@@ -42,13 +43,18 @@ class ActionHandler:  # pylint: disable=too-few-public-methods
             del not_used_immediate_actions[action_index_to_use]
             logger.info("Action list", "used action removed")
 
-            if immediate_actions_received:
-                not_used_immediate_actions.extend(immediate_actions_received)
-            if not_immediate_actions_received:
-                for action in not_immediate_actions_received:
-                    new_action = action.save(board=self.board)
-                    if new_action:
-                        not_used_immediate_actions.append(new_action)
+            not_used_immediate_actions.extend(immediate_actions_received)
+            self._save_actions(not_immediate_actions_received, not_used_immediate_actions)
+
+    def _save_actions(self, actions_to_save: list[Action], not_used_immediate_actions: list[Action]) -> None:
+        for action in actions_to_save:
+            chained_action = action.save(board=self.board)
+            if chained_action is None:
+                continue
+            if chained_action.is_immediate:
+                not_used_immediate_actions.append(chained_action)
+            else:
+                self._save_actions([chained_action], not_used_immediate_actions)
 
     def _pick_action_index_to_use(
         self,

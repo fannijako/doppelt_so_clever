@@ -23,6 +23,8 @@ class BlueQuestionMarkAction(ImmediateActions):
     def use(self, board: Board, input_handler: InputHandler) -> list[Action]:
         value_limit_on_next_box = board.blue_board_part.get_value_limit_on_next_box()
         logger.debug("Value limit", value_limit_on_next_box, "next blue box")
+        if value_limit_on_next_box == 0:
+            return []
 
         blue_dice = Dice(DiceColor.BLUE)
         white_dice = Dice(DiceColor.WHITE)
