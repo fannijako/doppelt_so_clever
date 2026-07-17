@@ -33,6 +33,8 @@ class FeatureFlags:  # pylint: disable=too-many-instance-attributes
     curriculum_eval_episodes: int = 16
     terminal_reward_scale: float = DEFAULT_TERMINAL_REWARD_SCALE
     strategic_features: bool = True
+    tail_hinge_threshold: float = 0.0
+    tail_hinge_lambda: float = 0.0
 
 
 @dataclass
@@ -47,6 +49,7 @@ class IOConfig:
 class EvalConfig:
     interval: int = 50
     episodes: int = 32
+    best_metric: str = "mean"
 
 
 @dataclass
@@ -174,6 +177,8 @@ def _episode_options(config: TrainingConfig, max_rounds: int | None) -> EpisodeO
         terminal_reward_scale=config.features.terminal_reward_scale,
         reward_config=REWARD_MODE_CONFIGS[config.features.reward_mode],
         strategic_features=config.features.strategic_features,
+        tail_hinge_threshold=config.features.tail_hinge_threshold,
+        tail_hinge_lambda=config.features.tail_hinge_lambda,
     )
 
 
@@ -279,8 +284,8 @@ def _maybe_eval_and_save_best(
     score = _evaluate_policy(ctx.policy, config)
     writer.add_scalar("eval/mean_score", score, (iteration + 1) * config.batch_size)
     logger.info(
-        "eval iter=%d  mean=%.1f  best=%.1f",
-        iteration, score, max(best_eval_score, score),
+        "eval iter=%d  %s=%.1f  best=%.1f",
+        iteration, config.eval.best_metric, score, max(best_eval_score, score),
     )
     if score > best_eval_score:
         _save_best_checkpoint(ctx.policy, ctx.trainer, iteration, score, config)
@@ -294,6 +299,12 @@ def _evaluate_policy(policy: PolicyNetwork, config: TrainingConfig) -> float:
         options=_episode_options(config, max_rounds=None),
         num_workers=config.num_workers,
     )
+    return _eval_metric(scores, config.eval.best_metric)
+
+
+def _eval_metric(scores: list[int], metric: str) -> float:
+    if metric == "p10":
+        return float(sorted(scores)[int(len(scores) * 0.10)])
     return sum(scores) / len(scores)
 
 
@@ -346,6 +357,8 @@ def _checkpoint_payload(
         "gamma": config.ppo.gamma,
         "gae_lambda": config.ppo.gae_lambda,
         "reward_mode": config.features.reward_mode,
+        "tail_hinge_threshold": config.features.tail_hinge_threshold,
+        "tail_hinge_lambda": config.features.tail_hinge_lambda,
     }
 
 
@@ -447,6 +460,8 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
         curriculum_eval_episodes=args.curriculum_eval_episodes,
         terminal_reward_scale=args.terminal_reward_scale,
         strategic_features=args.strategic_features,
+        tail_hinge_threshold=args.tail_hinge_threshold,
+        tail_hinge_lambda=args.tail_hinge_lambda,
     )
     io_config = IOConfig(
         checkpoint_interval=args.checkpoint_interval,
@@ -461,6 +476,7 @@ def _build_config(args: argparse.Namespace) -> TrainingConfig:
     eval_config = EvalConfig(
         interval=args.eval_interval,
         episodes=args.eval_episodes,
+        best_metric=args.best_metric,
     )
     return TrainingConfig(
         iterations=args.iterations,
@@ -527,6 +543,10 @@ def _add_io_args(parser: argparse.ArgumentParser) -> None:
         "--eval-episodes", type=int, default=32,
         help="Full-round episodes per eval pass for best.pt",
     )
+    parser.add_argument(
+        "--best-metric", choices=("mean", "p10"), default="mean",
+        help="Metric that drives best.pt selection (p10 for tail-focused runs)",
+    )
 
 
 def _add_feature_args(parser: argparse.ArgumentParser) -> None:
@@ -558,6 +578,14 @@ def _add_reward_args(parser: argparse.ArgumentParser) -> None:
             "Per-step reward shaping: none (default, sparse terminal only), "
             "total (legacy breadth shaping), min-section (PBRS on the weakest section)."
         ),
+    )
+    parser.add_argument(
+        "--tail-hinge-threshold", type=float, default=0.0,
+        help="Terminal hinge threshold: scores below it get an extra penalty (0=disabled)",
+    )
+    parser.add_argument(
+        "--tail-hinge-lambda", type=float, default=0.0,
+        help="Weight of the terminal hinge penalty below the threshold",
     )
 
 
