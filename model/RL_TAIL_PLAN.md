@@ -7,6 +7,27 @@ under 140** (p10=117, p5=106, p1=89, min=68 over 500-game diagnostic). Target:
 Companion to [`RL_PLATEAU_DIAGNOSIS.md`](./RL_PLATEAU_DIAGNOSIS.md) (mean-plateau
 analysis); this doc targets the **left tail**.
 
+## Status — Phase 0 + Phase 1 complete (2026-07-17)
+
+Phase 1 gate **cleared** at n=2000: mean 166.1, %<140 12.9%, p5 127, p1 113.
+The winning mechanism was fallback #2 (**yellow-depth PBRS**), not the hinge —
+warm-start legs, argmax n=1000/2000:
+
+| Leg | mode | mean | %<140 | p5 | p1 | min |
+|---|---|---|---|---|---|---|
+| run D (start) | min-section | 152.6 | 28.8 | 106 | 89 | 68 |
+| hinge λ=1 | +hinge | 155.9 | 24.2 | 113 | 92 | 69 |
+| hinge λ=2 | +hinge | 156.0 | 24.0 | 117 | 99 | 84 |
+| yellow-depth | +yellow PBRS | 161.9 | 16.4 | 120 | 100 | 62 |
+| yellow-depth ×2 | " | 162.5 | 15.7 | 122 | 106 | 94 |
+| **yellow-depth ×3** | " | **166.1** | **12.9** | **127** | **113** | **75** |
+
+Terminal-only hinge stalled at ~24% (moved the extreme tail p1/min, not the mass);
+dense per-step yellow credit is what moved %<140, matching the diagnosis that
+yellow is 73% of the tail gap. Not literal zero (Phase 3 go/no-go still open), but
+sub-140 mass more than halved from run D. Phase 2 (capacity/PBT with p10 exploit)
+is the next lever if a lower gate is wanted.
+
 ## Evidence — what a sub-140 game looks like (500 games, run D best.pt, argmax)
 
 | Metric | tail (<140, n=146) | good (≥140, n=354) | delta |
