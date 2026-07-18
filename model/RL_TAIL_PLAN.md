@@ -87,15 +87,38 @@ Start with (1); fall back to (2) if %<140 hasn't moved after ~1500 iters;
 entropy; or PBT with exploit metric switched from mean to p10. Cost: ~8–12 h CPU.
 **Gate:** %<140 ≤ 5% and p1 ≥ 130 at n=1000.
 
-**In progress (2026-07-18)** — chose **PBT + p10 exploit**. `pbt_train_rl.py`
-gained `--exploit-metric {mean,p10}` (exploit/explore + `best_agent.pt` selected
-by p10, not mean) and `--warm-start` (seeds all 8 agents from the Phase-1 winner
-so the population pushes the tail from 166.1, not random). Launched pop=8,
-batch=64, eval-episodes=200 (stable p10), eval-interval=50, reward-mode
-yellow-depth, 1200 iters (~10 h, 24 exploit generations). Output:
-`model/pbt_checkpoints/best_agent.pt`, TB `runs/pbt_phase2`. On completion:
-argmax-evaluate at n=1000 vs the Phase-1 gate above; promote to
-`model/checkpoints/best.pt` only if it beats 12.9% / p1 113.
+**Done (2026-07-18)** — chose **PBT + p10 exploit**. `pbt_train_rl.py` gained
+`--exploit-metric {mean,p10}` (exploit/explore + `best_agent.pt` selected by p10,
+not mean) and `--warm-start` (seeds all 8 agents from the Phase-1 winner).
+Ran pop=8, batch=64, eval-episodes=200, eval-interval=50, reward-mode
+yellow-depth, 1200 iters (~9 h, 24 generations). Sampled best-agent p10 climbed
+132 (warm-start) → durable ~138 (peak 142); `_save_best` captured the final
+generation (sampled p10 135).
+
+Apples-to-apples argmax eval, both n=1000, same harness:
+
+| Metric | Phase-2 PBT | Phase-1 | Δ |
+|---|---|---|---|
+| mean | **170.3** | 167.0 | +3.3 |
+| median | 171 | 167 | +4 |
+| p10 | 139 | 136 | +3 |
+| p5 | 128 | 129 | −1 |
+| **%<140** | **10.2** | 12.7 | −2.5 |
+| p1 | 110 | 116 | −6 |
+| min | 81 | 94 | −13 |
+
+**Promoted** to `model/checkpoints/best.pt` (user call). Phase-2 wins the bulk
+tail + center (mean, median, p10, %<140) but loses the extreme tail (p1, min) —
+the p10 exploit objective is blind below the 10th percentile, trading a
+fat-shallow left tail for a thin-deep one. **Neither model clears the Phase-2
+gate (≤5% / p1≥130).** The promoted `best.pt` is a PBT-origin *inference*
+checkpoint: no `optimizer_state_dict`, so `train --resume` on it is unsupported
+(warm-start via PBT `--warm-start` still works — policy weights only).
+
+**Verdict → Phase 3.** The extreme tail (p1/min) now looks like a dice-variance
+floor, not a skill gap: shaping + p10 selection tightened the mass to 10.2% but
+could not crack the worst games. Next is the Phase 3 go/no-go, not more of the
+same shaping.
 
 ## Phase 3 — go/no-go on literal zero
 
