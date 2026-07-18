@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 class ExploitConfig:
     fraction: float = 0.2
     perturb_factor: float = 1.2
+    metric: str = "mean"
 
 
 @dataclass
@@ -48,13 +49,14 @@ class SharedHyperparams:
 
 
 @dataclass
-class PBTConfig:
+class PBTConfig:  # pylint: disable=too-many-instance-attributes
     population_size: int = 8
     iterations: int = 5000
     eval_interval: int = 50
     eval_episodes: int = 32
     batch_size: int = 64
     num_workers: int = 0
+    warm_start: str | None = None
     shared: SharedHyperparams = field(default_factory=SharedHyperparams)
     exploit: ExploitConfig = field(default_factory=ExploitConfig)
     io: PBTIOConfig = field(default_factory=PBTIOConfig)
@@ -76,6 +78,7 @@ class Agent:
     trainer: PPOTrainer
     config: AgentConfig
     mean_score: float = 0.0
+    fitness: float = 0.0
 
 
 def main() -> None:
@@ -93,7 +96,7 @@ def main() -> None:
     population = _init_population(pbt_config)
     _pbt_loop(population, pbt_config, writer)
 
-    _save_best(population, pbt_config.io.checkpoint_dir)
+    _save_best(population, pbt_config.io.checkpoint_dir, pbt_config.exploit.metric)
     writer.close()
     logger.info("PBT training complete.")
 
@@ -137,6 +140,13 @@ def _evaluate_population(population: list[Agent], config: PBTConfig) -> None:
             options=options, num_workers=config.num_workers,
         )
         agent.mean_score = sum(scores) / len(scores)
+        agent.fitness = _fitness(scores, config.exploit.metric)
+
+
+def _fitness(scores: list[int], metric: str) -> float:
+    if metric == "p10":
+        return float(sorted(scores)[int(len(scores) * 0.10)])
+    return sum(scores) / len(scores)
 
 
 def _shared_episode_options(shared: SharedHyperparams) -> EpisodeOptions:
@@ -149,7 +159,7 @@ def _shared_episode_options(shared: SharedHyperparams) -> EpisodeOptions:
 
 
 def _exploit_and_explore(population: list[Agent], config: PBTConfig) -> None:
-    ranked = sorted(population, key=lambda a: a.mean_score, reverse=True)
+    ranked = sorted(population, key=lambda a: a.fitness, reverse=True)
     cutoff = max(1, int(len(ranked) * config.exploit.fraction))
     top = ranked[:cutoff]
     bottom = ranked[-cutoff:]
@@ -194,10 +204,25 @@ def _ppo_config_from(agent_config: AgentConfig) -> PPOConfig:
 
 
 def _init_population(config: PBTConfig) -> list[Agent]:
-    return [_create_agent(i, config) for i in range(config.population_size)]
+    warm_start_state = _load_warm_start_state(config) if config.warm_start else None
+    return [_create_agent(i, config, warm_start_state) for i in range(config.population_size)]
 
 
-def _create_agent(idx: int, config: PBTConfig) -> Agent:
+def _load_warm_start_state(config: PBTConfig) -> dict:
+    checkpoint = torch.load(config.warm_start, map_location="cpu", weights_only=True)
+    expected = _compute_pbt_state_size(config.shared)
+    if checkpoint["state_size"] != expected:
+        raise ValueError(
+            f"warm-start state_size {checkpoint['state_size']} != population state_size {expected}"
+        )
+    logger.info(
+        "Warm-starting population from %s (score=%.1f)",
+        config.warm_start, checkpoint.get("best_eval_score", checkpoint.get("mean_score", float("nan"))),
+    )
+    return checkpoint["policy_state_dict"]
+
+
+def _create_agent(idx: int, config: PBTConfig, warm_start_state: dict | None = None) -> Agent:
     lr = _sample_log_uniform(1e-4, 1e-3)
     ent = _sample_log_uniform(0.001, 0.05)
     agent_config = AgentConfig(
@@ -208,6 +233,8 @@ def _create_agent(idx: int, config: PBTConfig) -> Agent:
         hidden1=agent_config.hidden1,
         hidden2=agent_config.hidden2,
     )
+    if warm_start_state is not None:
+        policy.load_state_dict(warm_start_state)
     trainer = PPOTrainer(policy, _ppo_config_from(agent_config))
     return Agent(idx=idx, policy=policy, trainer=trainer, config=agent_config)
 
@@ -233,6 +260,7 @@ def _log_population(
 ) -> None:
     scores = [a.mean_score for a in population]
     _log_population_summary(writer, iteration, scores, elapsed)
+    _log_population_fitness(writer, iteration, [a.fitness for a in population])
     _log_agent_hyperparams(writer, iteration, population)
 
 
@@ -249,6 +277,14 @@ def _log_population_summary(
     writer.add_scalar("pbt/worst_score", worst, iteration)
 
 
+def _log_population_fitness(
+    writer: SummaryWriter, iteration: int, fitness: list[float],
+) -> None:
+    writer.add_scalar("pbt/best_fitness", max(fitness), iteration)
+    writer.add_scalar("pbt/mean_fitness", sum(fitness) / len(fitness), iteration)
+    writer.add_scalar("pbt/worst_fitness", min(fitness), iteration)
+
+
 def _log_agent_hyperparams(
     writer: SummaryWriter, iteration: int, population: list[Agent],
 ) -> None:
@@ -263,8 +299,8 @@ def _log_agent_hyperparams(
         )
 
 
-def _save_best(population: list[Agent], checkpoint_dir: str) -> None:
-    best = max(population, key=lambda a: a.mean_score)
+def _save_best(population: list[Agent], checkpoint_dir: str, metric: str) -> None:
+    best = max(population, key=lambda a: a.fitness)
     path = os.path.join(checkpoint_dir, "best_agent.pt")
     torch.save({
         "policy_state_dict": best.policy.state_dict(),
@@ -275,6 +311,8 @@ def _save_best(population: list[Agent], checkpoint_dir: str) -> None:
             "hidden2": best.config.hidden2,
         },
         "mean_score": best.mean_score,
+        "fitness": best.fitness,
+        "exploit_metric": metric,
         "state_size": _compute_pbt_state_size(best.config.shared),
         "augmented": best.config.shared.augmented,
         "strategic_features": best.config.shared.strategic_features,
@@ -287,7 +325,10 @@ def _save_best(population: list[Agent], checkpoint_dir: str) -> None:
         "gae_lambda": best.config.shared.gae_lambda,
         "reward_mode": best.config.shared.reward_mode,
     }, path)
-    logger.info("Saved best agent (score=%.1f) to %s", best.mean_score, path)
+    logger.info(
+        "Saved best agent (%s=%.1f mean=%.1f) to %s",
+        metric, best.fitness, best.mean_score, path,
+    )
 
 
 def _build_pbt_config(args: argparse.Namespace) -> PBTConfig:
@@ -298,6 +339,7 @@ def _build_pbt_config(args: argparse.Namespace) -> PBTConfig:
         eval_episodes=args.eval_episodes,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
+        warm_start=args.warm_start,
         shared=SharedHyperparams(
             augmented=args.augmented,
             strategic_features=args.strategic_features,
@@ -310,6 +352,7 @@ def _build_pbt_config(args: argparse.Namespace) -> PBTConfig:
         exploit=ExploitConfig(
             fraction=args.exploit_fraction,
             perturb_factor=args.perturb_factor,
+            metric=args.exploit_metric,
         ),
         io=PBTIOConfig(
             checkpoint_dir=args.checkpoint_dir,
@@ -336,11 +379,19 @@ def _add_pbt_core_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--eval-episodes", type=int, default=32)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--num-workers", type=int, default=0, help="Parallel episode workers (0=sequential)")
+    parser.add_argument(
+        "--warm-start", type=str, default=None,
+        help="Checkpoint to seed every agent's weights from (e.g. model/checkpoints/best.pt)",
+    )
 
 
 def _add_pbt_exploit_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--exploit-fraction", type=float, default=0.2)
     parser.add_argument("--perturb-factor", type=float, default=1.2)
+    parser.add_argument(
+        "--exploit-metric", choices=("mean", "p10"), default="mean",
+        help="Metric ranking exploit survivors and best_agent.pt selection (p10 for tail-focused runs)",
+    )
 
 
 def _add_pbt_io_args(parser: argparse.ArgumentParser) -> None:
