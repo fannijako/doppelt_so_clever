@@ -81,12 +81,21 @@ Start with (1); fall back to (2) if %<140 hasn't moved after ~1500 iters;
 (3) only if both fail.
 **Gate:** %<140 ≤ 15% and p5 ≥ 120 at n=1000, mean not regressing below 150.
 
-## Phase 2 — capacity + exploration (fresh run, overnight)
+## Phase 2 — capacity + exploration (overnight)
 
-Only if Phase 1 plateaus above its gate. 512/256 trunk (no warm start across
-architecture), `--lr-decay`, higher early entropy; or PBT with exploit metric
-switched from mean to p10. Cost: full retrain, ~8–12 h CPU.
+512/256 trunk (no warm start across architecture), `--lr-decay`, higher early
+entropy; or PBT with exploit metric switched from mean to p10. Cost: ~8–12 h CPU.
 **Gate:** %<140 ≤ 5% and p1 ≥ 130 at n=1000.
+
+**In progress (2026-07-18)** — chose **PBT + p10 exploit**. `pbt_train_rl.py`
+gained `--exploit-metric {mean,p10}` (exploit/explore + `best_agent.pt` selected
+by p10, not mean) and `--warm-start` (seeds all 8 agents from the Phase-1 winner
+so the population pushes the tail from 166.1, not random). Launched pop=8,
+batch=64, eval-episodes=200 (stable p10), eval-interval=50, reward-mode
+yellow-depth, 1200 iters (~10 h, 24 exploit generations). Output:
+`model/pbt_checkpoints/best_agent.pt`, TB `runs/pbt_phase2`. On completion:
+argmax-evaluate at n=1000 vs the Phase-1 gate above; promote to
+`model/checkpoints/best.pt` only if it beats 12.9% / p1 113.
 
 ## Phase 3 — go/no-go on literal zero
 
