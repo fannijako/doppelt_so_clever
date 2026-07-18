@@ -26,6 +26,13 @@ class EpisodeOptions:
     terminal_reward_scale: float = DEFAULT_TERMINAL_REWARD_SCALE
     reward_config: RewardConfig | None = None
     strategic_features: bool = False
+    tail_hinge_threshold: float = 0.0
+    tail_hinge_lambda: float = 0.0
+
+
+def terminal_reward(score: int, options: EpisodeOptions) -> float:
+    hinge = options.tail_hinge_lambda * min(0.0, float(score) - options.tail_hinge_threshold)
+    return (float(score) + hinge) * options.terminal_reward_scale
 
 
 def make_policy_fn(policy: PolicyNetwork):
@@ -78,8 +85,7 @@ def run_episode(
     )
     score = game.play(max_rounds=opts.max_rounds)
     handler.flush_terminal_step_reward()
-    scaled_terminal = float(score) * opts.terminal_reward_scale
-    return convert_trajectory(handler.trajectory, scaled_terminal), score
+    return convert_trajectory(handler.trajectory, terminal_reward(score, opts)), score
 
 
 def collect_batch(

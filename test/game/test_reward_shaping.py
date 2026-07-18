@@ -5,6 +5,7 @@ import pytest
 from src.board.board import Board
 from src.game.reward_shaper import (
     MIN_SECTION_PBRS_REWARD_CONFIG,
+    YELLOW_DEPTH_PBRS_REWARD_CONFIG,
     BoardSnapshot,
     RewardConfig,
     RewardShaper,
@@ -145,3 +146,45 @@ class TestMinSectionShaping:
         board = Board()
         snapshot = BoardSnapshot.capture(board, RLObserver(board), RewardConfig())
         assert snapshot.min_section_score is None
+
+
+class TestYellowDepthShaping:
+    def test_yellow_cross_gain_rewarded(self):
+        shaper = RewardShaper(YELLOW_DEPTH_PBRS_REWARD_CONFIG)
+        reward = shaper.compute(
+            _snapshot(yellow_crossed=2),
+            _snapshot(yellow_crossed=4),
+        )
+        assert reward == pytest.approx(0.1 * 2)
+
+    def test_min_section_term_still_active_in_composed_config(self):
+        shaper = RewardShaper(YELLOW_DEPTH_PBRS_REWARD_CONFIG)
+        reward = shaper.compute(
+            _snapshot(min_section_score=0, yellow_crossed=0),
+            _snapshot(min_section_score=3, yellow_crossed=1),
+        )
+        assert reward == pytest.approx(0.1 * 3 + 0.1 * 1)
+
+    def test_breadth_progress_not_rewarded(self):
+        shaper = RewardShaper(YELLOW_DEPTH_PBRS_REWARD_CONFIG)
+        reward = shaper.compute(
+            _snapshot(yellow_crossed=3),
+            _snapshot(filled_boxes=5, foxes=1, gained_plus_ones=2, yellow_crossed=3),
+        )
+        assert reward == pytest.approx(0.0)
+
+    def test_contributions_telescope_across_snapshot_chain(self):
+        shaper = RewardShaper(YELLOW_DEPTH_PBRS_REWARD_CONFIG)
+        chain = [_snapshot(yellow_crossed=c) for c in (0, 1, 1, 4, 6)]
+        total = sum(shaper.compute(prev, curr) for prev, curr in zip(chain, chain[1:]))
+        assert total == pytest.approx(0.1 * (6 - 0))
+
+    def test_capture_records_yellow_crossed_when_configured(self):
+        board = Board()
+        snapshot = BoardSnapshot.capture(board, RLObserver(board), YELLOW_DEPTH_PBRS_REWARD_CONFIG)
+        assert snapshot.yellow_crossed == 0
+
+    def test_capture_skips_yellow_crossed_when_not_configured(self):
+        board = Board()
+        snapshot = BoardSnapshot.capture(board, RLObserver(board), MIN_SECTION_PBRS_REWARD_CONFIG)
+        assert snapshot.yellow_crossed is None

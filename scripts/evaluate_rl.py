@@ -38,6 +38,9 @@ logger = logging.getLogger(__name__)
 HandlerFactory = Callable[[Board], InputHandler]
 
 
+TAIL_THRESHOLD = 140
+
+
 @dataclass
 class BaselineResult:
     name: str
@@ -54,6 +57,12 @@ class BaselineResult:
     @property
     def median(self) -> float:
         return statistics.median(self.scores)
+
+    def percentile(self, p: int) -> float:
+        return float(sorted(self.scores)[int(len(self.scores) * p / 100)])
+
+    def pct_below(self, threshold: int) -> float:
+        return sum(1 for s in self.scores if s < threshold) / len(self.scores) * 100.0
 
 
 def main() -> None:
@@ -171,14 +180,20 @@ def _create_policy_fn(policy: PolicyNetwork):
 
 
 def _print_comparison_table(results: list[BaselineResult]) -> None:
-    header = f"{'Agent':<20} {'Mean':>8} {'Std':>8} {'Median':>8} {'Min':>6} {'Max':>6} {'N':>6}"
+    header = (
+        f"{'Agent':<20} {'Mean':>8} {'Std':>8} {'Median':>8} "
+        f"{'P10':>6} {'P5':>6} {'P1':>6} {'Min':>6} {'Max':>6} "
+        f"{'%<' + str(TAIL_THRESHOLD):>7} {'N':>6}"
+    )
     print("\n" + "=" * len(header))
     print(header)
     print("-" * len(header))
     for r in results:
         print(
             f"{r.name:<20} {r.mean:>8.1f} {r.std:>8.1f} {r.median:>8.1f} "
-            f"{min(r.scores):>6} {max(r.scores):>6} {len(r.scores):>6}"
+            f"{r.percentile(10):>6.0f} {r.percentile(5):>6.0f} {r.percentile(1):>6.0f} "
+            f"{min(r.scores):>6} {max(r.scores):>6} "
+            f"{r.pct_below(TAIL_THRESHOLD):>7.1f} {len(r.scores):>6}"
         )
     print("=" * len(header))
     _print_relative_improvements(results)

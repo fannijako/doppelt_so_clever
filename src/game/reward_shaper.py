@@ -20,6 +20,7 @@ class RewardConfig:  # pylint: disable=too-many-instance-attributes
     w_score: float = 0.1
     use_partial_score: bool = False
     w_min_section: float = 0.0
+    w_yellow_depth: float = 0.0
 
 
 NO_SHAPING_REWARD_CONFIG = RewardConfig(
@@ -34,10 +35,17 @@ MIN_SECTION_PBRS_REWARD_CONFIG = RewardConfig(
     use_partial_score=False, w_min_section=0.1,
 )
 
+YELLOW_DEPTH_PBRS_REWARD_CONFIG = RewardConfig(
+    w_box=0.0, w_fox=0.0, w_plus_one=0.0, w_reroll=0.0, w_reuse=0.0,
+    w_consumed_immediate=0.0, w_failed=0.0, w_score=0.0,
+    use_partial_score=False, w_min_section=0.1, w_yellow_depth=0.1,
+)
+
 REWARD_MODE_CONFIGS = {
     "none": NO_SHAPING_REWARD_CONFIG,
     "total": RewardConfig(),
     "min-section": MIN_SECTION_PBRS_REWARD_CONFIG,
+    "yellow-depth": YELLOW_DEPTH_PBRS_REWARD_CONFIG,
 }
 
 
@@ -52,6 +60,7 @@ class BoardSnapshot:  # pylint: disable=too-many-instance-attributes
     failed_action_count: int
     partial_score: float | None = None
     min_section_score: int | None = None
+    yellow_crossed: int | None = None
 
     @classmethod
     def capture(
@@ -67,6 +76,7 @@ class BoardSnapshot:  # pylint: disable=too-many-instance-attributes
             failed_action_count=observer.failed_action_count,
             partial_score=board.partial_evaluate() if config.use_partial_score else None,
             min_section_score=board.min_section_score() if config.w_min_section else None,
+            yellow_crossed=_count_yellow_crossed(board) if config.w_yellow_depth else None,
         )
 
 
@@ -93,7 +103,13 @@ class RewardShaper:
             reward += cfg.w_score * (curr.partial_score - prev.partial_score)
         if prev.min_section_score is not None and curr.min_section_score is not None:
             reward += cfg.w_min_section * (curr.min_section_score - prev.min_section_score)
+        if prev.yellow_crossed is not None and curr.yellow_crossed is not None:
+            reward += cfg.w_yellow_depth * (curr.yellow_crossed - prev.yellow_crossed)
         return reward
+
+
+def _count_yellow_crossed(board: Board) -> int:
+    return sum(1 for box in board.yellow_board_part.boxes if box.is_crossed)
 
 
 def _count_filled_boxes(board: Board) -> int:

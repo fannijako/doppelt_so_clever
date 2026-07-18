@@ -100,3 +100,14 @@ class TestBestCheckpoint:
         with tempfile.TemporaryDirectory() as tmpdir:
             _run_with_eval(tmpdir, 210.5)
             assert "state_size" in _load_best(tmpdir)
+
+    def test_best_checkpoint_records_tail_hinge_lambda(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ctx, config = _make_context(tmpdir)
+            config.features.tail_hinge_lambda = 1.5
+            with patch("scripts.train_rl._evaluate_policy", return_value=200.0):
+                _maybe_eval_and_save_best(
+                    ctx, config, iteration=0,
+                    best_eval_score=float("-inf"), writer=MagicMock(),
+                )
+            assert _load_best(tmpdir)["tail_hinge_lambda"] == 1.5
