@@ -10,13 +10,13 @@ python -m venv .venv && source .venv/bin/activate
 make build              # core package (editable install)
 make build-test         # adds pytest, pylint, flake8
 make build-rl           # adds torch, numpy, tensorboard
-make build-interactive  # adds pygame
+make build-interactive  # adds arcade
 make build-all          # everything
 
 # Run
 python main.py                             # console mode (stdin prompts)
 python main.py play --mode automatic       # random decisions
-python main.py play --mode interactive     # Pygame UI
+python main.py play --mode interactive     # Arcade UI
 python main.py play --mode model           # trained model
 python main.py monte-carlo -r 1000 --mode automatic
 python main.py train                       # PPO training
@@ -44,9 +44,9 @@ make monitor-rl MONITOR_ARGS="--log-dir runs/pbt --interval 300"  # PBT runs, 5-
 
 `Game` (`src/game/game.py`) orchestrates 6 active rounds each followed by a passive round. It depends on three collaborators injected at construction: a `Board`, a `GameObserver`, and an `InputHandler`. These three are always assembled together in `src/entrypoint.py` (for play modes) or in the respective `scripts/` file for training/evaluation/monte-carlo.
 
-**Observer pattern** — `GameObserver` (ABC in `src/game/game_observer.py`) receives lifecycle events: `on_dice_rolled`, `on_die_picked`, `on_board_updated`, `on_action_executed`, `on_game_ended`, etc. `CompositeObserver` multicasts to multiple observers. Implementations: `LoggingObserver`, `RLObserver`, `PygameUI`.
+**Observer pattern** — `GameObserver` (ABC in `src/game/game_observer.py`) receives lifecycle events: `on_dice_rolled`, `on_die_picked`, `on_board_updated`, `on_action_executed`, `on_game_ended`, etc. `CompositeObserver` multicasts to multiple observers. Implementations: `LoggingObserver`, `RLObserver`, `ArcadeUI`.
 
-**InputHandler pattern** — `InputHandler` (ABC in `src/input_handler/base_input_handler.py`) has three methods: `choose_index()`, `confirm()`, `choose_value()`. Implementations: `ConsoleInputHandler`, `AutomaticInputHandler`, `PygameInputHandler`, `RLInputHandler`, `ModelInputHandler`.
+**InputHandler pattern** — `InputHandler` (ABC in `src/input_handler/base_input_handler.py`) has three methods: `choose_index()`, `confirm()`, `choose_value()`. Implementations: `ConsoleInputHandler`, `AutomaticInputHandler`, `ArcadeInputHandler`, `RLInputHandler`, `ModelInputHandler`.
 
 **Round types** — `ActiveRound` (`src/round/active_round.py`) runs up to 3 dice-picking turns; picking a die discards all lower-valued dice. `PassiveRound` (`src/round/passive_round.py`) picks from the 3 lowest available dice.
 
@@ -73,7 +73,7 @@ PPOTrainer  →  updates PolicyNetwork from TrajectoryBatch
 
 **Checkpoint parity contract:** checkpoints store `state_size`, `augmented`, `strategic_features`, and `strategic_features_version`. Every load site (train resume, `evaluate_rl`, `monte_carlo`, `ModelAdvisor`) builds the observer from this metadata and asserts `observer.state_size` equals the network input dim (`assert_observer_state_size` in `scripts/train_rl.py`) — a mismatch raises instead of silently skewing.
 
-**Reward modes** (`--reward-mode`, default `none`): `none` = sparse terminal reward only; `total` = legacy per-step breadth shaping (collapses entropy — kept for ablation); `min-section` = potential-based shaping on `min(section)` with γ=1. Curriculum requires a per-step mode (`total` or `min-section`).
+**Reward modes** (`--reward-mode`, default `none`): `none` = sparse terminal reward only; `total` = legacy per-step breadth shaping (collapses entropy — kept for ablation); `min-section` = potential-based shaping on `min(section)` with γ=1; `yellow-depth` = `min-section` plus a yellow-crossed-count potential term. Curriculum requires any per-step mode (anything but `none`).
 
 `RLInputHandler` (`src/input_handler/model/rl_input_handler.py`) builds action masks (max 30 actions) and records `Transition`s during training; recording is skipped in eval mode.
 
@@ -87,6 +87,7 @@ Training is CPU-only by design: the bottleneck is the Python game simulation, no
 | `scripts/pbt_train_rl.py` | Population-Based Training: multiple agents, exploit/explore, hyperparameter perturbation |
 | `scripts/evaluate_rl.py` | Compares RL agent against random and always-accept baselines; `--ci` exits non-zero if RL is below always-accept |
 | `scripts/monte_carlo.py` | Bulk simulation with configurable mode |
+| `scripts/section_report.py` | Per-section evaluation report for an RL checkpoint (`python main.py section-report`) |
 | `scripts/monitor_rl.py` | Polls the latest TensorBoard event file and prints a one-line snapshot of key training scalars; supports `--once`, `--event-file`, `--log-dir`, `--interval` |
 
 TensorBoard logs go to `runs/`, checkpoints to `model/checkpoints/` (standard) or `model/pbt_checkpoints/` (PBT).

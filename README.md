@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A Python simulation of **Doppelt so clever** (*Twice as Clever*), the popular roll-and-write dice game. The game can be played interactively via the command line, through a Pygame UI, or run in fully automatic mode with randomized decisions.
+A Python simulation of **Doppelt so clever** (*Twice as Clever*), the popular roll-and-write dice game. The game can be played interactively via the command line, through an Arcade UI, or run in fully automatic mode with randomized decisions.
 
 ### Game Mechanics
 
@@ -15,6 +15,14 @@ A Python simulation of **Doppelt so clever** (*Twice as Clever*), the popular ro
 - **Fox** bonuses multiply the lowest-scoring board section
 - Final score is calculated by summing all board sections plus fox bonuses
 
+## Highlights
+
+- **One engine, many drivers** — the same `Game` engine runs console play, random and heuristic baselines, the Arcade UI, and RL training, driven purely through two injected seams (`GameObserver`, `InputHandler`).
+- **RL state design** — a 372-float normalized board tensor plus 19 context features, optionally augmented with a prompt-type one-hot (11), a 30×12 candidate-option block, and 16 derived strategic features (778 dims total); all three decision kinds (index, confirm, value) share one masked 30-action head.
+- **Checkpoint parity contract** — checkpoints store observer metadata (`state_size`, `augmented`, `strategic_features`, version); every load site rebuilds the observer from that metadata and asserts the network input dimension, backed by cross-loader roundtrip tests.
+- **CI model-regression gate** — every push replays 200 games against a committed checkpoint and fails the build if the agent scores below the Always-Accept baseline.
+- **Documented training arc** — plateau diagnosis → potential-based reward shaping → PBT tail work, tracked in `model/RL_PLATEAU_DIAGNOSIS.md`, `model/RL_TAIL_PLAN.md`, and `model/RL_TRAINING_JOURNEY.md`: mean score 9.9 → 170.3, sub-140 games 28.8% → 10.2%.
+
 ## Project Structure
 
 ```
@@ -26,16 +34,22 @@ src/
 │   ├── logging_observer.py    # Logging-only observer
 │   └── composite_observer.py  # Multicasts to multiple observers
 ├── ui/
-│   ├── pygame_ui.py     # Pygame observer, threading, input bridging
+│   ├── arcade_ui.py     # Arcade window + observer, threading, input bridging
 │   ├── renderer.py      # Pure rendering logic (draws board, dice, prompts)
 │   ├── render_snapshot.py # Immutable dataclass snapshot of game state
+│   ├── layout.py        # Responsive scaling and panel geometry
+│   ├── widgets.py       # Drawing primitives: cards, buttons, dice, boxes
+│   ├── animations.py    # Score easing, pulses, popups
+│   ├── geometry.py      # Rect and hit-testing primitives
+│   ├── pick.py          # Maps click targets to option indices
+│   ├── theme.py         # Fonts and color palette
 │   ├── model_advisor.py # Loads trained model and provides action recommendations
-│   └── constants.py     # Colors, dice colors, action labels, FPS
+│   └── constants.py     # Colors, dice colors, action labels
 ├── input_handler/
 │   ├── base_input_handler.py      # InputHandler ABC
 │   ├── consol_input_handler.py    # Console (stdin) input
 │   ├── automatic_input_handler.py # Random/automatic input
-│   ├── pygame_input_handler.py    # Delegates input to PygameUI
+│   ├── arcade_input_handler.py    # Delegates input to ArcadeUI
 │   └── heuristics/                # Heuristic-based handlers
 ├── board/
 │   ├── board.py         # Board with 5 colored parts and scoring
@@ -78,7 +92,7 @@ make build
 make build-test
 ```
 
-4. Install interactive (Pygame) dependencies:
+4. Install interactive (Arcade) dependencies:
 ```bash
 make build-interactive
 ```
@@ -107,12 +121,12 @@ Run the game in **automatic mode** (random decisions):
 make run-auto
 ```
 
-Run the game in **interactive mode** (Pygame UI):
+Run the game in **interactive mode** (Arcade UI):
 ```bash
 make run-interactive
 ```
 
-Press **H** during any prompt to get a recommendation from the trained RL model (loaded from `model/pbt_checkpoints/best_agent.pt`). The recommended option will be highlighted with a cyan border.
+Press **H** during any prompt to get a recommendation from the trained RL model (loaded from `model/checkpoints/best.pt`). The recommended option will be highlighted with a cyan border.
 
 Run the **Monte Carlo simulation**:
 ```bash
@@ -149,7 +163,7 @@ Train with **custom PPO hyperparameters** and a different terminal-reward scale:
 python main.py train --gamma 0.99 --gae-lambda 0.95 --minibatch-size 128 --terminal-reward-scale 0.1
 ```
 
-Pick a **reward mode** (default `none` = terminal-only; `total` is the legacy breadth shaping; `min-section` is potential-based shaping on the weakest section):
+Pick a **reward mode** (default `none` = terminal-only; `total` is the legacy breadth shaping; `min-section` is potential-based shaping on the weakest section; `yellow-depth` adds a yellow-crossed-count potential term on top of `min-section`):
 ```bash
 python main.py train --reward-mode min-section
 ```
@@ -173,6 +187,11 @@ The evaluator prefers `model/checkpoints/best.pt` when present, otherwise falls 
 Run evaluation with **CI gate** (exits non-zero if RL agent scores below Always-Accept):
 ```bash
 python main.py evaluate -n 200 --ci --checkpoint model/ci_checkpoint.pt
+```
+
+Generate a **per-section evaluation report** for a checkpoint:
+```bash
+python main.py section-report --checkpoint model/checkpoints/best.pt -n 300
 ```
 
 Train the RL agent with **Population-Based Training** (PBT):
@@ -274,7 +293,7 @@ python main.py play --mode console          # default, stdin prompts
 python main.py play --mode automatic         # random decisions
 python main.py play --mode always-accept     # heuristic: always accept
 python main.py play --mode model             # trained model
-python main.py play --mode interactive       # Pygame UI
+python main.py play --mode interactive       # Arcade UI
 ```
 
 Monte Carlo simulation modes:

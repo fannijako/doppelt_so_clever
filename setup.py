@@ -40,6 +40,8 @@ setup(
 
     url="https://github.com/fannijako/doppelt_so_clever",
 
+    license="MIT",
+
     packages=find_packages(),
     include_package_data=True,
 
