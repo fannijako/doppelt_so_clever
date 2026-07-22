@@ -16,16 +16,22 @@ src/
 │   ├── rl_observer.py        # RL context tracker (round, dice, phase)
 │   └── composite_observer.py  # Multicasts to multiple observers
 ├── ui/
-│   ├── pygame_ui.py       # Pygame observer, threading, input bridging
+│   ├── arcade_ui.py       # Arcade window + observer, threading, input bridging
 │   ├── renderer.py        # Pure rendering logic (board, dice, prompts)
 │   ├── render_snapshot.py # Immutable dataclass snapshot of game state
+│   ├── layout.py          # Responsive scaling and panel geometry
+│   ├── widgets.py         # Drawing primitives: cards, buttons, dice, boxes
+│   ├── animations.py      # Score easing, pulses, popups
+│   ├── geometry.py        # Rect and hit-testing primitives
+│   ├── pick.py            # Maps click targets to option indices
+│   ├── theme.py           # Fonts and color palette
 │   ├── model_advisor.py   # Loads trained model and provides action recommendations
-│   └── constants.py       # Colors, dice colors, action labels, FPS
+│   └── constants.py       # Colors, dice colors, action labels
 ├── input_handler/
 │   ├── base_input_handler.py      # InputHandler ABC
 │   ├── consol_input_handler.py    # Console (stdin) input
 │   ├── automatic_input_handler.py # Random/automatic input
-│   ├── pygame_input_handler.py    # Delegates input to PygameUI
+│   ├── arcade_input_handler.py    # Delegates input to ArcadeUI
 │   └── heuristics/                # Rule-based baseline handlers (always-accept, greedy, fox-balancing, resource-aware)
 ├── dice/                  # Dice and color definitions
 ├── round/                 # Active and passive round logic
@@ -61,7 +67,7 @@ scripts/
 
 | Class | File | Responsibility | Dependencies |
 |-------|------|----------------|--------------|
-| *(module)* `entrypoint` | `src/entrypoint.py` | Parses CLI args (`-v`, `--mode`), builds observer + input handler, starts a `Game` | `Game`, `CompositeObserver`, `LoggingObserver`, `PygameUI`, `PygameInputHandler` |
+| *(module)* `entrypoint` | `src/entrypoint.py` | Parses CLI args (`-v`, `--mode`), builds observer + input handler, starts a `Game`; `ArcadeUI`/`ModelAdvisor` are imported lazily so non-interactive modes run without the `interactive`/`rl` extras | `Game`, `CompositeObserver`, `LoggingObserver`, `ArcadeUI`, `ArcadeInputHandler` |
 | `Game` | `src/game/game.py` | Runs 6 active rounds, each followed by a passive round; grants round-specific bonus actions; triggers final scoring; notifies `GameObserver` on lifecycle events | `Board`, `ActionHandler`, `GameObserver`, `ActiveRound`, `PassiveRound`, `ReRollAction`, `ReUseAction`, `PlusOneAction`, `BlackQuestionMarkAction` |
 | *(module)* `monte_carlo` | `scripts/monte_carlo.py` | Runs Monte Carlo simulations with configurable rounds; uses a `GameFactory` callable to create per-game instances; RL mode wires a fresh `Board`/`RLObserver`/`RLInputHandler` per game matching the training setup | `Game`, `LoggingObserver`, `RLObserver`, `RLInputHandler`, `PolicyNetwork` |
 | *(module)* `train_rl` | `scripts/train_rl.py` | PPO training loop: collects episode batches via `RLInputHandler`, builds trajectory batches, runs PPO updates, logs to TensorBoard, saves periodic checkpoints | `Game`, `RLObserver`, `RLInputHandler`, `PolicyNetwork`, `PPOTrainer`, `TrajectoryBatch` |
@@ -77,9 +83,9 @@ scripts/
 | `RLObserver` | `src/game/rl_observer.py` | Tracks round number, subround, active/passive phase, dice values and availability; exposes `get_context_tensor()` (19 floats) and `get_state()` (board tensor + context + optional prompt-type one-hot); stores terminal score | `GameObserver`, `Board`, `DiceColor`, `DecisionType`, `PromptType` |
 | `PromptType` | `src/game/rl_observer.py` | Enum of 11 prompt types used for observation augmentation (one-hot encoding appended to state) | — |
 | `DecisionType` | `src/game/rl_observer.py` | Enum of decision types presented to the agent: `CHOOSE_INDEX`, `CONFIRM`, `CHOOSE_VALUE` | — |
-| `PygameUI` | `src/ui/pygame_ui.py` | Pygame-based observer; tracks dice/board state for rendering; provides `wait_for_input()` / `submit_input()` for synchronous input from the UI thread; runs game logic on a background thread via `run_with_game()`; supports model hints via `H` keypress | `GameObserver`, `Board`, `Renderer`, `RenderSnapshot`, `pygame`, `ModelAdvisor` (optional) |
+| `ArcadeUI` | `src/ui/arcade_ui.py` | Arcade-based observer; owns the `GameWindow`; tracks dice/board state for rendering; provides `wait_for_input()` / `submit_input()` for synchronous input from the UI thread; runs game logic on a background thread via `run_with_game()`; supports model hints via `H` keypress | `GameObserver`, `Board`, `Renderer`, `RenderSnapshot`, `arcade`, `ModelAdvisor` (optional) |
 | `ModelAdvisor` | `src/ui/model_advisor.py` | Loads a trained `PolicyNetwork` checkpoint; uses `RLObserver` to build game state tensors; returns greedy action recommendations for UI hints | `PolicyNetwork`, `RLObserver`, `DecisionType`, `_MAX_OPTIONS` |
-| `Renderer` | `src/ui/renderer.py` | Stateless rendering class; draws board panels (yellow, blue, green, pink, grey), dice, status bar, buttons, and won-actions from a `RenderSnapshot` | `RenderSnapshot`, `constants`, `pygame` |
+| `Renderer` | `src/ui/renderer.py` | Stateless rendering class; draws board panels (yellow, blue, green, pink, grey), dice, status bar, buttons, and won-actions from a `RenderSnapshot` | `RenderSnapshot`, `layout`, `widgets`, `theme`, `arcade` |
 | `RenderSnapshot` | `src/ui/render_snapshot.py` | Immutable `@dataclass` holding a complete copy of game state for one frame (board dict, dice lists, round info, prompt/options, score) | — |
 
 ### Input Handlers
@@ -89,7 +95,7 @@ scripts/
 | `InputHandler` (ABC) | `src/input_handler/base_input_handler.py` | Abstract interface: `choose_index()`, `confirm()`, `choose_value()` | — |
 | `ConsoleInputHandler` | `src/input_handler/consol_input_handler.py` | Reads from stdin | `InputHandler` |
 | `AutomaticInputHandler` | `src/input_handler/automatic_input_handler.py` | Returns random valid choices | `InputHandler` |
-| `PygameInputHandler` | `src/input_handler/pygame_input_handler.py` | Delegates all input to `PygameUI.wait_for_input()` — blocks until the UI submits a result | `InputHandler`, `PygameUI` |
+| `ArcadeInputHandler` | `src/input_handler/arcade_input_handler.py` | Delegates all input to `ArcadeUI.wait_for_input()` — blocks until the UI submits a result | `InputHandler`, `ArcadeUI` |
 | `ModelInputHandler` | `src/input_handler/model/model_input_handler.py` | Uses a trained model for decisions | `InputHandler` |
 | `RLInputHandler` | `src/input_handler/model/rl_input_handler.py` | Queries a `Policy` for actions; builds action masks; records `Transition`s (state, action, log_prob, value, action_mask) during training; skips recording in eval mode | `InputHandler`, `RLObserver`, `Policy` (protocol) |
 | `AlwaysAcceptInputHandler` | `src/input_handler/heuristics/always_accept.py` | Like random, but always confirms — never declines a placement, reroll, reuse, or plus-one | `AutomaticInputHandler` |
@@ -208,12 +214,12 @@ main.py → entrypoint → Game
                           │     ├── LoggingObserver
                           │     ├── CompositeObserver → [GameObserver...]
                           │     ├── RLObserver
-                          │     └── PygameUI ← PygameInputHandler
+                          │     └── ArcadeUI ← ArcadeInputHandler
                           │           └── ModelAdvisor (optional, for hints)
                           ├── InputHandler (ABC)
                           │     ├── ConsoleInputHandler
                           │     ├── AutomaticInputHandler
-                          │     ├── PygameInputHandler → PygameUI
+                          │     ├── ArcadeInputHandler → ArcadeUI
                           │     ├── ModelInputHandler
                           │     └── RLInputHandler → RLObserver, Policy
                           ├── Board

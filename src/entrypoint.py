@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 import argparse
 from typing import Optional
 
 from src.game.game import Game
 from src.board.board import Board
-from src.ui.arcade_ui import ArcadeUI
 from src.game.rl_observer import RLObserver
-from src.ui.model_advisor import ModelAdvisor
 from src.game.game_observer import GameObserver
 from src.actions.action_handler import ActionHandler
 from src.game.logging_observer import LoggingObserver
@@ -19,6 +19,13 @@ from src.input_handler import (
     ConsoleInputHandler,
     ModelInputHandler,
 )
+
+try:
+    from src.ui.arcade_ui import ArcadeUI
+    from src.ui.model_advisor import ModelAdvisor
+except ImportError:
+    ArcadeUI = None
+    ModelAdvisor = None
 
 from model.model import DoppeltSoCleverModel
 
@@ -62,6 +69,8 @@ def build_observer(arguments: argparse.Namespace, board: Board) -> tuple[GameObs
     arcade_ui: Optional[ArcadeUI] = None
 
     if arguments.mode == "interactive":
+        if ArcadeUI is None or ModelAdvisor is None:
+            raise ImportError("interactive mode requires the interactive and rl extras: make build-interactive build-rl")
         augmented = ModelAdvisor.read_augmented_from_checkpoint()
         strategic_features = ModelAdvisor.read_strategic_features_from_checkpoint()
         rl_observer = RLObserver(board, augmented=augmented, strategic_features=strategic_features)
